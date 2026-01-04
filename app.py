@@ -13,7 +13,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 
 # --- 1. Settings & Persistence ---
 DB_FILE = 'nms_db.json'
-MANAGER_PHONE = "+971522045638" # Replace with your WhatsApp number (e.g., 201234567890)
+MANAGER_PHONE = "+971522045638" # ضع رقمك هنا بيبدأ بـ 20
 
 def load_data():
     if not os.path.exists(DB_FILE) or os.stat(DB_FILE).st_size == 0:
@@ -87,10 +87,7 @@ else:
             if admin_opt == "Edit/Delete Employee":
                 target = st.selectbox("Select Employee", list(db["users"].keys()))
                 db["users"][target]["full_name"] = st.text_input("Full Name", db["users"][target].get("full_name", ""))
-                db["users"][target]["email"] = st.text_input("Email", db["users"][target].get("email", ""))
                 db["users"][target]["phone"] = st.text_input("Mobile", db["users"][target].get("phone", ""))
-                db["users"][target]["address"] = st.text_input("Address", db["users"][target].get("address", ""))
-                db["users"][target]["id_num"] = st.text_input("ID Number", db["users"][target].get("id_num", ""))
                 db["users"][target]["pass"] = st.text_input("Password", db["users"][target].get("pass", ""))
                 col_save, col_del = st.columns(2)
                 if col_save.button("Save Changes"): save_data(db); st.success("Updated!")
@@ -137,9 +134,9 @@ else:
             st.subheader("End Checklist")
             for t in db["tasks"]["end"]: st.checkbox(t, key=f"e_{t}")
             st.divider(); st.subheader("💳 Non-Cash")
-            i_p = st.number_input("Instapay", step=1, format="%d")
-            w_p = st.number_input("Wallet", step=1, format="%d")
-            v_p = st.number_input("Visa", step=1, format="%d")
+            instapay = st.number_input("Instapay", step=1, format="%d")
+            wallet = st.number_input("Wallet", step=1, format="%d")
+            visa = st.number_input("Visa", step=1, format="%d")
         with col_cash2:
             st.subheader("💰 Closing Cash")
             total_close = 0
@@ -153,24 +150,22 @@ else:
             st.metric("Cash Balance", f"{net_diff} LE")
         with col_pr2:
             st.subheader("🖨️ Printer Usage")
-            # Kyocera Logic
-            st.write("**Kyocera Machine**")
+            st.write("**Kyocera**")
             k_end = st.number_input("Kyocera Final Counter", step=1, format="%d")
             k_1 = st.number_input("Kyo One-Side", step=1, format="%d", key="k1")
             k_2 = st.number_input("Kyo Duplex", step=1, format="%d", key="k2")
             k_3 = st.number_input("Kyo Draft", step=1, format="%d", key="k3")
             k_counter_change = k_end - k_start
             k_manual = k_1 + (k_2 * 2) + k_3
-            st.info(f"Kyo Diff: {k_manual - k_counter_change}")
-            # Xerox Logic
-            st.write("**Xerox Machine**")
+            
+            st.write("**Xerox**")
             x_end = st.number_input("Xerox Final Counter", step=1, format="%d")
             x_1 = st.number_input("Xero One-Side", step=1, format="%d", key="x1")
             x_2 = st.number_input("Xero Duplex", step=1, format="%d", key="x2")
             x_3 = st.number_input("Xero Draft", step=1, format="%d", key="x3")
             x_counter_change = x_end - x_start
             x_manual = x_1 + (x_2 * 2) + x_3
-            st.info(f"Xerox Diff: {x_manual - x_counter_change}")
+            
             st.divider(); opay_end = st.number_input("Opay Final Balance", step=1, format="%d")
 
     with tab3:
@@ -178,7 +173,7 @@ else:
         m_cols = st.columns(4)
         m_results = {task: m_cols[i%4].checkbox(task, key=f"m_{task}") for i, task in enumerate(db["tasks"]["marketing"])}
 
-    # --- 6. WhatsApp & PDF Buttons ---
+    # --- 6. Buttons ---
     st.divider()
     cw1, cw2 = st.columns(2)
     with cw1:
@@ -188,14 +183,14 @@ else:
             elements = []
             styles = getSampleStyleSheet()
             elements.append(Paragraph(f"NMS Report - {branch}", styles['Title']))
-            elements.append(Paragraph(f"Date: {datetime.now().strftime('%Y-%m-%d')} | Employee: {st.session_state['user']}", styles['Normal']))
-            data = [["Category", "Detail", "Value"], ["Cash", "Net Diff", f"{net_diff} LE"], ["Kyocera", "Actual Usage", f"{k_manual}"], ["Xerox", "Actual Usage", f"{x_manual}"], ["Opay", "Diff", f"{opay_end-opay_start} LE"]]
+            data = [["Category", "Detail", "Value"], ["Cash", "Net Diff", f"{net_diff} LE"], ["Kyo", "Usage", f"{k_manual}"], ["Xerox", "Usage", f"{x_manual}"]]
             t = Table(data, colWidths=[100, 200, 100])
             t.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 0.5, colors.black), ('BACKGROUND', (0,0), (-1,0), colors.lightgrey)]))
             elements.append(t); doc.build(elements)
-            st.download_button("Download Now", data=buffer.getvalue(), file_name=f"NMS_Report_{datetime.now().strftime('%Y%m%d')}.pdf")
+            st.download_button("Download Now", data=buffer.getvalue(), file_name=f"NMS_Report.pdf")
 
     with cw2:
         wa_text = f"*🚀 NMS SHIFT REPORT*\nBranch: {branch}\nUser: {st.session_state['user']}\nCash Diff: {net_diff} LE\nKyo Usage: {k_manual}\nXerox Usage: {x_manual}\nOpay Diff: {opay_end-opay_start} LE"
         wa_url = f"https://wa.me/{MANAGER_PHONE}?text={urllib.parse.quote(wa_text)}"
-        st.markdown(f'<a href="{wa_url}" target="_blank"><button style="width:100%; background-color:#25D366; color:white; border:none; padding:10px; border-radius:5px; cursor:pointer;">📱 Send WhatsApp Report</button></a>', unsafe_content_ Harris=True)
+        # السطر المصلح أدناه:
+        st.markdown(f'<a href="{wa_url}" target="_blank"><button style="width:100%; background-color:#25D366; color:white; border:none; padding:10px; border-radius:5px; cursor:pointer;">📱 Send WhatsApp Report</button></a>', unsafe_allow_html=True)
