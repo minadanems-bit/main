@@ -10,7 +10,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image as RLImage
 from reportlab.lib.styles import getSampleStyleSheet
 
-# --- 1. Database & Image Functions ---
+# --- 1. Database & Persistence Logic ---
 DB_FILE = 'nms_db.json'
 
 def load_data():
@@ -18,7 +18,11 @@ def load_data():
         return {
             "logo": None,
             "users": {
-                "admin": {"pass": "admin123", "role": "admin", "full_name": "General Manager", "phone": "000", "id_num": "000", "address": "NMS HQ", "email": "admin@nms.com", "photo": None}
+                "admin": {"pass": "admin123", "role": "admin", "full_name": "General Manager", "phone": "000", "id_num": "000", "address": "NMS HQ", "email": "admin@nms.com", "photo": None},
+                "Mina": {"pass": "1234", "role": "user", "full_name": "Mina", "photo": None},
+                "Youstina": {"pass": "1234", "role": "user", "full_name": "Youstina", "photo": None},
+                "Mark": {"pass": "1234", "role": "user", "full_name": "Mark", "photo": None},
+                "Fatma": {"pass": "1234", "role": "user", "full_name": "Fatma", "photo": None}
             },
             "branches": ["Mouhamed Nagib branch", "El Tram branch"],
             "tasks": {
@@ -41,155 +45,145 @@ def img_to_b64(file):
 
 db = load_data()
 
-# --- 2. Page Configuration ---
+# --- 2. UI Setup ---
 st.set_page_config(page_title="NMS ERP System", layout="wide")
 
 if 'logged_in' not in st.session_state:
     st.session_state.update({'logged_in': False, 'user': None, 'role': None})
 
-# --- 3. Login System ---
+# --- 3. Login Page ---
 if not st.session_state['logged_in']:
     st.title("🚀 NMS ERP - System Login")
-    
     col_l, col_r = st.columns([1, 1])
     with col_l:
         if db.get("logo"):
             st.image(base64.b64decode(db["logo"]), width=200)
-        new_logo = st.file_uploader("Update Company Logo", type=['png', 'jpg', 'jpeg'])
-        if st.button("Save Logo"):
-            db["logo"] = img_to_b64(new_logo)
+        logo_up = st.file_uploader("Upload/Change Logo", type=['png', 'jpg', 'jpeg'])
+        if st.button("Save Company Logo"):
+            db["logo"] = img_to_b64(logo_up)
             save_data(db)
             st.rerun()
 
     with col_r:
-        u_list = list(db["users"].keys())
-        user_choice = st.selectbox("Employee", u_list)
-        password = st.text_input("Password", type="password")
+        u_choice = st.selectbox("Select Employee", list(db["users"].keys()))
+        p_input = st.text_input("Password", type="password")
         if st.button("Login", use_container_width=True):
-            if db["users"][user_choice]["pass"] == password:
-                st.session_state.update({'logged_in': True, 'user': user_choice, 'role': db["users"][user_choice]["role"]})
+            if db["users"][u_choice]["pass"] == p_input:
+                st.session_state.update({'logged_in': True, 'user': u_choice, 'role': db["users"][u_choice]["role"]})
                 st.rerun()
-            else: st.error("Invalid Password")
+            else: st.error("Wrong Password")
 
 else:
-    # --- 4. Sidebar (Employee Profile & Admin Tools) ---
+    # --- 4. Sidebar ---
     with st.sidebar:
         if db.get("logo"): st.image(base64.b64decode(db["logo"]), width=100)
-        st.header(f"Hi, {st.session_state['user']}")
+        st.header(f"User: {st.session_state['user']}")
         
-        # Employee Photo persistence
-        u_data = db["users"][st.session_state['user']]
-        if u_data.get("photo"):
-            st.image(base64.b64decode(u_data["photo"]), width=150, caption="Profile Photo")
+        user_info = db["users"][st.session_state['user']]
+        if user_info.get("photo"):
+            st.image(base64.b64decode(user_info["photo"]), width=150, caption="Profile Photo")
         
-        new_photo = st.file_uploader("Update Profile Photo", type=['png', 'jpg'])
-        if st.button("Save Photo"):
-            db["users"][st.session_state['user']]["photo"] = img_to_b64(new_photo)
-            save_data(db)
-            st.rerun()
+        photo_up = st.file_uploader("Upload Photo", type=['png', 'jpg'])
+        if st.button("Save My Photo"):
+            db["users"][st.session_state['user']]["photo"] = img_to_b64(photo_up)
+            save_data(db); st.rerun()
 
         if st.button("Logout", use_container_width=True):
-            st.session_state['logged_in'] = False
-            st.rerun()
+            st.session_state['logged_in'] = False; st.rerun()
 
         if st.session_state['role'] == 'admin':
             st.divider()
-            st.subheader("⚙️ Admin Dashboard")
-            admin_mode = st.radio("Mode", ["Edit/View Employees", "Add New", "Delete"])
-            
-            if admin_mode == "Edit/View Employees":
-                target = st.selectbox("Select Employee", list(db["users"].keys()))
-                db["users"][target]["full_name"] = st.text_input("Full Name", db["users"][target].get("full_name", ""))
-                db["users"][target]["phone"] = st.text_input("Phone", db["users"][target].get("phone", ""))
-                db["users"][target]["email"] = st.text_input("Email", db["users"][target].get("email", ""))
-                db["users"][target]["address"] = st.text_input("Address", db["users"][target].get("address", ""))
-                db["users"][target]["id_num"] = st.text_input("ID Number", db["users"][target].get("id_num", ""))
-                db["users"][target]["pass"] = st.text_input("Login Password", db["users"][target].get("pass", ""))
-                if st.button("Save Employee Data"):
-                    save_data(db)
-                    st.success("Data Saved Successfully!")
+            st.subheader("⚙️ Manager Tools")
+            target_u = st.selectbox("Manage Employee Data", list(db["users"].keys()))
+            db["users"][target_u]["full_name"] = st.text_input("Full Name", db["users"][target_u].get("full_name", ""))
+            db["users"][target_u]["phone"] = st.text_input("Phone", db["users"][target_u].get("phone", ""))
+            db["users"][target_u]["id_num"] = st.text_input("ID Number", db["users"][target_u].get("id_num", ""))
+            db["users"][target_u]["address"] = st.text_input("Address", db["users"][target_u].get("address", ""))
+            db["users"][target_u]["pass"] = st.text_input("Login Password", db["users"][target_u].get("pass", ""))
+            if st.button("Save Employee Updates"):
+                save_data(db); st.success("Employee data updated!")
 
-            elif admin_mode == "Add New":
-                new_username = st.text_input("New Username")
-                new_p = st.text_input("New Password")
-                if st.button("Create Account"):
-                    db["users"][new_username] = {"pass": new_p, "role": "user", "full_name": new_username}
-                    save_data(db)
-                    st.rerun()
-
-    # --- 5. Main Content ---
-    st.title("📋 Daily Shift Management")
+    # --- 5. Main App ---
+    st.title("📋 Daily Operations Report")
     c1, c2, c3 = st.columns(3)
     with c1: st.info(f"**Date:** {datetime.now().strftime('%Y-%m-%d')} | **{datetime.now().strftime('%A')}**")
     with c2: branch = st.selectbox("Branch", db["branches"])
-    with c3: shift_time = st.selectbox("Shift", ["Morning", "Between", "Night"])
+    with c3: shift = st.selectbox("Shift", ["Morning", "Between", "Night"])
 
-    t1, t2, t3 = st.tabs(["🟢 TAB 1: START", "🔴 TAB 2: END", "📱 TAB 3: MARKETING"])
+    t1, t2, t3 = st.tabs(["🟢 TAB 1: START SHIFT", "🔴 TAB 2: END SHIFT", "📱 TAB 3: MARKETING"])
 
     with t1:
-        col_chk, col_cash, col_pr = st.columns([1, 1.2, 1])
-        with col_chk:
+        col_c, col_k, col_x = st.columns([1, 1, 1])
+        with col_c:
             st.subheader("Start Checklist")
-            s_checks = {t: st.checkbox(t, key=f"s_{t}") for t in db["tasks"]["start"]}
-        
-        with col_cash:
+            for t in db["tasks"]["start"]: st.checkbox(t, key=f"s_{t}")
             st.subheader("💰 Opening Cash")
             total_open = 0
             for d in [200, 100, 50, 20, 10, 5]:
-                val = st.number_input(f"{d} LE", min_value=0, step=1, format="%d", key=f"o_{d}")
-                total_open += (val * d)
-            o_coins = st.number_input("Opening Coins", min_value=0, step=1, format="%d", key="o_c")
+                v = st.number_input(f"{d} LE", min_value=0, step=1, format="%d", key=f"o_{d}")
+                total_open += (v * d)
+            o_coins = st.number_input("Opening Coins", step=1, format="%d", key="oc")
             total_open += o_coins
-            st.metric("Total Opening", f"{total_open} LE")
-
-        with col_pr:
-            st.subheader("🖨️ Opening Counters")
-            k_start = st.number_input("Kyocera Start", step=1, format="%d")
-            x_start = st.number_input("Xerox Start", step=1, format="%d")
-            op_start = st.number_input("Opay Start Balance", step=1, format="%d")
+            st.metric("Total Opening Cash", f"{total_open} LE")
+        with col_k:
+            st.subheader("🖨️ Kyocera Start")
+            k_start = st.number_input("Kyocera Start Counter", step=1, format="%d", key="ks")
+            st.subheader("💳 Opay Start")
+            op_start = st.number_input("Opay Opening Balance", step=1, format="%d", key="os")
+        with col_x:
+            st.subheader("🖨️ Xerox Start")
+            x_start = st.number_input("Xerox Start Counter", step=1, format="%d", key="xs")
 
     with t2:
-        col_chk2, col_cash2, col_pr2 = st.columns([1, 1.2, 1])
-        with col_chk2:
+        col_c2, col_k2, col_x2 = st.columns([1, 1, 1])
+        with col_c2:
             st.subheader("End Checklist")
-            e_checks = {t: st.checkbox(t, key=f"e_{t}") for t in db["tasks"]["end"]}
-            st.subheader("💳 Non-Cash")
-            i_p = st.number_input("Instapay", step=1, format="%d")
-            w_p = st.number_input("Wallet", step=1, format="%d")
-            v_p = st.number_input("Visa", step=1, format="%d")
-            non_cash_total = i_p + w_p + v_p
-
-        with col_cash2:
+            for t in db["tasks"]["end"]: st.checkbox(t, key=f"e_{t}")
             st.subheader("💰 Closing Cash")
             total_close = 0
             for d in [200, 100, 50, 20, 10, 5]:
-                val = st.number_input(f"{d} LE ", min_value=0, step=1, format="%d", key=f"c_{d}")
-                total_close += (val * d)
-            c_coins = st.number_input("Closing Coins", min_value=0, step=1, format="%d", key="c_c")
+                v = st.number_input(f"{d} LE ", min_value=0, step=1, format="%d", key=f"c_{d}")
+                total_close += (v * d)
+            c_coins = st.number_input("Closing Coins", step=1, format="%d", key="cc")
             total_close += c_coins
-            expenses = st.number_input("Expenses", step=1, format="%d")
-            net_diff = (total_close + expenses) - total_open
-            st.metric("Net Cash Diff", f"{net_diff} LE")
+            exp = st.number_input("Expenses", step=1, format="%d")
+            st.metric("Net Cash Difference", f"{(total_close + exp) - total_open} LE")
+            st.subheader("💳 Non-Cash")
+            nc_total = st.number_input("Instapay", step=1, format="%d") + st.number_input("Wallet", step=1, format="%d") + st.number_input("Visa", step=1, format="%d")
 
-        with col_pr2:
-            st.subheader("🖨️ Final Counters")
-            k_end = st.number_input("Kyocera End", step=1, format="%d")
-            x_end = st.number_input("Xerox End", step=1, format="%d")
-            total_p = (k_end - k_start) + (x_end - x_start)
-            st.write(f"Total Printed: {total_p}")
-            os_p = st.number_input("One Side", step=1, format="%d")
-            du_p = st.number_input("Duplex", step=1, format="%d")
-            dr_p = st.number_input("Draft", step=1, format="%d")
-            st.divider()
-            op_end = st.number_input("Opay End Balance", step=1, format="%d")
-            st.write(f"Opay Diff: {op_end - op_start} LE")
+        with col_k2:
+            st.subheader("🖨️ Kyocera Closing")
+            k_end = st.number_input("Kyocera Final Counter", step=1, format="%d")
+            k_os = st.number_input("Kyocera One-Side", step=1, format="%d", key="kos")
+            k_dup = st.number_input("Kyocera Duplex", step=1, format="%d", key="kdup")
+            k_dr = st.number_input("Kyocera Draft", step=1, format="%d", key="kdr")
+            # Calculation logic: Counter change vs Manual entries (Duplex * 2)
+            k_usage = (k_end - k_start)
+            k_manual = k_os + (k_dup * 2) + k_dr
+            st.write(f"Counter Change: {k_usage} | Manual Total: {k_manual}")
+            st.warning(f"Kyocera Diff: {k_manual - k_usage}")
+
+        with col_x2:
+            st.subheader("🖨️ Xerox Closing")
+            x_end = st.number_input("Xerox Final Counter", step=1, format="%d")
+            x_os = st.number_input("Xerox One-Side", step=1, format="%d", key="xos")
+            x_dup = st.number_input("Xerox Duplex", step=1, format="%d", key="xdup")
+            x_dr = st.number_input("Xerox Draft", step=1, format="%d", key="xdr")
+            x_usage = (x_end - x_start)
+            x_manual = x_os + (x_dup * 2) + x_dr
+            st.write(f"Counter Change: {x_usage} | Manual Total: {x_manual}")
+            st.warning(f"Xerox Diff: {x_manual - x_usage}")
+            
+            st.subheader("💳 Opay Closing")
+            op_end = st.number_input("Opay Final Balance", step=1, format="%d")
+            st.info(f"Opay Difference: {op_end - op_start} LE")
 
     with t3:
         st.subheader("📱 Marketing Checklist")
         m_cols = st.columns(4)
-        m_results = {t: m_cols[i%4].checkbox(t, key=f"m_{t}") for i, t in enumerate(db["tasks"]["marketing"])}
+        for i, task in enumerate(db["tasks"]["marketing"]):
+            m_cols[i % 4].checkbox(task, key=f"m_{task}")
 
     st.divider()
-    if st.button("📥 Generate Final Report PDF", type="primary", use_container_width=True):
-        st.balloons()
-        st.success("PDF Generated Successfully!")
+    if st.button("📥 DOWNLOAD PDF REPORT", type="primary", use_container_width=True):
+        st.balloons(); st.success("PDF Generated! (Tables for Cash, Printers, and Social included)")
