@@ -103,6 +103,7 @@ else:
                 # Personal Info
                 db["users"][target]["full_name"] = st.text_input("Full Name", db["users"][target].get("full_name", ""))
                 db["users"][target]["phone"] = st.text_input("Mobile", db["users"][target].get("phone", ""))
+                db["users"][target]["address"] = st.text_input("Employee Address", db["users"][target].get("address", ""))
                 db["users"][target]["id_num"] = st.text_input("ID Number", db["users"][target].get("id_num", ""))
                 
                 if st.button("Save Profile Changes"):
