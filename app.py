@@ -85,7 +85,7 @@ else:
             st.subheader("🛠️ Admin Master Control")
             admin_mode = st.radio("Settings", ["Manage Employees", "Manage Branches", "Manage Tasks", "Logs"])
             
-    if admin_mode == "Manage Employees":
+        if admin_mode == "Manage Employees":
                 st.subheader("👥 Employee Management")
                 target = st.selectbox("Select Employee to Manage", list(db["users"].keys()))
                 
