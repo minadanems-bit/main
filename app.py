@@ -110,7 +110,7 @@ else:
                     save_db(db)
                     st.success("Profile Updated!")
 
-elif admin_mode == "Manage Branches":
+            elif admin_mode == "Manage Branches":
                 st.subheader("🏢 Branch Management")
                 
                 # 1. إضافة فرع جديد
