@@ -123,6 +123,13 @@ else:
                     db["tasks"]["social"] = s_tasks.split("\n")
                     save_db(db); st.success("Tasks Updated")
 
+            elif admin_mode == "Manage Tasks":
+                st.write("Edit Social Tasks (One per line)")
+                s_tasks = st.text_area("Tasks List", "\n".join(db["tasks"]["social"]))
+                if st.button("Update Tasks"):
+                    db["tasks"]["social"] = s_tasks.split("\n")
+                    save_db(db); st.success("Tasks Updated")
+
     # --- 5. Main Dashboard ---
     st.title("📊 Daily Shift Control")
     inf1, inf2, inf3, inf4 = st.columns(4)
