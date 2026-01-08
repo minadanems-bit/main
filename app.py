@@ -154,12 +154,33 @@ else:
                             st.error("Cannot delete the only remaining branch!")
 
             elif admin_mode == "Manage Tasks":
-                st.subheader("📝 Task Management")
-                s_tasks = st.text_area("Social Media Tasks (One per line)", "\n".join(db["tasks"]["social"]))
-                if st.button("Update All Tasks"):
-                    db["tasks"]["social"] = s_tasks.split("\n")
-                    save_db(db)
-                    st.success("Tasks Updated!")
+                st.subheader("📝 Task & Checklist Management")
+                
+                # إدارة تشيك ليست بداية الوردية (Tab 1)
+                st.write("---")
+                st.markdown("### 🟢 Opening Checklist (Tab 1)")
+                
+                # 1. إضافة بند جديد
+                new_op_task = st.text_input("Add New Item to Opening Checklist", placeholder="e.g. Clean the desk")
+                if st.button("➕ Add Opening Task"):
+                    if new_op_task and new_op_task not in db["tasks"]["opening"]:
+                        db["tasks"]["opening"].append(new_op_task)
+                        save_db(db)
+                        st.success(f"Task '{new_op_task}' added!")
+                        st.rerun()
+                
+                # 2. حذف بند موجود
+                st.write("**Current Items (Select to delete):**")
+                task_to_del = st.selectbox("Select Task to Remove", db["tasks"]["opening"], key="del_op_task")
+                if st.button("🗑️ Delete Selected Opening Task"):
+                    if task_to_del:
+                        db["tasks"]["opening"].remove(task_to_del)
+                        save_db(db)
+                        st.warning(f"Task '{task_to_del}' removed.")
+                        st.rerun()
+
+                st.write("---")
+                # يمكنك تكرار نفس المنطق لـ Closing Checklist أو Social Media هنا
 
             elif admin_mode == "Audit Logs":
                 st.subheader("📜 System Logs")
