@@ -154,33 +154,51 @@ else:
                             st.error("Cannot delete the only remaining branch!")
 
             elif admin_mode == "Manage Tasks":
-                st.subheader("📝 Task & Checklist Management")
+                st.subheader("📝 Universal Task Management")
                 
-                # إدارة تشيك ليست بداية الوردية (Tab 1)
-                st.write("---")
-                st.markdown("### 🟢 Opening Checklist (Tab 1)")
+                # قائمة منسدلة لاختيار القائمة التي تريد تعديلها
+                category = st.selectbox("Select Category to Edit", 
+                                        ["Opening Checklist (Tab 1)", 
+                                         "Closing Checklist (Tab 2)", 
+                                         "Social Media Tasks (Tab 3)"])
                 
-                # 1. إضافة بند جديد
-                new_op_task = st.text_input("Add New Item to Opening Checklist", placeholder="e.g. Clean the desk")
-                if st.button("➕ Add Opening Task"):
-                    if new_op_task and new_op_task not in db["tasks"]["opening"]:
-                        db["tasks"]["opening"].append(new_op_task)
-                        save_db(db)
-                        st.success(f"Task '{new_op_task}' added!")
-                        st.rerun()
-                
-                # 2. حذف بند موجود
-                st.write("**Current Items (Select to delete):**")
-                task_to_del = st.selectbox("Select Task to Remove", db["tasks"]["opening"], key="del_op_task")
-                if st.button("🗑️ Delete Selected Opening Task"):
-                    if task_to_del:
-                        db["tasks"]["opening"].remove(task_to_del)
-                        save_db(db)
-                        st.warning(f"Task '{task_to_del}' removed.")
-                        st.rerun()
+                # تحديد المفتاح البرمجي بناءً على الاختيار
+                if category == "Opening Checklist (Tab 1)":
+                    task_key = "opening"
+                elif category == "Closing Checklist (Tab 2)":
+                    task_key = "closing"
+                else:
+                    task_key = "social"
 
-                st.write("---")
-                # يمكنك تكرار نفس المنطق لـ Closing Checklist أو Social Media هنا
+                st.divider()
+                st.write(f"### Manage {category}")
+
+                # 1. إضافة بند جديد
+                col_add, col_btn = st.columns([3, 1])
+                with col_add:
+                    new_item = st.text_input(f"New Item for {category}", placeholder="Type task name here...")
+                with col_btn:
+                    st.write(" ") # موازنة رأسية
+                    if st.button("➕ Add Item", use_container_width=True):
+                        if new_item and new_item not in db["tasks"][task_key]:
+                            db["tasks"][task_key].append(new_item)
+                            save_db(db)
+                            st.success("Task Added!")
+                            st.rerun()
+                        else: st.error("Empty or Duplicate!")
+
+                st.divider()
+
+                # 2. حذف بند موجود
+                st.write("**Current Tasks (Select to Remove):**")
+                item_to_del = st.selectbox("Select Task", db["tasks"][task_key], key="del_selector")
+                
+                if st.button("🗑️ Delete Selected Item", use_container_width=True):
+                    if item_to_del:
+                        db["tasks"][task_key].remove(item_to_del)
+                        save_db(db)
+                        st.warning(f"Item '{item_to_del}' removed.")
+                        st.rerun()
 
             elif admin_mode == "Audit Logs":
                 st.subheader("📜 System Logs")
