@@ -87,28 +87,61 @@ else:
             admin_mode = st.radio("Settings", ["Manage Employees", "Manage Branches", "Manage Tasks", "Audit Logs"])
             
             if admin_mode == "Manage Employees":
-                st.write("**Edit Employee Profiles**")
-                target = st.selectbox("Select User", list(db["users"].keys()))
+                st.subheader("👥 Employee Master Control")
                 
-                # Reset Password
-                st.warning(f"🔐 Reset Password for: {target}")
-                new_p = st.text_input("New Password", key="pwd_input")
-                if st.button("Update Password"):
-                    if new_p:
-                        db["users"][target]["pass"] = new_p
-                        save_db(db)
-                        st.success("Password Updated!")
-                
+                # 1. إضافة موظف جديد تماماً
+                with st.expander("➕ Register New Employee"):
+                    new_u_name = st.text_input("Username (Login ID)")
+                    new_u_pass = st.text_input("Set Password", type="password")
+                    new_u_full = st.text_input("Full Name")
+                    if st.button("Create Account"):
+                        if new_u_name and new_u_name not in db["users"]:
+                            db["users"][new_u_name] = {
+                                "pass": new_u_pass, 
+                                "role": "user", 
+                                "full_name": new_u_full,
+                                "email": "", "phone": "", "address": "", "id_num": "", "photo": None
+                            }
+                            save_db(db)
+                            st.success(f"Account for {new_u_name} created successfully!")
+                            st.rerun()
+                        else: st.error("Username empty or already exists!")
+
                 st.divider()
-                # Personal Info
-                db["users"][target]["full_name"] = st.text_input("Full Name", db["users"][target].get("full_name", ""))
-                db["users"][target]["phone"] = st.text_input("Mobile", db["users"][target].get("phone", ""))
-                db["users"][target]["address"] = st.text_input("Employee Address", db["users"][target].get("address", ""))
-                db["users"][target]["id_num"] = st.text_input("ID Number", db["users"][target].get("id_num", ""))
+
+                # 2. تعديل أو مسح موظف موجود
+                st.write("**Manage Existing Accounts**")
+                target_user = st.selectbox("Select Employee", list(db["users"].keys()))
                 
-                if st.button("Save Profile Changes"):
-                    save_db(db)
-                    st.success("Profile Updated!")
+                # نمنع المدير من مسح نفسه بالخطأ
+                is_admin = db["users"][target_user]["role"] == "admin"
+                
+                col_e1, col_e2 = st.columns(2)
+                with col_e1:
+                    db["users"][target_user]["full_name"] = st.text_input("Full Name", db["users"][target_user].get("full_name", ""))
+                    db["users"][target_user]["pass"] = st.text_input("Edit Password", db["users"][target_user]["pass"])
+                    db["users"][target_user]["phone"] = st.text_input("Phone", db["users"][target_user].get("phone", ""))
+                
+                with col_e2:
+                    db["users"][target_user]["address"] = st.text_input("Address", db["users"][target_user].get("address", ""))
+                    db["users"][target_user]["email"] = st.text_input("Email", db["users"][target_user].get("email", ""))
+                    db["users"][target_user]["id_num"] = st.text_input("ID Number", db["users"][target_user].get("id_num", ""))
+
+                col_actions = st.columns(2)
+                with col_actions[0]:
+                    if st.button("💾 Save Changes", use_container_width=True):
+                        save_db(db)
+                        st.success(f"Details for {target_user} updated!")
+                
+                with col_actions[1]:
+                    if not is_admin: # حماية حساب الأدمن من المسح
+                        if st.button("🗑️ Delete Employee", use_container_width=True):
+                            del db["users"][target_user]
+                            save_db(db)
+                            st.warning(f"User {target_user} deleted!")
+                            st.rerun()
+                    else:
+                        st.info("Admin account cannot be deleted.")
 
             elif admin_mode == "Manage Branches":
                 st.subheader("🏢 Branch Management")
