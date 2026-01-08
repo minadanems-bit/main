@@ -80,56 +80,56 @@ else:
         if st.button("Logout", use_container_width=True):
             st.session_state['logged_in'] = False; st.rerun()
 
+# --- ADMIN MASTER CONTROLS ---
         if st.session_state['role'] == 'admin':
             st.divider()
             st.subheader("🛠️ Admin Master Control")
-            admin_mode = st.radio("Settings", ["Manage Employees", "Manage Branches", "Manage Tasks", "Logs"])
+            admin_mode = st.radio("Settings", ["Manage Employees", "Manage Branches", "Manage Tasks", "Audit Logs"])
             
-        if admin_mode == "Manage Employees":
-                st.subheader("👥 Employee Management")
-                target = st.selectbox("Select Employee to Manage", list(db["users"].keys()))
+            if admin_mode == "Manage Employees":
+                st.write("**Edit Employee Profiles**")
+                target = st.selectbox("Select User", list(db["users"].keys()))
                 
-                # الجزء الخاص بتغيير الباسورد
-                st.markdown("---")
+                # Reset Password
                 st.warning(f"🔐 Reset Password for: {target}")
-                new_p_val = st.text_input("Enter New Password", key="new_pass_field")
-                if st.button("Save New Password"):
-                    if new_p_val:
-                        db["users"][target]["pass"] = new_p_val
+                new_p = st.text_input("New Password", key="pwd_input")
+                if st.button("Update Password"):
+                    if new_p:
+                        db["users"][target]["pass"] = new_p
                         save_db(db)
-                        st.success(f"Password for {target} has been updated!")
-                    else:
-                        st.error("Please enter a password first")
-                st.markdown("---")
-
-                # باقي بيانات الموظف
+                        st.success("Password Updated!")
+                
+                st.divider()
+                # Personal Info
                 db["users"][target]["full_name"] = st.text_input("Full Name", db["users"][target].get("full_name", ""))
-                db["users"][target]["email"] = st.text_input("Email", db["users"][target].get("email", ""))
-                db["users"][target]["phone"] = st.text_input("Phone", db["users"][target].get("phone", ""))
-                db["users"][target]["address"] = st.text_input("Address", db["users"][target].get("address", ""))
+                db["users"][target]["phone"] = st.text_input("Mobile", db["users"][target].get("phone", ""))
                 db["users"][target]["id_num"] = st.text_input("ID Number", db["users"][target].get("id_num", ""))
                 
-                if st.button("Save All Profile Changes"):
+                if st.button("Save Profile Changes"):
                     save_db(db)
-                    st.success("Employee details saved successfully!")            
-                elif admin_mode == "Manage Branches":
-                n_branch = st.text_input("Add New Branch")
-                if st.button("Add"): db["branches"].append(n_branch); save_db(db); st.rerun()
-                st.write("Current Branches:", db["branches"])
+                    st.success("Profile Updated!")
+
+            elif admin_mode == "Manage Branches":
+                st.subheader("🏢 Branch Management")
+                n_br = st.text_input("Add New Branch Name")
+                if st.button("Add Branch"):
+                    if n_br:
+                        db["branches"].append(n_br)
+                        save_db(db)
+                        st.success(f"Branch '{n_br}' added!")
+                        st.rerun()
 
             elif admin_mode == "Manage Tasks":
-                st.write("Edit Social Tasks (One per line)")
-                s_tasks = st.text_area("Tasks List", "\n".join(db["tasks"]["social"]))
-                if st.button("Update Tasks"):
+                st.subheader("📝 Task Management")
+                s_tasks = st.text_area("Social Media Tasks (One per line)", "\n".join(db["tasks"]["social"]))
+                if st.button("Update All Tasks"):
                     db["tasks"]["social"] = s_tasks.split("\n")
-                    save_db(db); st.success("Tasks Updated")
+                    save_db(db)
+                    st.success("Tasks Updated!")
 
-            elif admin_mode == "Manage Tasks":
-                st.write("Edit Social Tasks (One per line)")
-                s_tasks = st.text_area("Tasks List", "\n".join(db["tasks"]["social"]))
-                if st.button("Update Tasks"):
-                    db["tasks"]["social"] = s_tasks.split("\n")
-                    save_db(db); st.success("Tasks Updated")
+            elif admin_mode == "Audit Logs":
+                st.subheader("📜 System Logs")
+                st.dataframe(pd.DataFrame(db["logs"]).tail(50))
 
     # --- 5. Main Dashboard ---
     st.title("📊 Daily Shift Control")
