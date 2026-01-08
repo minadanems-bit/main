@@ -111,7 +111,8 @@ else:
                 
                 if st.button("Save All Profile Changes"):
                     save_db(db)
-                    st.success("Employee details saved successfully!")            elif admin_mode == "Manage Branches":
+                    st.success("Employee details saved successfully!")            
+                elif admin_mode == "Manage Branches":
                 n_branch = st.text_input("Add New Branch")
                 if st.button("Add"): db["branches"].append(n_branch); save_db(db); st.rerun()
                 st.write("Current Branches:", db["branches"])
