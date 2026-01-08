@@ -110,15 +110,48 @@ else:
                     save_db(db)
                     st.success("Profile Updated!")
 
-            elif admin_mode == "Manage Branches":
+elif admin_mode == "Manage Branches":
                 st.subheader("🏢 Branch Management")
-                n_br = st.text_input("Add New Branch Name")
-                if st.button("Add Branch"):
-                    if n_br:
-                        db["branches"].append(n_br)
-                        save_db(db)
-                        st.success(f"Branch '{n_br}' added!")
-                        st.rerun()
+                
+                # 1. إضافة فرع جديد
+                with st.expander("➕ Add New Branch"):
+                    n_br = st.text_input("New Branch Name")
+                    if st.button("Confirm Add"):
+                        if n_br and n_br not in db["branches"]:
+                            db["branches"].append(n_br)
+                            save_db(db)
+                            st.success(f"Branch '{n_br}' added!")
+                            st.rerun()
+                        else: st.error("Branch name empty or already exists")
+
+                st.divider()
+
+                # 2. تعديل أو حذف فرع موجود
+                st.write("**Edit or Remove Existing Branch**")
+                target_br = st.selectbox("Select Branch to Modify", db["branches"])
+                
+                col_br1, col_br2 = st.columns(2)
+                
+                with col_br1:
+                    new_br_name = st.text_input("New Name for Branch", value=target_br)
+                    if st.button("📝 Update Branch Name"):
+                        if new_br_name:
+                            index = db["branches"].index(target_br)
+                            db["branches"][index] = new_br_name
+                            save_db(db)
+                            st.success(f"Changed from {target_br} to {new_br_name}")
+                            st.rerun()
+
+                with col_br2:
+                    st.write("⚠️ **Danger Zone**")
+                    if st.button("🗑️ Delete This Branch"):
+                        if len(db["branches"]) > 1: # نترك فرع واحد على الأقل للنظام
+                            db["branches"].remove(target_br)
+                            save_db(db)
+                            st.warning(f"Branch '{target_br}' has been deleted.")
+                            st.rerun()
+                        else:
+                            st.error("Cannot delete the only remaining branch!")
 
             elif admin_mode == "Manage Tasks":
                 st.subheader("📝 Task Management")
