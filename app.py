@@ -85,21 +85,33 @@ else:
             st.subheader("🛠️ Admin Master Control")
             admin_mode = st.radio("Settings", ["Manage Employees", "Manage Branches", "Manage Tasks", "Logs"])
             
-            if admin_mode == "Manage Employees":
-                new_user = st.text_input("New User Name")
-                if st.button("Add Employee"):
-                    db["users"][new_user] = {"pass": "123", "role": "user", "full_name": new_user}
-                    save_db(db); st.rerun()
+    if admin_mode == "Manage Employees":
+                st.subheader("👥 Employee Management")
+                target = st.selectbox("Select Employee to Manage", list(db["users"].keys()))
                 
-                target = st.selectbox("Edit Employee", list(db["users"].keys()))
+                # الجزء الخاص بتغيير الباسورد
+                st.markdown("---")
+                st.warning(f"🔐 Reset Password for: {target}")
+                new_p_val = st.text_input("Enter New Password", key="new_pass_field")
+                if st.button("Save New Password"):
+                    if new_p_val:
+                        db["users"][target]["pass"] = new_p_val
+                        save_db(db)
+                        st.success(f"Password for {target} has been updated!")
+                    else:
+                        st.error("Please enter a password first")
+                st.markdown("---")
+
+                # باقي بيانات الموظف
                 db["users"][target]["full_name"] = st.text_input("Full Name", db["users"][target].get("full_name", ""))
                 db["users"][target]["email"] = st.text_input("Email", db["users"][target].get("email", ""))
                 db["users"][target]["phone"] = st.text_input("Phone", db["users"][target].get("phone", ""))
                 db["users"][target]["address"] = st.text_input("Address", db["users"][target].get("address", ""))
                 db["users"][target]["id_num"] = st.text_input("ID Number", db["users"][target].get("id_num", ""))
-                if st.button("Save Employee Changes"): save_db(db); st.success("Updated")
-
-            elif admin_mode == "Manage Branches":
+                
+                if st.button("Save All Profile Changes"):
+                    save_db(db)
+                    st.success("Employee details saved successfully!")            elif admin_mode == "Manage Branches":
                 n_branch = st.text_input("Add New Branch")
                 if st.button("Add"): db["branches"].append(n_branch); save_db(db); st.rerun()
                 st.write("Current Branches:", db["branches"])
