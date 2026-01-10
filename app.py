@@ -50,7 +50,7 @@ if 'logged_in' not in st.session_state:
 def sync_draft():
     if st.session_state['logged_in']:
         user = st.session_state['user']
-        current_data = {k: v for k, v in st.session_state.items() if k.startswith(('s_', 'o_', 'm_', 'e_', 'c_', 'i_', 'ks', 'xs', 'ops', 'oc', 'cc', 'k1', 'x2', 'op_'))}
+        current_data = {k: v for k, v in st.session_state.items() if k.startswith(('s_', 'o_', 'm_', 'e_', 'c_', 'i_', 'ks', 'xs', 'ops', 'oc', 'cc', 'k1', 'x2', 'op_', 'u10_', 'v22_'))}
         if "drafts" not in db: db["drafts"] = {}
         db["drafts"][user] = current_data
         save_db(db)
@@ -186,7 +186,8 @@ else:
             st.divider()
             st.write("**Financial Input**")
             sys_sales = st.number_input("System Sales (SQL)", min_value=0.0, step=1.0, key="c_sys_sales", on_change=sync_draft)
-            debit_val = st.number_input("Debit (Unpaid/Pending)", min_value=0.0, step=1.0, key="c_debit", on_change=sync_draft)
+            u10_debit = st.number_input("Debit Received (U10)", min_value=0.0, step=1.0, key="u10_val", on_change=sync_draft)
+            v22_debit = st.number_input("Debit Out/Pending (V22)", min_value=0.0, step=1.0, key="v22_val", on_change=sync_draft)
             instapay = st.number_input("Instapay", step=1.0, key="c_insta", on_change=sync_draft)
             wallet = st.number_input("Wallet", step=1.0, key="c_wall", on_change=sync_draft)
             visa = st.number_input("Visa", step=1.0, key="c_visa", on_change=sync_draft)
@@ -194,7 +195,6 @@ else:
         with c2:
             st.write("**Closing Cash & Opay**")
             opay_end = st.number_input("Opay Final Balance", step=0.01, format="%.4f", key="op_end", on_change=sync_draft)
-            # رصيد نقص = مبيعات زادت كاش | رصيد زاد = دفعنا للمندوب من الكاش
             opay_diff = opay_start - opay_end
             
             t_close = 0.0
@@ -203,11 +203,11 @@ else:
                 t_close += (v * d)
             c_coins = st.number_input("Closing Coins  ", step=0.5, format="%.2f", key="cc", on_change=sync_draft)
             t_close += c_coins
-            expenses = st.number_input("Expenses", step=1.0, key="c_exp", on_change=sync_draft)
+            expenses = st.number_input("Expenses (U22)", step=1.0, key="c_exp", on_change=sync_draft)
             
             st.divider()
-            # المعادلة الشاملة (كاش الافتتاح + مبيعات السيستم + صافي حركة اوباي - المصاريف - الاجل - المدفوعات الالكترونية)
-            expected_cash = t_open + sys_sales + opay_diff - expenses - debit_val - t_e_pay
+            # المعادلة المعدلة طبقاً لشرحك: الافتتاح + السيستم - المصاريف - الالكتروني + ديبيت مستلم - ديبيت خارج + حركة اوباي
+            expected_cash = t_open + sys_sales - expenses - t_e_pay + u10_debit - v22_debit + opay_diff
             net_diff = t_close - expected_cash
             st.metric("Expected Cash (Drawer)", f"{expected_cash:,.2f} LE")
             if abs(net_diff) < 0.1: st.success("✅ Match")
@@ -249,30 +249,27 @@ else:
     # --- 6. Exporting ---
     st.divider()
     diff_status = "✅ Match" if abs(net_diff) < 0.1 else f"⚠️ {net_diff}"
-    wa_msg = f"*🚀 NMS FULL REPORT*\n*Branch:* {branch} | *Staff:* {st.session_state['user']}\n\n*💰 FINANCIALS:*\n- Total Sales: {sys_sales:,.2f}\n- Opay Net Diff: {opay_diff:,.2f}\n- E-Payments: {t_e_pay:,.2f}\n- Cash in Drawer: {t_close:,.2f}\n- *Status:* {diff_status}\n\n*🖨️ PRINTERS:*\n- Kyo Used: {k_actual}\n- Xerox Used: {x_actual}"
+    wa_msg = f"*🚀 NMS FULL REPORT*\n*Branch:* {branch} | *Staff:* {st.session_state['user']}\n\n*💰 FINANCIALS:*\n- Total Sales: {sys_sales:,.2f}\n- Opay Diff: {opay_diff:,.2f}\n- Debit In: {u10_debit:,.2f}\n- Debit Out: {v22_debit:,.2f}\n- E-Payments: {t_e_pay:,.2f}\n- Cash in Drawer: {t_close:,.2f}\n- *Status:* {diff_status}\n\n*🖨️ PRINTERS:*\n- Kyo Used: {k_actual}\n- Xerox Used: {x_actual}"
 
     rep1, rep2 = st.columns(2)
     with rep1:
         if st.button("📥 DOWNLOAD FULL PDF REPORT", use_container_width=True):
-            db["pending_debit"] = debit_val; save_db(db)
+            db["pending_debit"] = v22_debit; save_db(db)
             buffer = io.BytesIO(); doc = SimpleDocTemplate(buffer, pagesize=letter)
             styles = getSampleStyleSheet(); elements = []
             elements.append(Paragraph(f"NMS DAILY REPORT - {branch}", styles['Title']))
             elements.append(Paragraph(f"Date: {datetime.now().strftime('%Y-%m-%d')} | Staff: {st.session_state['user']}", styles['Normal']))
             
-            # Table: Financial
-            data_f = [["Item", "Amount"], ["Total Sales", sys_sales], ["Opay Movement", opay_diff], ["Non-Cash (Visa/Apps)", t_e_pay], ["Debit", debit_val], ["Expenses", expenses], ["Expected Cash", expected_cash], ["Actual Cash", t_close], ["Diff", net_diff]]
+            data_f = [["Item", "Amount"], ["Total Sales (U20)", sys_sales], ["Opay Movement", opay_diff], ["Debit Received (U10)", u10_debit], ["Non-Cash (V20)", t_e_pay], ["Debit Out (V22)", v22_debit], ["Expenses (U22)", expenses], ["Expected Cash", expected_cash], ["Actual Cash (W11)", t_close], ["Final Diff (W22)", net_diff]]
             t1 = Table(data_f, colWidths=[200, 100])
             t1.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 1, colors.black), ('BACKGROUND', (0,0), (-1,0), colors.indianred), ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke)]))
             elements.append(Spacer(1, 15)); elements.append(Paragraph("1. Financial Summary", styles['Heading3'])); elements.append(t1)
 
-            # Table: Printers
             data_p = [["Printer", "Used", "Sold", "Err", "Test", "Diff"], ["Kyocera", k_actual, k_os+(k_dp*2), k_err, k_test, k_accounted-k_actual], ["Xerox", x_actual, x_os+(x_dp*2), x_err, x_test, x_accounted-x_actual]]
             t2 = Table(data_p, colWidths=[80, 60, 60, 60, 60, 60])
             t2.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 1, colors.black), ('BACKGROUND', (0,0), (-1,0), colors.lightblue)]))
             elements.append(Spacer(1, 15)); elements.append(Paragraph("2. Printer Analysis", styles['Heading3'])); elements.append(t2)
 
-            # Table: Tasks
             data_t = [["Task Category", "Done"]]
             data_t.append(["Opening", f"{len([t for t in db['tasks']['opening'] if st.session_state.get(f's_{t}')])}"])
             data_t.append(["Closing", f"{len([t for t in db['tasks']['closing'] if st.session_state.get(f'e_{t}')])}"])
