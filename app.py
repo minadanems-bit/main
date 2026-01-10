@@ -220,7 +220,7 @@ else:
             k_start = st.number_input("Kyocera Opening", step=1, key="ks", on_change=sync_draft)
             x_start = st.number_input("Xerox Opening", step=1, key="xs", on_change=sync_draft)
             opay_start = st.number_input("Opay Opening Balance", step=0.01, format="%.4f", key="ops", on_change=sync_draft)
-            u10_debit = st.number_input("Debit Received (Cash In)", min_value=0.0, step=1.0, key="u10_val", on_change=sync_draft)
+            u10_debit = st.number_input("Debit", min_value=0.0, step=1.0, key="u10_val", on_change=sync_draft)
 
     with tab2:
         st.subheader("Closing Procedures")
@@ -231,7 +231,7 @@ else:
             st.divider()
             st.write("**Financial Input**")
             sys_sales = st.number_input("System Sales", min_value=0.0, step=1.0, key="c_sys_sales", on_change=sync_draft)
-            v22_debit = st.number_input("Debit Pending (Unpaid)", min_value=0.0, step=1.0, key="v22_val", on_change=sync_draft)
+            v22_debit = st.number_input("Debit", min_value=0.0, step=1.0, key="v22_val", on_change=sync_draft)
             instapay = st.number_input("Instapay", step=1.0, key="c_insta", on_change=sync_draft)
             wallet = st.number_input("Wallet", step=1.0, key="c_wall", on_change=sync_draft)
             visa = st.number_input("Visa", step=1.0, key="c_visa", on_change=sync_draft)
