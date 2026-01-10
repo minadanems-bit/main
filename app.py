@@ -115,29 +115,39 @@ else:
                     if filtered.empty:
                         st.info("No reports for this selection.")
                     else:
-                        m1, m2, m3 = st.columns(3)
-                        m1.metric("Day Sales", f"{filtered['sales'].sum():,.2f}")
-                        m2.metric("Day Net Diff", f"{filtered['net_diff'].sum():,.2f}")
-                        m3.metric("Shifts", len(filtered))
+                        # --- MODIFIED: Advanced Review for Manager ---
+                        m1, m2, m3, m4 = st.columns(4)
+                        m1.metric("Total Sales", f"{filtered['sales'].sum():,.2f}")
+                        m2.metric("Total Net Diff", f"{filtered['net_diff'].sum():,.2f}")
+                        m3.metric("Opay Activity", f"{filtered['opay_move'].sum():,.2f}")
+                        m4.metric("Shifts Count", len(filtered))
                         
+                        st.divider()
                         for _, row in filtered.iterrows():
-                            # Fix for KeyError using .get() or checking existence
-                            with st.expander(f"Report: {row['staff']} | {row['branch']} | {row['shift']}"):
+                            # Protection against KeyError using .get()
+                            with st.expander(f"📄 Report: {row['staff']} | {row['branch']} | {row['shift']}"):
                                 c1, c2, c3 = st.columns(3)
                                 with c1:
+                                    st.markdown("### 💰 Financials")
                                     st.write(f"**Sales:** {row.get('sales', 0.0):,.2f}")
-                                    st.write(f"**Expected:** {row.get('expected_cash', 0.0):,.2f}")
-                                    st.write(f"**Actual:** {row.get('actual_cash', 0.0):,.2f}")
-                                    st.write(f"**Diff:** {row.get('net_diff', 0.0):,.2f}")
+                                    st.write(f"**Exp. Drawer:** {row.get('expected_cash', 0.0):,.2f}")
+                                    st.write(f"**Act. Drawer:** {row.get('actual_cash', 0.0):,.2f}")
+                                    diff = row.get('net_diff', 0.0)
+                                    color = "green" if abs(diff) < 0.1 else "red"
+                                    st.markdown(f"**Diff:** :{color}[{diff:,.2f}]")
                                 with c2:
+                                    st.markdown("### 🖨️ Printers")
                                     st.write(f"**Kyo Used:** {row.get('kyo_used', 0)}")
                                     st.write(f"**Xerox Used:** {row.get('xerox_used', 0)}")
                                     st.write(f"**Opay Move:** {row.get('opay_move', 0.0):,.2f}")
                                 with c3:
-                                    st.write(f"**Debit In:** {row.get('debit_in', 0.0):,.2f}")
-                                    st.write(f"**Debit Out:** {row.get('debit_pending', 0.0):,.2f}")
-                                    st.write(f"**Expenses:** {row.get('expenses', 0.0):,.2f}")
-                                st.dataframe(pd.DataFrame([row]))
+                                    st.markdown("### 📝 Tasks")
+                                    st.write(f"**Opening:** {row.get('t_open_count', 0)}")
+                                    st.write(f"**Closing:** {row.get('t_close_count', 0)}")
+                                    st.write(f"**Social:** {row.get('t_social_count', 0)}")
+                                
+                                # Show Detailed Row Data in Table
+                                st.dataframe(pd.DataFrame([row]), hide_index=True)
 
             elif admin_mode == "Manage Employees":
                 st.subheader("👥 Employee Master Control")
@@ -220,7 +230,7 @@ else:
             k_start = st.number_input("Kyocera Opening", step=1, key="ks", on_change=sync_draft)
             x_start = st.number_input("Xerox Opening", step=1, key="xs", on_change=sync_draft)
             opay_start = st.number_input("Opay Opening Balance", step=0.01, format="%.4f", key="ops", on_change=sync_draft)
-            u10_debit = st.number_input("Debit", min_value=0.0, step=1.0, key="u10_val", on_change=sync_draft)
+            u10_debit = st.number_input("Debit Received", min_value=0.0, step=1.0, key="u10_val", on_change=sync_draft)
 
     with tab2:
         st.subheader("Closing Procedures")
@@ -231,7 +241,7 @@ else:
             st.divider()
             st.write("**Financial Input**")
             sys_sales = st.number_input("System Sales", min_value=0.0, step=1.0, key="c_sys_sales", on_change=sync_draft)
-            v22_debit = st.number_input("Debit", min_value=0.0, step=1.0, key="v22_val", on_change=sync_draft)
+            v22_debit = st.number_input("Debit Pending", min_value=0.0, step=1.0, key="v22_val", on_change=sync_draft)
             instapay = st.number_input("Instapay", step=1.0, key="c_insta", on_change=sync_draft)
             wallet = st.number_input("Wallet", step=1.0, key="c_wall", on_change=sync_draft)
             visa = st.number_input("Visa", step=1.0, key="c_visa", on_change=sync_draft)
@@ -247,7 +257,6 @@ else:
             expenses = st.number_input("Expenses", step=1.0, key="c_exp", on_change=sync_draft)
             
             st.divider()
-            # المعادلة المالية
             expected_cash = t_open + sys_sales + u10_debit - expenses - v22_debit - t_e_pay
             net_diff = t_close - expected_cash
             st.metric("Expected Cash (Drawer)", f"{expected_cash:,.2f} LE")
@@ -272,11 +281,11 @@ else:
             else: st.error(f"⚠️ Diff: {k_accounted - k_actual}")
             st.divider()
             st.markdown("### 🖨️ Xerox")
-            x_end = st.number_input("Counter End", step=1, key="x2end", on_change=sync_draft)
-            x_os = st.number_input("One-Side", step=1, key="x2os", on_change=sync_draft)
-            x_dp = st.number_input("Duplex", step=1, key="x2dp", on_change=sync_draft)
-            x_err = st.number_input("Errors / Jam", step=1, key="x2err", on_change=sync_draft)
-            x_test = st.number_input("Test / Draft", step=1, key="x2tst", on_change=sync_draft)
+            x_end = st.number_input("Counter End (X)", step=1, key="x2end", on_change=sync_draft)
+            x_os = st.number_input("One-Side (X)", step=1, key="x2os", on_change=sync_draft)
+            x_dp = st.number_input("Duplex (X)", step=1, key="x2dp", on_change=sync_draft)
+            x_err = st.number_input("Errors (X)", step=1, key="x2err", on_change=sync_draft)
+            x_test = st.number_input("Test (X)", step=1, key="x2tst", on_change=sync_draft)
             x_actual = x_end - x_start
             x_accounted = x_os + (x_dp * 2) + x_err + x_test
             if (x_accounted - x_actual) == 0: st.success(f"✅ Match (Used: {x_actual})")
