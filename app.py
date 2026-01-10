@@ -19,7 +19,7 @@ def load_db():
     if not os.path.exists(DB_FILE) or os.stat(DB_FILE).st_size == 0:
         return {
             "logo": None,
-            "pending_debit": 0.0,  # تم تعديل الاسم لـ Debit
+            "pending_debit": 0.0,
             "users": {
                 "admin": {"pass": "admin123", "role": "admin", "full_name": "Manager", "email": "admin@nms.com", "phone": "000", "id_num": "000", "address": "HQ", "photo": None},
                 "Mina": {"pass": "123", "role": "user", "full_name": "Mina", "photo": None}
@@ -50,7 +50,7 @@ if 'logged_in' not in st.session_state:
 def sync_draft():
     if st.session_state['logged_in']:
         user = st.session_state['user']
-        # الحفظ التلقائي
+        # الحفظ التلقائي لكل المدخلات
         current_data = {k: v for k, v in st.session_state.items() if k.startswith(('s_', 'o_', 'm_', 'e_', 'c_', 'i_', 'ks', 'xs', 'ops', 'oc', 'cc', 'k1', 'x2', 'op_'))}
         if "drafts" not in db: db["drafts"] = {}
         db["drafts"][user] = current_data
@@ -159,7 +159,6 @@ else:
 
     with tab1:
         st.subheader("Opening Procedures")
-        # --- التعديل: استخدام pending_debit بدلاً من pending_orders ---
         if db.get("pending_debit", 0) > 0:
             st.warning(f"📦 تنبيه هام: يوجد (Debit) مُرحل من الشفت السابق بقيمة: {db['pending_debit']:,.2f} جنيه.")
         
@@ -193,7 +192,6 @@ else:
             st.divider()
             st.write("**Financial Input**")
             sys_sales = st.number_input("System Sales (SQL)", min_value=0.0, step=1.0, key="c_sys_sales", on_change=sync_draft)
-            # --- التعديل: تغيير الاسم إلى Debit ---
             debit_val = st.number_input("Debit (Unpaid/Pending)", min_value=0.0, step=1.0, key="c_debit", on_change=sync_draft)
             
             instapay = st.number_input("Instapay", step=1, key="c_insta", on_change=sync_draft)
@@ -210,7 +208,6 @@ else:
             expenses = st.number_input("Expenses", step=1, key="c_exp", on_change=sync_draft)
             
             st.divider()
-            # المعادلة: طرح الـ Debit من المتوقع
             expected_cash = t_open + sys_sales - expenses - debit_val
             net_diff = t_close - expected_cash
             
@@ -221,21 +218,40 @@ else:
 
         with c3:
             st.write("**Printer Analysis**")
-            k_end = st.number_input("Kyo Final", step=1, key="k1end", on_change=sync_draft)
-            x_end = st.number_input("Xerox Final", step=1, key="x2end", on_change=sync_draft)
-            # Kyo Logic
-            k_os = st.number_input("Kyo One-Side", step=1, key="k1os", on_change=sync_draft)
-            k_dp = st.number_input("Kyo Duplex", step=1, key="k1dp", on_change=sync_draft)
-            k_actual = k_end - k_start
-            k_manual = k_os + (k_dp * 2)
-            st.warning(f"Kyo Diff: {k_manual - k_actual}")
+            # --- Kyocera Section ---
+            st.markdown("### 🖨️ Kyocera")
+            k_end = st.number_input("Counter End", step=1, key="k1end", on_change=sync_draft)
+            k_os = st.number_input("Sold: One-Side", step=1, key="k1os", on_change=sync_draft)
+            k_dp = st.number_input("Sold: Duplex", step=1, key="k1dp", on_change=sync_draft)
+            # New Fields
+            k_err = st.number_input("Errors / Jam", step=1, key="k1err", on_change=sync_draft)
+            k_test = st.number_input("Test / Draft", step=1, key="k1tst", on_change=sync_draft)
             
-            # Xerox Logic
-            x_os = st.number_input("Xerox One-Side", step=1, key="x2os", on_change=sync_draft)
-            x_dp = st.number_input("Xerox Duplex", step=1, key="x2dp", on_change=sync_draft)
+            k_actual = k_end - k_start
+            k_sold_total = k_os + (k_dp * 2)
+            k_accounted = k_sold_total + k_err + k_test # المباع + الهالك + التست
+            
+            if (k_accounted - k_actual) == 0: st.success(f"✅ Match (Used: {k_actual})")
+            else: st.error(f"⚠️ Diff: {k_accounted - k_actual}")
+
+            st.divider()
+            
+            # --- Xerox Section ---
+            st.markdown("### 🖨️ Xerox")
+            x_end = st.number_input("Counter End", step=1, key="x2end", on_change=sync_draft)
+            x_os = st.number_input("Sold: One-Side", step=1, key="x2os", on_change=sync_draft)
+            x_dp = st.number_input("Sold: Duplex", step=1, key="x2dp", on_change=sync_draft)
+            # New Fields
+            x_err = st.number_input("Errors / Jam", step=1, key="x2err", on_change=sync_draft)
+            x_test = st.number_input("Test / Draft", step=1, key="x2tst", on_change=sync_draft)
+            
             x_actual = x_end - x_start
-            x_manual = x_os + (x_dp * 2)
-            st.warning(f"Xerox Diff: {x_manual - x_actual}")
+            x_sold_total = x_os + (x_dp * 2)
+            x_accounted = x_sold_total + x_err + x_test
+            
+            if (x_accounted - x_actual) == 0: st.success(f"✅ Match (Used: {x_actual})")
+            else: st.error(f"⚠️ Diff: {x_accounted - x_actual}")
+            
             opay_end = st.number_input("Opay Final", step=0.01, format="%.4f", key="op_end", on_change=sync_draft)
 
     with tab3:
@@ -256,13 +272,11 @@ else:
     
     diff_status = "✅ Match" if net_diff == 0 else f"➕ Surplus: {net_diff}" if net_diff > 0 else f"➖ Shortage: {net_diff}"
     
-    # --- تعديل رسالة الواتساب لتشمل كلمة Debit ---
     wa_msg = f"*🚀 NMS FULL REPORT*\n*Date:* {datetime.now().strftime('%Y-%m-%d')}\n*Branch:* {branch} | *Staff:* {st.session_state['user']}\n\n*💰 FINANCIAL:*\n- System Sales: {sys_sales:,.2f}\n- Debit (Pending): {debit_val:,.2f}\n- Expenses: {expenses:,.2f}\n- Actual Cash: {t_close:,.2f}\n- *Status:* {diff_status}\n\n*🖨️ PRINTERS:*\n- Kyo Actual: {k_actual}\n- Xerox Actual: {x_actual}\n\n*✅ TASKS DONE:* {len(opening_tasks_done)+len(closing_tasks_done)+len(social_tasks_done)}"
 
     rep1, rep2 = st.columns(2)
     with rep1:
         if st.button("📥 DOWNLOAD FULL PDF REPORT", use_container_width=True):
-            # ترحيل الـ Debit للداتابيز
             db["pending_debit"] = debit_val
             save_db(db)
             
@@ -276,8 +290,8 @@ else:
             elements.append(Paragraph(f"Date: {datetime.now().strftime('%Y-%m-%d')} | Shift: {shift} | Staff: {st.session_state['user']}", styles['Normal']))
             elements.append(Spacer(1, 15))
 
-            # --- Table 1: Opening Cash Breakdown (Tab 1) ---
-            elements.append(Paragraph("1. Opening Cash Breakdown (Tab 1)", styles['Heading3']))
+            # Table 1: Opening
+            elements.append(Paragraph("1. Opening Cash Breakdown", styles['Heading3']))
             data_o = [["Denomination", "Count", "Total (LE)"]]
             for d in [200, 100, 50, 20, 10, 5]:
                 cnt = st.session_state.get(f"o_{d}", 0)
@@ -288,8 +302,8 @@ else:
             t1.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 1, colors.black), ('BACKGROUND', (0,0), (-1,0), colors.lightgrey)]))
             elements.append(t1); elements.append(Spacer(1, 15))
 
-            # --- Table 2: Financial Closing (Tab 2) ---
-            elements.append(Paragraph("2. Financial Closing Summary (Tab 2)", styles['Heading3']))
+            # Table 2: Financials
+            elements.append(Paragraph("2. Financial Closing Summary", styles['Heading3']))
             data_f = [
                 ["Category", "Amount (LE)"],
                 ["System Sales", f"{sys_sales:,.2f}"],
@@ -303,34 +317,26 @@ else:
             t2.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 1, colors.black), ('BACKGROUND', (0,0), (-1,0), colors.indianred), ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke)]))
             elements.append(t2); elements.append(Spacer(1, 15))
             
-            # --- Table 3: Printers & Counters ---
+            # Table 3: Printers (Updated with Errors/Test)
             elements.append(Paragraph("3. Printer & Counter Analysis", styles['Heading3']))
             data_p = [
-                ["Printer", "Start", "End", "Actual", "Manual Diff"],
-                ["Kyocera", k_start, k_end, k_actual, f"{k_manual - k_actual}"],
-                ["Xerox", x_start, x_end, x_actual, f"{x_manual - x_actual}"]
+                ["Printer", "Used", "Sold", "Error", "Test", "Diff"],
+                ["Kyocera", k_actual, k_sold_total, k_err, k_test, f"{k_accounted - k_actual}"],
+                ["Xerox", x_actual, x_sold_total, x_err, x_test, f"{x_accounted - x_actual}"]
             ]
-            t3 = Table(data_p, colWidths=[100, 60, 60, 60, 80])
+            t3 = Table(data_p, colWidths=[80, 60, 60, 60, 60, 60])
             t3.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 0.5, colors.grey), ('BACKGROUND', (0,0), (-1,0), colors.lightblue)]))
             elements.append(t3); elements.append(Spacer(1, 15))
 
-            # --- Table 4: Tasks Checklist ---
-            elements.append(Paragraph("4. Operational Tasks Checklist", styles['Heading3']))
-            data_t = [["Task Name", "Status"]]
-            for t in db["tasks"]["opening"]: data_t.append([f"Opening: {t}", "✅" if st.session_state.get(f"s_{t}") else "❌"])
-            for t in db["tasks"]["closing"]: data_t.append([f"Closing: {t}", "✅" if st.session_state.get(f"e_{t}") else "❌"])
+            # Table 4 & 5: Tasks
+            elements.append(Paragraph("4. Tasks & Social Media", styles['Heading3']))
+            data_t = [["Task", "Status"]]
+            for t in db["tasks"]["opening"]: data_t.append([f"Open: {t}", "✅" if st.session_state.get(f"s_{t}") else "❌"])
+            for t in db["tasks"]["closing"]: data_t.append([f"Close: {t}", "✅" if st.session_state.get(f"e_{t}") else "❌"])
+            for t in db["tasks"]["social"]: data_t.append([f"Social: {t}", "✅" if st.session_state.get(f"m_{t}") else "❌"])
             t4 = Table(data_t, colWidths=[250, 100])
             t4.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 0.5, colors.grey)]))
-            elements.append(t4); elements.append(Spacer(1, 15))
-
-            # --- Table 5: Social Media ---
-            elements.append(Paragraph("5. Social Media & Interactions (Tab 3)", styles['Heading3']))
-            data_s = [["Task / Platform", "Status"]]
-            for t in db["tasks"]["social"]: data_s.append([t, "✅" if st.session_state.get(f"m_{t}") else "❌"])
-            for t in db["tasks"]["interaction"]: data_s.append([f"Interaction: {t}", "✅" if st.session_state.get(f"i_{t}") else "❌"])
-            t5 = Table(data_s, colWidths=[250, 100])
-            t5.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 0.5, colors.grey), ('BACKGROUND', (0,0), (-1,0), colors.lightgreen)]))
-            elements.append(t5)
+            elements.append(t4)
 
             doc.build(elements)
             st.download_button("💾 Download Full PDF Report", data=buffer.getvalue(), file_name=f"NMS_{branch}_{datetime.now().strftime('%Y%m%d')}.pdf")
