@@ -24,7 +24,7 @@ def load_db():
                 "admin": {"pass": "admin123", "role": "admin", "full_name": "Manager", "email": "admin@nms.com", "phone": "000", "id_num": "000", "address": "HQ", "photo": None},
                 "Mina": {"pass": "123", "role": "user", "full_name": "Mina", "photo": None}
             },
-            "branches": ["M. Nagib Branch", "Tram Branch"],
+            "branches": ["M. Nageb Branch", "Tram Branch"],
             "tasks": {
                 "opening": ["Fingerprint", "Power On", "Uniform & Name Tag", "Music On", "Paper Loaded", "Cash Counted", "All Good"],
                 "closing": ["Contacts on WhatsApp", "Place Cleaned", "Power Off", "Cash Counted", "Fingerprint", "Report Sent"],
@@ -196,7 +196,7 @@ else:
     with inf3: branch = st.selectbox("Branch", db["branches"])
     with inf4: shift = st.selectbox("Shift", ["Morning", "Between", "Night"])
 
-    tab1, tab2, tab3 = st.tabs(["🟢 TAB 1: OPENING", "🔴 TAB 2: CLOSING", "📱 TAB 3: SOCIAL MEDIA"])
+    tab1, tab2, tab3 = st.tabs(["🟢OPENING", "🔴CLOSING", "📱SOCIAL MEDIA"])
 
     with tab1:
         st.subheader("Opening Procedures")
@@ -273,10 +273,10 @@ else:
             st.divider()
             st.markdown("### 🖨️ Xerox")
             x_end = st.number_input("Counter End (X)", step=1, key="x2end", on_change=sync_draft)
-            x_os = st.number_input("Sold: S (X)", step=1, key="x2os", on_change=sync_draft)
-            x_dp = st.number_input("Sold: D (X)", step=1, key="x2dp", on_change=sync_draft)
-            x_err = st.number_input("Errors (X)", step=1, key="x2err", on_change=sync_draft)
-            x_test = st.number_input("Test (X)", step=1, key="x2tst", on_change=sync_draft)
+            x_os = st.number_input("Sold: One-Side", step=1, key="x2os", on_change=sync_draft)
+            x_dp = st.number_input("Sold: Duplex", step=1, key="x2dp", on_change=sync_draft)
+            x_err = st.number_input("Errors / Jam", step=1, key="x2err", on_change=sync_draft)
+            x_test = st.number_input("Test / Draft", step=1, key="x2tst", on_change=sync_draft)
             x_actual = x_end - x_start
             x_accounted = x_os + (x_dp * 2) + x_err + x_test
             if (x_accounted - x_actual) == 0: st.success(f"✅ Match (Used: {x_actual})")
