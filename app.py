@@ -196,7 +196,7 @@ else:
     with inf3: branch = st.selectbox("Branch", db["branches"])
     with inf4: shift = st.selectbox("Shift", ["Morning", "Between", "Night"])
 
-    tab1, tab2, tab3 = st.tabs(["🟢OPENING", "🔴CLOSING", "📱SOCIAL MEDIA"])
+    tab1, tab2, tab3 = st.tabs(["🟢 OPENING", "🔴 CLOSING", "📱 SOCIAL MEDIA"])
 
     with tab1:
         st.subheader("Opening Procedures")
@@ -272,7 +272,7 @@ else:
             else: st.error(f"⚠️ Diff: {k_accounted - k_actual}")
             st.divider()
             st.markdown("### 🖨️ Xerox")
-            x_end = st.number_input("Counter End (X)", step=1, key="x2end", on_change=sync_draft)
+            x_end = st.number_input("Counter End", step=1, key="x2end", on_change=sync_draft)
             x_os = st.number_input("Sold: One-Side", step=1, key="x2os", on_change=sync_draft)
             x_dp = st.number_input("Sold: Duplex", step=1, key="x2dp", on_change=sync_draft)
             x_err = st.number_input("Errors / Jam", step=1, key="x2err", on_change=sync_draft)
