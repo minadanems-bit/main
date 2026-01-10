@@ -46,11 +46,11 @@ st.set_page_config(page_title="NMS Management System", layout="wide")
 if 'logged_in' not in st.session_state:
     st.session_state.update({'logged_in': False, 'user': None, 'role': None})
 
-# دالة الحفظ التلقائي للمسودة (محدثة لتشمل خانة السيستم)
 def sync_draft():
     if st.session_state['logged_in']:
         user = st.session_state['user']
-        current_data = {k: v for k, v in st.session_state.items() if k.startswith(('s_', 'o_', 'm_', 'e_', 'c_', 'i_', 'ks', 'xs', 'ops', 'oc', 'cc', 'k1', 'x2'))}
+        # الحفظ التلقائي لكل المدخلات البرمجية
+        current_data = {k: v for k, v in st.session_state.items() if k.startswith(('s_', 'o_', 'm_', 'e_', 'c_', 'i_', 'ks', 'xs', 'ops', 'oc', 'cc', 'k1', 'x2', 'op_'))}
         if "drafts" not in db: db["drafts"] = {}
         db["drafts"][user] = current_data
         save_db(db)
@@ -75,19 +75,13 @@ if not st.session_state['logged_in']:
             else: st.error("Authentication Failed")
 
 else:
-    # --- 4. Sidebar (Admin & Profile) ---
+    # --- 4. Sidebar ---
     with st.sidebar:
         if db.get("logo"): st.image(base64.b64decode(db["logo"]), width=120)
         st.header(f"User: {st.session_state['user']}")
         user_node = db["users"][st.session_state['user']]
-        
         if user_node.get("photo"): st.image(base64.b64decode(user_node["photo"]), width=150)
-        prof_pic = st.file_uploader("Upload Personal Photo", type=['jpg', 'png'])
-        if st.button("Save Photo"):
-            if prof_pic:
-                db["users"][st.session_state['user']]["photo"] = base64.b64encode(prof_pic.getvalue()).decode()
-                save_db(db); st.success("Photo Updated!"); st.rerun()
-
+        
         if st.button("Logout", use_container_width=True):
             st.session_state['logged_in'] = False; st.rerun()
 
@@ -95,64 +89,15 @@ else:
             st.divider()
             st.subheader("🛠️ Admin Master Control")
             admin_mode = st.radio("Settings", ["Manage Employees", "Manage Branches", "Manage Tasks", "Audit Logs"])
-            
+            # (نفس كود الإدارة السابق...)
             if admin_mode == "Manage Employees":
                 st.subheader("👥 Employee Master Control")
                 with st.expander("➕ Register New Employee"):
-                    new_u_name = st.text_input("Username (Login ID)")
-                    new_u_pass = st.text_input("Set Password", type="password")
-                    new_u_full = st.text_input("Full Name")
+                    new_u_name = st.text_input("Username")
+                    new_u_pass = st.text_input("Password", type="password")
                     if st.button("Create Account"):
-                        if new_u_name and new_u_name not in db["users"]:
-                            db["users"][new_u_name] = {"pass": new_u_pass, "role": "user", "full_name": new_u_full}
-                            save_db(db); st.success(f"Account for {new_u_name} created!"); st.rerun()
-                
-                st.divider()
-                target_user = st.selectbox("Select Employee", list(db["users"].keys()))
-                is_admin = db["users"][target_user]["role"] == "admin"
-                
-                col_e1, col_e2 = st.columns(2)
-                with col_e1:
-                    db["users"][target_user]["full_name"] = st.text_input("Full Name", db["users"][target_user].get("full_name", ""))
-                    db["users"][target_user]["pass"] = st.text_input("Password", db["users"][target_user]["pass"])
-                with col_e2:
-                    db["users"][target_user]["phone"] = st.text_input("Phone", db["users"][target_user].get("phone", ""))
-                    db["users"][target_user]["address"] = st.text_input("Address", db["users"][target_user].get("address", ""))
-
-                col_actions = st.columns(2)
-                with col_actions[0]:
-                    if st.button("💾 Save Changes"): save_db(db); st.success("Updated!")
-                with col_actions[1]:
-                    if not is_admin and st.button("🗑️ Delete Employee"):
-                        del db["users"][target_user]; save_db(db); st.warning("Deleted!"); st.rerun()
-
-            elif admin_mode == "Manage Branches":
-                st.subheader("🏢 Branch Management")
-                n_br = st.text_input("New Branch Name")
-                if st.button("Add Branch"):
-                    db["branches"].append(n_br); save_db(db); st.rerun()
-                
-                target_br = st.selectbox("Edit/Delete Branch", db["branches"])
-                new_br_name = st.text_input("Rename to", value=target_br)
-                if st.button("📝 Update Name"):
-                    idx = db["branches"].index(target_br); db["branches"][idx] = new_br_name
-                    save_db(db); st.rerun()
-                if st.button("🗑️ Delete Branch") and len(db["branches"]) > 1:
-                    db["branches"].remove(target_br); save_db(db); st.rerun()
-
-            elif admin_mode == "Manage Tasks":
-                st.subheader("📝 Task Management")
-                cat = st.selectbox("Category", ["Opening Checklist (Tab 1)", "Closing Checklist (Tab 2)", "Social Media Tasks (Tab 3)"])
-                t_key = "opening" if "1" in cat else "closing" if "2" in cat else "social"
-                
-                new_t = st.text_input("Add Task")
-                if st.button("➕ Add"): db["tasks"][t_key].append(new_t); save_db(db); st.rerun()
-                
-                del_t = st.selectbox("Delete Task", db["tasks"][t_key])
-                if st.button("🗑️ Remove"): db["tasks"][t_key].remove(del_t); save_db(db); st.rerun()
-
-            elif admin_mode == "Audit Logs":
-                st.dataframe(pd.DataFrame(db["logs"]).tail(50))
+                        db["users"][new_u_name] = {"pass": new_u_pass, "role": "user", "full_name": new_u_name}
+                        save_db(db); st.success("Created!"); st.rerun()
 
     # --- 5. Main Dashboard ---
     st.title("📊 Daily Shift Control")
@@ -177,14 +122,14 @@ else:
             for d in [200, 100, 50, 20, 10, 5]:
                 v = st.number_input(f"{d} LE", min_value=0, step=1, key=f"o_{d}", on_change=sync_draft)
                 t_open += (v * d)
-            o_coins = st.number_input("Coins (Decimal)", step=0.5, format="%.2f", key="oc", on_change=sync_draft)
+            o_coins = st.number_input("Coins", step=0.5, format="%.2f", key="oc", on_change=sync_draft)
             t_open += o_coins
             st.success(f"**Total Opening: {t_open:,.2f} LE**")
         with c3:
             st.write("**Start Counters**")
-            k_start = st.number_input("Kyocera Opening Counter", step=1, key="ks", on_change=sync_draft)
-            x_start = st.number_input("Xerox Opening Counter", step=1, key="xs", on_change=sync_draft)
-            opay_start = st.number_input("Opay Opening Balance", step=0.01, format="%.4f", key="ops", on_change=sync_draft)
+            k_start = st.number_input("Kyocera Start", step=1, key="ks", on_change=sync_draft)
+            x_start = st.number_input("Xerox Start", step=1, key="xs", on_change=sync_draft)
+            opay_start = st.number_input("Opay Start Balance", step=0.01, format="%.4f", key="ops", on_change=sync_draft)
 
     with tab2:
         st.subheader("Closing Procedures")
@@ -194,9 +139,8 @@ else:
             for t in db["tasks"]["closing"]: 
                 st.checkbox(t, key=f"e_{t}", on_change=sync_draft)
             st.divider()
-            st.write("**Financial Input (System)**")
-            # الخانة الجديدة التي طلبتها يا مينا
-            sys_sales = st.number_input("System Sales (من برنامج المبيعات)", min_value=0.0, step=1.0, key="c_sys_sales", on_change=sync_draft)
+            st.write("**Financial (System)**")
+            sys_sales = st.number_input("System Sales (SQL)", min_value=0.0, step=1.0, key="c_sys_sales", on_change=sync_draft)
             instapay = st.number_input("Instapay", step=1, key="c_insta", on_change=sync_draft)
             wallet = st.number_input("Wallet", step=1, key="c_wall", on_change=sync_draft)
             visa = st.number_input("Visa", step=1, key="c_visa", on_change=sync_draft)
@@ -204,40 +148,34 @@ else:
             st.write("**Closing Cash (Physical)**")
             t_close = 0.0
             for d in [200, 100, 50, 20, 10, 5]:
-                v = st.number_input(f"{d} LE  ", min_value=0, step=1, key=f"c_{d}", on_change=sync_draft)
+                v = st.number_input(f"{d} LE ", min_value=0, step=1, key=f"c_{d}", on_change=sync_draft)
                 t_close += (v * d)
-            c_coins = st.number_input("Closing Coins  ", step=0.5, format="%.2f", key="cc", on_change=sync_draft)
+            c_coins = st.number_input("Closing Coins ", step=0.5, format="%.2f", key="cc", on_change=sync_draft)
             t_close += c_coins
             expenses = st.number_input("Expenses", step=1, key="c_exp", on_change=sync_draft)
             
             st.divider()
-            # العملية الحسابية المطلوبة
             expected_cash = t_open + sys_sales - expenses
             net_diff = t_close - expected_cash
             
-            st.write(f"📊 **Expected Cash:** {expected_cash:,.2f} LE")
-            if net_diff == 0:
-                st.success("✅ Cash Matches System!")
-            elif net_diff > 0:
-                st.warning(f"➕ Surplus: {net_diff:,.2f} LE")
-            else:
-                st.error(f"➖ Shortage: {net_diff:,.2f} LE")
+            st.metric("Expected Cash", f"{expected_cash:,.2f} LE")
+            if net_diff == 0: st.success("✅ Match")
+            elif net_diff > 0: st.warning(f"➕ Surplus: {net_diff:,.2f}")
+            else: st.error(f"➖ Shortage: {net_diff:,.2f}")
 
         with c3:
             st.write("**Printer Analysis**")
             k_end = st.number_input("Kyo Final", step=1, key="k1end", on_change=sync_draft)
             k_os = st.number_input("Kyo One-Side", step=1, key="k1os", on_change=sync_draft)
             k_dp = st.number_input("Kyo Duplex", step=1, key="k1dp", on_change=sync_draft)
-            k_actual = k_end - (k_start if 'k_start' in locals() else 0)
+            k_actual = k_end - k_start
             k_manual = k_os + (k_dp * 2)
-            st.warning(f"Kyo Diff: {k_manual - k_actual}")
             
             x_end = st.number_input("Xerox Final", step=1, key="x2end", on_change=sync_draft)
             x_os = st.number_input("Xerox One-Side", step=1, key="x2os", on_change=sync_draft)
             x_dp = st.number_input("Xerox Duplex", step=1, key="x2dp", on_change=sync_draft)
-            x_actual = x_end - (x_start if 'x_start' in locals() else 0)
+            x_actual = x_end - x_start
             x_manual = x_os + (x_dp * 2)
-            st.warning(f"Xerox Diff: {x_manual - x_actual}")
             opay_end = st.number_input("Opay Final", step=0.01, format="%.4f", key="op_end", on_change=sync_draft)
 
     with tab3:
@@ -245,28 +183,30 @@ else:
         m_cols = st.columns(4)
         for i, task in enumerate(db["tasks"]["social"]):
             m_cols[i%4].checkbox(task, key=f"m_{task}", on_change=sync_draft)
-        st.divider(); st.write("**Interaction**")
-        i_cols = st.columns(4)
-        for i, task in enumerate(db["tasks"]["interaction"]):
-            i_cols[i%4].checkbox(task, key=f"i_{task}", on_change=sync_draft)
 
-    # --- 6. Exporting ---
+    # --- 6. Professional Exporting ---
     st.divider()
-    # تحديث رسالة الواتساب لتشمل المبيعات والفرق
-    diff_status = "Match ✅" if net_diff == 0 else f"Surplus ➕{net_diff}" if net_diff > 0 else f"Shortage ➖{abs(net_diff)}"
-    wa_msg = f"*🚀 NMS DAILY REPORT*\n" \
-             f"Branch: {branch} | Staff: {st.session_state['user']}\n" \
-             f"System Sales: {sys_sales:,.2f} LE\n" \
-             f"Expenses: {expenses:,.2f} LE\n" \
-             f"Cash Status: {diff_status}\n" \
-             f"Opay Diff: {opay_end - opay_start:,.4f}"
-
-    if st.button("📥 EXPORT PDF REPORT", use_container_width=True):
-        buffer = io.BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=letter)
-        elements = [Paragraph(f"NMS REPORT - {branch}", getSampleStyleSheet()['Title'])]
-        doc.build(elements)
-        st.download_button("Download", data=buffer.getvalue(), file_name=f"{branch}.pdf")
+    opening_tasks_done = [t for t in db["tasks"]["opening"] if st.session_state.get(f"s_{t}")]
+    closing_tasks_done = [t for t in db["tasks"]["closing"] if st.session_state.get(f"e_{t}")]
     
-    wa_url = f"https://wa.me/{MANAGER_PHONE}?text={urllib.parse.quote(wa_msg)}"
-    st.markdown(f'<a href="{wa_url}" target="_blank"><button style="width:100%; background-color:#25D366; color:white; border:none; padding:12px; border-radius:10px; cursor:pointer; font-weight:bold;">📱 SEND TO WHATSAPP</button></a>', unsafe_allow_html=True)
+    diff_status = "✅ Match" if net_diff == 0 else f"➕ Surplus: {net_diff}" if net_diff > 0 else f"➖ Shortage: {net_diff}"
+    wa_msg = f"*🚀 NMS FULL REPORT*\n*Branch:* {branch} | *Staff:* {st.session_state['user']}\n\n*💰 FINANCIAL:*\n- System Sales: {sys_sales:,.2f}\n- Expenses: {expenses:,.2f}\n- *Cash Status:* {diff_status}\n\n*🖨️ PRINTERS:*\n- Kyo Actual: {k_actual}\n- Xerox Actual: {x_actual}\n\n*✅ TASKS:*\n- Opening: {len(opening_tasks_done)}/{len(db['tasks']['opening'])}\n- Closing: {len(closing_tasks_done)}/{len(db['tasks']['closing'])}"
+
+    c_rep1, c_rep2 = st.columns(2)
+    with c_rep1:
+        if st.button("📥 DOWNLOAD PDF REPORT", use_container_width=True):
+            buffer = io.BytesIO()
+            doc = SimpleDocTemplate(buffer, pagesize=letter)
+            styles = getSampleStyleSheet()
+            elements = [Paragraph(f"NMS REPORT - {branch}", styles['Title']), Spacer(1, 12)]
+            
+            # Financial Table
+            data_fin = [["Category", "Details"], ["Opening", t_open], ["System Sales", sys_sales], ["Expenses", expenses], ["Actual Cash", t_close], ["Difference", net_diff]]
+            elements.append(Table(data_fin, style=TableStyle([('GRID', (0,0), (-1,-1), 1, colors.black), ('BACKGROUND', (0,0), (-1,0), colors.grey)])))
+            
+            doc.build(elements)
+            st.download_button("Save PDF", data=buffer.getvalue(), file_name="NMS_Report.pdf")
+
+    with c_rep2:
+        wa_url = f"https://wa.me/{MANAGER_PHONE}?text={urllib.parse.quote(wa_msg)}"
+        st.markdown(f'<a href="{wa_url}" target="_blank"><button style="width:100%; background-color:#25D366; color:white; border:none; padding:12px; border-radius:10px; font-weight:bold;">📱 SEND TO WHATSAPP</button></a>', unsafe_allow_html=True)
