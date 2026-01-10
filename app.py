@@ -19,6 +19,7 @@ def load_db():
     if not os.path.exists(DB_FILE) or os.stat(DB_FILE).st_size == 0:
         return {
             "logo": None,
+            "pending_orders": 0.0,  # خانة المبيت العامة
             "users": {
                 "admin": {"pass": "admin123", "role": "admin", "full_name": "Manager", "email": "admin@nms.com", "phone": "000", "id_num": "000", "address": "HQ", "photo": None},
                 "Mina": {"pass": "123", "role": "user", "full_name": "Mina", "photo": None}
@@ -49,7 +50,7 @@ if 'logged_in' not in st.session_state:
 def sync_draft():
     if st.session_state['logged_in']:
         user = st.session_state['user']
-        # حفظ شامل لكل المفاتيح التي تبدأ بالبادئات المتفق عليها
+        # الحفظ التلقائي لكل المدخلات التي تبدأ ببادئات النظام
         current_data = {k: v for k, v in st.session_state.items() if k.startswith(('s_', 'o_', 'm_', 'e_', 'c_', 'i_', 'ks', 'xs', 'ops', 'oc', 'cc', 'k1', 'x2', 'op_'))}
         if "drafts" not in db: db["drafts"] = {}
         db["drafts"][user] = current_data
@@ -75,7 +76,7 @@ if not st.session_state['logged_in']:
             else: st.error("Authentication Failed")
 
 else:
-    # --- 4. Sidebar (Full Admin & Profile Controls) ---
+    # --- 4. Sidebar ---
     with st.sidebar:
         if db.get("logo"): st.image(base64.b64decode(db["logo"]), width=120)
         st.header(f"User: {st.session_state['user']}")
@@ -158,6 +159,10 @@ else:
 
     with tab1:
         st.subheader("Opening Procedures")
+        # عرض المبيت المُرحل من الشفت السابق
+        if db.get("pending_orders", 0) > 0:
+            st.warning(f"📦 تنبيه: يوجد أوردرات مبيتة من الشفت السابق بقيمة: {db['pending_orders']:,.2f} جنيه (سيتم استلام كاش خاص بها)")
+        
         c1, c2, c3 = st.columns([1, 1.5, 1.5])
         with c1:
             st.write("**Opening Checklist**")
@@ -188,6 +193,9 @@ else:
             st.divider()
             st.write("**Financial Input**")
             sys_sales = st.number_input("System Sales (SQL)", min_value=0.0, step=1.0, key="c_sys_sales", on_change=sync_draft)
+            # إضافة خانة المبيت الجديدة
+            mabeet = st.number_input("مبيت (أوردرات طُبعت ولم تستلم)", min_value=0.0, step=1.0, key="c_mabeet", on_change=sync_draft)
+            
             instapay = st.number_input("Instapay", step=1, key="c_insta", on_change=sync_draft)
             wallet = st.number_input("Wallet", step=1, key="c_wall", on_change=sync_draft)
             visa = st.number_input("Visa", step=1, key="c_visa", on_change=sync_draft)
@@ -202,7 +210,8 @@ else:
             expenses = st.number_input("Expenses", step=1, key="c_exp", on_change=sync_draft)
             
             st.divider()
-            expected_cash = t_open + sys_sales - expenses
+            # المعادلة المعدلة: المبيت يُطرح من المتوقع لأنه لم يدخل الدرج كاش
+            expected_cash = t_open + sys_sales - expenses - mabeet
             net_diff = t_close - expected_cash
             
             st.metric("Expected Cash", f"{expected_cash:,.2f} LE")
@@ -244,21 +253,26 @@ else:
     social_tasks_done = [t for t in db["tasks"]["social"] if st.session_state.get(f"m_{t}")]
     
     diff_status = "✅ Match" if net_diff == 0 else f"➕ Surplus: {net_diff}" if net_diff > 0 else f"➖ Shortage: {net_diff}"
-    wa_msg = f"*🚀 NMS FULL REPORT*\n*Date:* {datetime.now().strftime('%Y-%m-%d')}\n*Branch:* {branch} | *Staff:* {st.session_state['user']}\n\n*💰 FINANCIAL:*\n- System Sales: {sys_sales:,.2f}\n- Expenses: {expenses:,.2f}\n- Actual Cash: {t_close:,.2f}\n- *Status:* {diff_status}\n\n*🖨️ PRINTERS:*\n- Kyo Actual: {k_actual}\n- Xerox Actual: {x_actual}\n\n*✅ TASKS DONE:* {len(opening_tasks_done)+len(closing_tasks_done)+len(social_tasks_done)}"
+    wa_msg = f"*🚀 NMS FULL REPORT*\n*Date:* {datetime.now().strftime('%Y-%m-%d')}\n*Branch:* {branch} | *Staff:* {st.session_state['user']}\n\n*💰 FINANCIAL:*\n- System Sales: {sys_sales:,.2f}\n- Mabeet (Pending): {mabeet:,.2f}\n- Expenses: {expenses:,.2f}\n- Actual Cash: {t_close:,.2f}\n- *Status:* {diff_status}\n\n*🖨️ PRINTERS:*\n- Kyo Actual: {k_actual}\n- Xerox Actual: {x_actual}\n\n*✅ TASKS DONE:* {len(opening_tasks_done)+len(closing_tasks_done)+len(social_tasks_done)}"
 
     rep1, rep2 = st.columns(2)
     with rep1:
         if st.button("📥 DOWNLOAD FULL PDF REPORT", use_container_width=True):
+            # ترحيل قيمة المبيت لقاعدة البيانات عند استخراج التقرير النهائي
+            db["pending_orders"] = mabeet
+            save_db(db)
+            
             buffer = io.BytesIO()
             doc = SimpleDocTemplate(buffer, pagesize=letter)
             styles = getSampleStyleSheet()
             elements = [Paragraph(f"NMS DAILY REPORT - {branch}", styles['Title']), Spacer(1, 12)]
             
-            # Table 1: Financials
+            # Table 1: Financials with Mabeet
             data_fin = [
                 ["Category", "Amount (LE)"],
                 ["Opening Cash", f"{t_open:,.2f}"],
                 ["System Sales", f"{sys_sales:,.2f}"],
+                ["Mabeet (Pending)", f"{mabeet:,.2f}"],
                 ["Expenses", f"{expenses:,.2f}"],
                 ["Expected Cash", f"{expected_cash:,.2f}"],
                 ["Actual Cash", f"{t_close:,.2f}"],
