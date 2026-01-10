@@ -24,7 +24,7 @@ def load_db():
                 "admin": {"pass": "admin123", "role": "admin", "full_name": "Manager", "email": "admin@nms.com", "phone": "000", "id_num": "000", "address": "HQ", "photo": None},
                 "Mina": {"pass": "123", "role": "user", "full_name": "Mina", "photo": None}
             },
-            "branches": ["Mohamed Nagib Branch", "El Tram Branch"],
+            "branches": ["M. Nagib Branch", "Tram Branch"],
             "tasks": {
                 "opening": ["Fingerprint", "Power On", "Uniform & Name Tag", "Music On", "Paper Loaded", "Cash Counted", "All Good"],
                 "closing": ["Contacts on WhatsApp", "Place Cleaned", "Power Off", "Cash Counted", "Fingerprint", "Report Sent"],
@@ -194,7 +194,7 @@ else:
             st.write("**Financial Input**")
             sys_sales = st.number_input("System Sales (SQL)", min_value=0.0, step=1.0, key="c_sys_sales", on_change=sync_draft)
             # إضافة خانة المبيت الجديدة
-            mabeet = st.number_input("مبيت (أوردرات طُبعت ولم تستلم)", min_value=0.0, step=1.0, key="c_mabeet", on_change=sync_draft)
+            mabeet = st.number_input("Debit", min_value=0.0, step=1.0, key="c_mabeet", on_change=sync_draft)
             
             instapay = st.number_input("Instapay", step=1, key="c_insta", on_change=sync_draft)
             wallet = st.number_input("Wallet", step=1, key="c_wall", on_change=sync_draft)
