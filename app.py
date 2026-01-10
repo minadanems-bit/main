@@ -172,10 +172,11 @@ else:
             t_open += o_coins
             st.success(f"**Total Opening: {t_open:,.2f} LE**")
         with c3:
-            st.write("**Start Counters**")
+            st.write("**Start Counters & Debit In**")
             k_start = st.number_input("Kyocera Opening", step=1, key="ks", on_change=sync_draft)
             x_start = st.number_input("Xerox Opening", step=1, key="xs", on_change=sync_draft)
             opay_start = st.number_input("Opay Opening Balance", step=0.01, format="%.4f", key="ops", on_change=sync_draft)
+            u10_debit = st.number_input("Debit Received (Cash In)", min_value=0.0, step=1.0, key="u10_val", on_change=sync_draft)
 
     with tab2:
         st.subheader("Closing Procedures")
@@ -185,29 +186,25 @@ else:
             for t in db["tasks"]["closing"]: st.checkbox(t, key=f"e_{t}", on_change=sync_draft)
             st.divider()
             st.write("**Financial Input**")
-            sys_sales = st.number_input("System Sales (SQL)", min_value=0.0, step=1.0, key="c_sys_sales", on_change=sync_draft)
-            u10_debit = st.number_input("Debit Received (U10)", min_value=0.0, step=1.0, key="u10_val", on_change=sync_draft)
-            v22_debit = st.number_input("Debit Out/Pending (V22)", min_value=0.0, step=1.0, key="v22_val", on_change=sync_draft)
+            sys_sales = st.number_input("System Sales", min_value=0.0, step=1.0, key="c_sys_sales", on_change=sync_draft)
+            v22_debit = st.number_input("Debit Pending (Unpaid)", min_value=0.0, step=1.0, key="v22_val", on_change=sync_draft)
             instapay = st.number_input("Instapay", step=1.0, key="c_insta", on_change=sync_draft)
             wallet = st.number_input("Wallet", step=1.0, key="c_wall", on_change=sync_draft)
             visa = st.number_input("Visa", step=1.0, key="c_visa", on_change=sync_draft)
             t_e_pay = instapay + wallet + visa
         with c2:
-            st.write("**Closing Cash & Opay**")
-            opay_end = st.number_input("Opay Final Balance", step=0.01, format="%.4f", key="op_end", on_change=sync_draft)
-            opay_diff = opay_start - opay_end
-            
+            st.write("**Closing Cash**")
             t_close = 0.0
             for d in [200, 100, 50, 20, 10, 5]:
                 v = st.number_input(f"{d} LE  ", min_value=0, step=1, key=f"c_{d}", on_change=sync_draft)
                 t_close += (v * d)
             c_coins = st.number_input("Closing Coins  ", step=0.5, format="%.2f", key="cc", on_change=sync_draft)
             t_close += c_coins
-            expenses = st.number_input("Expenses (U22)", step=1.0, key="c_exp", on_change=sync_draft)
+            expenses = st.number_input("Expenses", step=1.0, key="c_exp", on_change=sync_draft)
             
             st.divider()
-            # المعادلة المعدلة طبقاً لشرحك: الافتتاح + السيستم - المصاريف - الالكتروني + ديبيت مستلم - ديبيت خارج + حركة اوباي
-            expected_cash = t_open + sys_sales - expenses - t_e_pay + u10_debit - v22_debit + opay_diff
+            # المعادلة المالية (تم استبعاد اوباي منها تماما بناء على طلبك)
+            expected_cash = t_open + sys_sales + u10_debit - expenses - v22_debit - t_e_pay
             net_diff = t_close - expected_cash
             st.metric("Expected Cash (Drawer)", f"{expected_cash:,.2f} LE")
             if abs(net_diff) < 0.1: st.success("✅ Match")
@@ -215,7 +212,11 @@ else:
             else: st.error(f"➖ Shortage: {net_diff:,.2f}")
 
         with c3:
-            st.write("**Printer Analysis**")
+            st.write("**Systems Analysis**")
+            opay_end = st.number_input("Opay Final Balance", step=0.01, format="%.4f", key="op_end", on_change=sync_draft)
+            opay_diff = opay_start - opay_end
+            st.write(f"Opay Movement: {opay_diff:,.2f}")
+            st.divider()
             st.markdown("### 🖨️ Kyocera")
             k_end = st.number_input("Counter End", step=1, key="k1end", on_change=sync_draft)
             k_os = st.number_input("Sold: One-Side", step=1, key="k1os", on_change=sync_draft)
@@ -249,7 +250,7 @@ else:
     # --- 6. Exporting ---
     st.divider()
     diff_status = "✅ Match" if abs(net_diff) < 0.1 else f"⚠️ {net_diff}"
-    wa_msg = f"*🚀 NMS FULL REPORT*\n*Branch:* {branch} | *Staff:* {st.session_state['user']}\n\n*💰 FINANCIALS:*\n- Total Sales: {sys_sales:,.2f}\n- Opay Diff: {opay_diff:,.2f}\n- Debit In: {u10_debit:,.2f}\n- Debit Out: {v22_debit:,.2f}\n- E-Payments: {t_e_pay:,.2f}\n- Cash in Drawer: {t_close:,.2f}\n- *Status:* {diff_status}\n\n*🖨️ PRINTERS:*\n- Kyo Used: {k_actual}\n- Xerox Used: {x_actual}"
+    wa_msg = f"*🚀 NMS FULL REPORT*\n*Branch:* {branch} | *Staff:* {st.session_state['user']}\n\n*💰 FINANCIALS:*\n- Opening Cash: {t_open:,.2f}\n- Total Sales: {sys_sales:,.2f}\n- Debit Received: {u10_debit:,.2f}\n- Expenses: {expenses:,.2f}\n- E-Payments: {t_e_pay:,.2f}\n- Debit Pending: {v22_debit:,.2f}\n- Cash in Drawer: {t_close:,.2f}\n- *Final Status:* {diff_status}\n\n*📱 SYSTEMS:*\n- Opay Movement: {opay_diff:,.2f}\n- Opay Final: {opay_end:,.4f}\n\n*🖨️ PRINTERS:*\n- Kyo Used: {k_actual}\n- Xerox Used: {x_actual}"
 
     rep1, rep2 = st.columns(2)
     with rep1:
@@ -260,25 +261,28 @@ else:
             elements.append(Paragraph(f"NMS DAILY REPORT - {branch}", styles['Title']))
             elements.append(Paragraph(f"Date: {datetime.now().strftime('%Y-%m-%d')} | Staff: {st.session_state['user']}", styles['Normal']))
             
-            data_f = [["Item", "Amount"], ["Total Sales (U20)", sys_sales], ["Opay Movement", opay_diff], ["Debit Received (U10)", u10_debit], ["Non-Cash (V20)", t_e_pay], ["Debit Out (V22)", v22_debit], ["Expenses (U22)", expenses], ["Expected Cash", expected_cash], ["Actual Cash (W11)", t_close], ["Final Diff (W22)", net_diff]]
+            # Financials Table
+            data_f = [["Financial Item", "Amount"], ["Opening Cash", t_open], ["Total Sales", sys_sales], ["Debit Received", u10_debit], ["Expenses", expenses], ["E-Payments", t_e_pay], ["Debit Pending", v22_debit], ["Expected Cash", expected_cash], ["Actual Cash", t_close], ["Net Difference", net_diff]]
             t1 = Table(data_f, colWidths=[200, 100])
             t1.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 1, colors.black), ('BACKGROUND', (0,0), (-1,0), colors.indianred), ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke)]))
             elements.append(Spacer(1, 15)); elements.append(Paragraph("1. Financial Summary", styles['Heading3'])); elements.append(t1)
 
-            data_p = [["Printer", "Used", "Sold", "Err", "Test", "Diff"], ["Kyocera", k_actual, k_os+(k_dp*2), k_err, k_test, k_accounted-k_actual], ["Xerox", x_actual, x_os+(x_dp*2), x_err, x_test, x_accounted-x_actual]]
-            t2 = Table(data_p, colWidths=[80, 60, 60, 60, 60, 60])
+            # Systems & Printers Table
+            data_p = [["System/Printer", "Start", "End/Used", "Match Status"], ["Opay Wallet", opay_start, opay_end, f"Diff: {opay_diff}"], ["Kyocera", k_start, k_actual, "OK" if (k_accounted-k_actual)==0 else "Err"], ["Xerox", x_start, x_actual, "OK" if (x_accounted-x_actual)==0 else "Err"]]
+            t2 = Table(data_p, colWidths=[120, 80, 80, 80])
             t2.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 1, colors.black), ('BACKGROUND', (0,0), (-1,0), colors.lightblue)]))
-            elements.append(Spacer(1, 15)); elements.append(Paragraph("2. Printer Analysis", styles['Heading3'])); elements.append(t2)
+            elements.append(Spacer(1, 15)); elements.append(Paragraph("2. Systems & Printers Analysis", styles['Heading3'])); elements.append(t2)
 
-            data_t = [["Task Category", "Done"]]
-            data_t.append(["Opening", f"{len([t for t in db['tasks']['opening'] if st.session_state.get(f's_{t}')])}"])
-            data_t.append(["Closing", f"{len([t for t in db['tasks']['closing'] if st.session_state.get(f'e_{t}')])}"])
-            data_t.append(["Social", f"{len([t for t in db['tasks']['social'] if st.session_state.get(f'm_{t}')])}"])
-            t3 = Table(data_t, colWidths=[200, 100]); t3.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 1, colors.grey)]))
-            elements.append(Spacer(1, 15)); elements.append(Paragraph("3. Tasks Summary", styles['Heading3'])); elements.append(t3)
+            # Tasks Table
+            data_t = [["Task Category", "Done", "Total Available"]]
+            data_t.append(["Opening", len([t for t in db['tasks']['opening'] if st.session_state.get(f's_{t}')]), len(db['tasks']['opening'])])
+            data_t.append(["Closing", len([t for t in db['tasks']['closing'] if st.session_state.get(f'e_{t}')]), len(db['tasks']['closing'])])
+            data_t.append(["Social", len([t for t in db['tasks']['social'] if st.session_state.get(f'm_{t}')]), len(db['tasks']['social'])])
+            t3 = Table(data_t, colWidths=[120, 80, 100]); t3.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 1, colors.grey)]))
+            elements.append(Spacer(1, 15)); elements.append(Paragraph("3. Tasks Execution Summary", styles['Heading3'])); elements.append(t3)
 
             doc.build(elements)
-            st.download_button("💾 Download PDF", data=buffer.getvalue(), file_name=f"NMS_{branch}.pdf")
+            st.download_button("💾 Save PDF Report", data=buffer.getvalue(), file_name=f"NMS_{branch}_{datetime.now().strftime('%Y%m%d')}.pdf")
 
     with rep2:
         wa_url = f"https://wa.me/{MANAGER_PHONE}?text={urllib.parse.quote(wa_msg)}"
