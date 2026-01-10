@@ -50,7 +50,6 @@ if 'logged_in' not in st.session_state:
 def sync_draft():
     if st.session_state['logged_in']:
         user = st.session_state['user']
-        # الحفظ التلقائي لكل المدخلات
         current_data = {k: v for k, v in st.session_state.items() if k.startswith(('s_', 'o_', 'm_', 'e_', 'c_', 'i_', 'ks', 'xs', 'ops', 'oc', 'cc', 'k1', 'x2', 'op_'))}
         if "drafts" not in db: db["drafts"] = {}
         db["drafts"][user] = current_data
@@ -81,7 +80,6 @@ else:
         if db.get("logo"): st.image(base64.b64decode(db["logo"]), width=120)
         st.header(f"User: {st.session_state['user']}")
         user_node = db["users"][st.session_state['user']]
-        
         if user_node.get("photo"): st.image(base64.b64decode(user_node["photo"]), width=150)
         prof_pic = st.file_uploader("Upload Personal Photo", type=['jpg', 'png'])
         if st.button("Save Photo"):
@@ -107,7 +105,6 @@ else:
                         if new_u_name and new_u_name not in db["users"]:
                             db["users"][new_u_name] = {"pass": new_u_pass, "role": "user", "full_name": new_u_full}
                             save_db(db); st.success(f"Account for {new_u_name} created!"); st.rerun()
-                
                 st.divider()
                 target_user = st.selectbox("Select Employee", list(db["users"].keys()))
                 is_admin = db["users"][target_user]["role"] == "admin"
@@ -161,12 +158,10 @@ else:
         st.subheader("Opening Procedures")
         if db.get("pending_debit", 0) > 0:
             st.warning(f"📦 تنبيه هام: يوجد (Debit) مُرحل من الشفت السابق بقيمة: {db['pending_debit']:,.2f} جنيه.")
-        
         c1, c2, c3 = st.columns([1, 1.5, 1.5])
         with c1:
             st.write("**Opening Checklist**")
-            for t in db["tasks"]["opening"]: 
-                st.checkbox(t, key=f"s_{t}", on_change=sync_draft)
+            for t in db["tasks"]["opening"]: st.checkbox(t, key=f"s_{t}", on_change=sync_draft)
         with c2:
             st.write("**Opening Cash**")
             t_open = 0.0
@@ -187,16 +182,15 @@ else:
         c1, c2, c3 = st.columns([1, 1.5, 1.5])
         with c1:
             st.write("**Closing Checklist**")
-            for t in db["tasks"]["closing"]: 
-                st.checkbox(t, key=f"e_{t}", on_change=sync_draft)
+            for t in db["tasks"]["closing"]: st.checkbox(t, key=f"e_{t}", on_change=sync_draft)
             st.divider()
             st.write("**Financial Input**")
             sys_sales = st.number_input("System Sales (SQL)", min_value=0.0, step=1.0, key="c_sys_sales", on_change=sync_draft)
             debit_val = st.number_input("Debit (Unpaid/Pending)", min_value=0.0, step=1.0, key="c_debit", on_change=sync_draft)
-            
-            instapay = st.number_input("Instapay", step=1, key="c_insta", on_change=sync_draft)
-            wallet = st.number_input("Wallet", step=1, key="c_wall", on_change=sync_draft)
-            visa = st.number_input("Visa", step=1, key="c_visa", on_change=sync_draft)
+            instapay = st.number_input("Instapay", step=1.0, key="c_insta", on_change=sync_draft)
+            wallet = st.number_input("Wallet", step=1.0, key="c_wall", on_change=sync_draft)
+            visa = st.number_input("Visa", step=1.0, key="c_visa", on_change=sync_draft)
+            t_e_pay = instapay + wallet + visa
         with c2:
             st.write("**Closing Cash (Physical)**")
             t_close = 0.0
@@ -205,141 +199,85 @@ else:
                 t_close += (v * d)
             c_coins = st.number_input("Closing Coins  ", step=0.5, format="%.2f", key="cc", on_change=sync_draft)
             t_close += c_coins
-            expenses = st.number_input("Expenses", step=1, key="c_exp", on_change=sync_draft)
-            
+            expenses = st.number_input("Expenses", step=1.0, key="c_exp", on_change=sync_draft)
             st.divider()
-            expected_cash = t_open + sys_sales - expenses - debit_val
+            # المعادلة المعدلة لخصم المدفوعات الإلكترونية من الكاش المتوقع في الدرج
+            expected_cash = t_open + sys_sales - expenses - debit_val - t_e_pay
             net_diff = t_close - expected_cash
-            
-            st.metric("Expected Cash", f"{expected_cash:,.2f} LE")
+            st.metric("Expected Cash (Drawer)", f"{expected_cash:,.2f} LE")
             if net_diff == 0: st.success("✅ Match")
             elif net_diff > 0: st.warning(f"➕ Surplus: {net_diff:,.2f}")
             else: st.error(f"➖ Shortage: {net_diff:,.2f}")
 
         with c3:
             st.write("**Printer Analysis**")
-            # --- Kyocera Section ---
             st.markdown("### 🖨️ Kyocera")
             k_end = st.number_input("Counter End", step=1, key="k1end", on_change=sync_draft)
             k_os = st.number_input("Sold: One-Side", step=1, key="k1os", on_change=sync_draft)
             k_dp = st.number_input("Sold: Duplex", step=1, key="k1dp", on_change=sync_draft)
-            # New Fields
             k_err = st.number_input("Errors / Jam", step=1, key="k1err", on_change=sync_draft)
             k_test = st.number_input("Test / Draft", step=1, key="k1tst", on_change=sync_draft)
-            
             k_actual = k_end - k_start
-            k_sold_total = k_os + (k_dp * 2)
-            k_accounted = k_sold_total + k_err + k_test # المباع + الهالك + التست
-            
+            k_accounted = k_os + (k_dp * 2) + k_err + k_test
             if (k_accounted - k_actual) == 0: st.success(f"✅ Match (Used: {k_actual})")
             else: st.error(f"⚠️ Diff: {k_accounted - k_actual}")
-
             st.divider()
-            
-            # --- Xerox Section ---
             st.markdown("### 🖨️ Xerox")
-            x_end = st.number_input("Counter End", step=1, key="x2end", on_change=sync_draft)
-            x_os = st.number_input("Sold: One-Side", step=1, key="x2os", on_change=sync_draft)
-            x_dp = st.number_input("Sold: Duplex", step=1, key="x2dp", on_change=sync_draft)
-            # New Fields
-            x_err = st.number_input("Errors / Jam", step=1, key="x2err", on_change=sync_draft)
-            x_test = st.number_input("Test / Draft", step=1, key="x2tst", on_change=sync_draft)
-            
+            x_end = st.number_input("Counter End (X)", step=1, key="x2end", on_change=sync_draft)
+            x_os = st.number_input("Sold: S (X)", step=1, key="x2os", on_change=sync_draft)
+            x_dp = st.number_input("Sold: D (X)", step=1, key="x2dp", on_change=sync_draft)
+            x_err = st.number_input("Errors (X)", step=1, key="x2err", on_change=sync_draft)
+            x_test = st.number_input("Test (X)", step=1, key="x2tst", on_change=sync_draft)
             x_actual = x_end - x_start
-            x_sold_total = x_os + (x_dp * 2)
-            x_accounted = x_sold_total + x_err + x_test
-            
+            x_accounted = x_os + (x_dp * 2) + x_err + x_test
             if (x_accounted - x_actual) == 0: st.success(f"✅ Match (Used: {x_actual})")
             else: st.error(f"⚠️ Diff: {x_accounted - x_actual}")
-            
             opay_end = st.number_input("Opay Final", step=0.01, format="%.4f", key="op_end", on_change=sync_draft)
 
     with tab3:
         st.subheader("Social Media Tasks")
         m_cols = st.columns(4)
-        for i, task in enumerate(db["tasks"]["social"]):
-            m_cols[i%4].checkbox(task, key=f"m_{task}", on_change=sync_draft)
+        for i, task in enumerate(db["tasks"]["social"]): m_cols[i%4].checkbox(task, key=f"m_{task}", on_change=sync_draft)
         st.divider(); st.write("**Interaction**")
         i_cols = st.columns(4)
-        for i, task in enumerate(db["tasks"]["interaction"]):
-            i_cols[i%4].checkbox(task, key=f"i_{task}", on_change=sync_draft)
+        for i, task in enumerate(db["tasks"]["interaction"]): i_cols[i%4].checkbox(task, key=f"i_{task}", on_change=sync_draft)
 
-    # --- 6. Exporting (Updated PDF & WhatsApp) ---
+    # --- 6. Exporting ---
     st.divider()
-    opening_tasks_done = [t for t in db["tasks"]["opening"] if st.session_state.get(f"s_{t}")]
-    closing_tasks_done = [t for t in db["tasks"]["closing"] if st.session_state.get(f"e_{t}")]
-    social_tasks_done = [t for t in db["tasks"]["social"] if st.session_state.get(f"m_{t}")]
-    
-    diff_status = "✅ Match" if net_diff == 0 else f"➕ Surplus: {net_diff}" if net_diff > 0 else f"➖ Shortage: {net_diff}"
-    
-    wa_msg = f"*🚀 NMS FULL REPORT*\n*Date:* {datetime.now().strftime('%Y-%m-%d')}\n*Branch:* {branch} | *Staff:* {st.session_state['user']}\n\n*💰 FINANCIAL:*\n- System Sales: {sys_sales:,.2f}\n- Debit (Pending): {debit_val:,.2f}\n- Expenses: {expenses:,.2f}\n- Actual Cash: {t_close:,.2f}\n- *Status:* {diff_status}\n\n*🖨️ PRINTERS:*\n- Kyo Actual: {k_actual}\n- Xerox Actual: {x_actual}\n\n*✅ TASKS DONE:* {len(opening_tasks_done)+len(closing_tasks_done)+len(social_tasks_done)}"
+    diff_status = "✅ Match" if net_diff == 0 else f"⚠️ {net_diff}"
+    wa_msg = f"*🚀 NMS FULL REPORT*\n*Branch:* {branch} | *Staff:* {st.session_state['user']}\n\n*💰 FINANCIALS:*\n- Total Sales: {sys_sales:,.2f}\n- E-Payments: {t_e_pay:,.2f}\n- Expenses: {expenses:,.2f}\n- Cash in Drawer: {t_close:,.2f}\n- *Status:* {diff_status}\n\n*🖨️ PRINTERS:*\n- Kyo Used: {k_actual}\n- Xerox Used: {x_actual}"
 
     rep1, rep2 = st.columns(2)
     with rep1:
         if st.button("📥 DOWNLOAD FULL PDF REPORT", use_container_width=True):
-            db["pending_debit"] = debit_val
-            save_db(db)
-            
-            buffer = io.BytesIO()
-            doc = SimpleDocTemplate(buffer, pagesize=letter)
-            styles = getSampleStyleSheet()
-            elements = []
-            
-            # Header
+            db["pending_debit"] = debit_val; save_db(db)
+            buffer = io.BytesIO(); doc = SimpleDocTemplate(buffer, pagesize=letter)
+            styles = getSampleStyleSheet(); elements = []
             elements.append(Paragraph(f"NMS DAILY REPORT - {branch}", styles['Title']))
-            elements.append(Paragraph(f"Date: {datetime.now().strftime('%Y-%m-%d')} | Shift: {shift} | Staff: {st.session_state['user']}", styles['Normal']))
-            elements.append(Spacer(1, 15))
-
-            # Table 1: Opening
-            elements.append(Paragraph("1. Opening Cash Breakdown", styles['Heading3']))
-            data_o = [["Denomination", "Count", "Total (LE)"]]
-            for d in [200, 100, 50, 20, 10, 5]:
-                cnt = st.session_state.get(f"o_{d}", 0)
-                data_o.append([f"{d} LE", cnt, f"{cnt*d:,.2f}"])
-            data_o.append(["Coins", "-", f"{st.session_state.get('oc', 0):,.2f}"])
-            data_o.append(["TOTAL OPENING", "", f"{t_open:,.2f}"])
-            t1 = Table(data_o, colWidths=[150, 100, 100])
-            t1.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 1, colors.black), ('BACKGROUND', (0,0), (-1,0), colors.lightgrey)]))
-            elements.append(t1); elements.append(Spacer(1, 15))
-
-            # Table 2: Financials
-            elements.append(Paragraph("2. Financial Closing Summary", styles['Heading3']))
-            data_f = [
-                ["Category", "Amount (LE)"],
-                ["System Sales", f"{sys_sales:,.2f}"],
-                ["Debit (Pending)", f"{debit_val:,.2f}"],
-                ["Expenses", f"{expenses:,.2f}"],
-                ["Expected Cash", f"{expected_cash:,.2f}"],
-                ["Actual Cash", f"{t_close:,.2f}"],
-                ["Difference", f"{net_diff:,.2f}"]
-            ]
-            t2 = Table(data_f, colWidths=[200, 150])
-            t2.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 1, colors.black), ('BACKGROUND', (0,0), (-1,0), colors.indianred), ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke)]))
-            elements.append(t2); elements.append(Spacer(1, 15))
+            elements.append(Paragraph(f"Date: {datetime.now().strftime('%Y-%m-%d')} | Staff: {st.session_state['user']}", styles['Normal']))
             
-            # Table 3: Printers (Updated with Errors/Test)
-            elements.append(Paragraph("3. Printer & Counter Analysis", styles['Heading3']))
-            data_p = [
-                ["Printer", "Used", "Sold", "Error", "Test", "Diff"],
-                ["Kyocera", k_actual, k_sold_total, k_err, k_test, f"{k_accounted - k_actual}"],
-                ["Xerox", x_actual, x_sold_total, x_err, x_test, f"{x_accounted - x_actual}"]
-            ]
-            t3 = Table(data_p, colWidths=[80, 60, 60, 60, 60, 60])
-            t3.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 0.5, colors.grey), ('BACKGROUND', (0,0), (-1,0), colors.lightblue)]))
-            elements.append(t3); elements.append(Spacer(1, 15))
+            # Table: Financial
+            data_f = [["Item", "Amount"], ["Total Sales", sys_sales], ["Non-Cash (Visa/Apps)", t_e_pay], ["Debit", debit_val], ["Expenses", expenses], ["Expected Cash", expected_cash], ["Actual Cash", t_close], ["Diff", net_diff]]
+            t1 = Table(data_f, colWidths=[200, 100])
+            t1.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 1, colors.black), ('BACKGROUND', (0,0), (-1,0), colors.indianred), ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke)]))
+            elements.append(Spacer(1, 15)); elements.append(Paragraph("1. Financial Summary", styles['Heading3'])); elements.append(t1)
 
-            # Table 4 & 5: Tasks
-            elements.append(Paragraph("4. Tasks & Social Media", styles['Heading3']))
-            data_t = [["Task", "Status"]]
-            for t in db["tasks"]["opening"]: data_t.append([f"Open: {t}", "✅" if st.session_state.get(f"s_{t}") else "❌"])
-            for t in db["tasks"]["closing"]: data_t.append([f"Close: {t}", "✅" if st.session_state.get(f"e_{t}") else "❌"])
-            for t in db["tasks"]["social"]: data_t.append([f"Social: {t}", "✅" if st.session_state.get(f"m_{t}") else "❌"])
-            t4 = Table(data_t, colWidths=[250, 100])
-            t4.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 0.5, colors.grey)]))
-            elements.append(t4)
+            # Table: Printers
+            data_p = [["Printer", "Used", "Sold", "Err", "Test", "Diff"], ["Kyocera", k_actual, k_os+(k_dp*2), k_err, k_test, k_accounted-k_actual], ["Xerox", x_actual, x_os+(x_dp*2), x_err, x_test, x_accounted-x_actual]]
+            t2 = Table(data_p, colWidths=[80, 60, 60, 60, 60, 60])
+            t2.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 1, colors.black), ('BACKGROUND', (0,0), (-1,0), colors.lightblue)]))
+            elements.append(Spacer(1, 15)); elements.append(Paragraph("2. Printer Analysis", styles['Heading3'])); elements.append(t2)
+
+            # Table: Tasks
+            data_t = [["Task Category", "Done"]]
+            data_t.append(["Opening", f"{len([t for t in db['tasks']['opening'] if st.session_state.get(f's_{t}')])}"])
+            data_t.append(["Closing", f"{len([t for t in db['tasks']['closing'] if st.session_state.get(f'e_{t}')])}"])
+            data_t.append(["Social", f"{len([t for t in db['tasks']['social'] if st.session_state.get(f'm_{t}')])}"])
+            t3 = Table(data_t, colWidths=[200, 100]); t3.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 1, colors.grey)]))
+            elements.append(Spacer(1, 15)); elements.append(Paragraph("3. Tasks Summary", styles['Heading3'])); elements.append(t3)
 
             doc.build(elements)
-            st.download_button("💾 Download Full PDF Report", data=buffer.getvalue(), file_name=f"NMS_{branch}_{datetime.now().strftime('%Y%m%d')}.pdf")
+            st.download_button("💾 Download PDF", data=buffer.getvalue(), file_name=f"NMS_{branch}.pdf")
 
     with rep2:
         wa_url = f"https://wa.me/{MANAGER_PHONE}?text={urllib.parse.quote(wa_msg)}"
