@@ -262,8 +262,8 @@ else:
             st.divider()
             st.markdown("### 🖨️ Kyocera")
             k_end = st.number_input("Counter End", step=1, key="k1end", on_change=sync_draft)
-            k_os = st.number_input("Sold: One-Side", step=1, key="k1os", on_change=sync_draft)
-            k_dp = st.number_input("Sold: Duplex", step=1, key="k1dp", on_change=sync_draft)
+            k_os = st.number_input("One-Side", step=1, key="k1os", on_change=sync_draft)
+            k_dp = st.number_input("Duplex", step=1, key="k1dp", on_change=sync_draft)
             k_err = st.number_input("Errors / Jam", step=1, key="k1err", on_change=sync_draft)
             k_test = st.number_input("Test / Draft", step=1, key="k1tst", on_change=sync_draft)
             k_actual = k_end - k_start
@@ -273,8 +273,8 @@ else:
             st.divider()
             st.markdown("### 🖨️ Xerox")
             x_end = st.number_input("Counter End", step=1, key="x2end", on_change=sync_draft)
-            x_os = st.number_input("Sold: One-Side", step=1, key="x2os", on_change=sync_draft)
-            x_dp = st.number_input("Sold: Duplex", step=1, key="x2dp", on_change=sync_draft)
+            x_os = st.number_input("One-Side", step=1, key="x2os", on_change=sync_draft)
+            x_dp = st.number_input("Duplex", step=1, key="x2dp", on_change=sync_draft)
             x_err = st.number_input("Errors / Jam", step=1, key="x2err", on_change=sync_draft)
             x_test = st.number_input("Test / Draft", step=1, key="x2tst", on_change=sync_draft)
             x_actual = x_end - x_start
