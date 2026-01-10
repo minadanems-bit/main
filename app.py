@@ -79,7 +79,7 @@ if not st.session_state['logged_in']:
             else: st.error("Authentication Failed")
 
 else:
-    # --- 4. Sidebar & Admin Panel ---
+    # --- 4. Sidebar ---
     with st.sidebar:
         if db.get("logo"): st.image(base64.b64decode(db["logo"]), width=120)
         st.header(f"User: {st.session_state['user']}")
@@ -97,51 +97,47 @@ else:
         if st.session_state['role'] == 'admin':
             st.divider()
             st.subheader("🛠️ Admin Master Control")
-            admin_mode = st.radio("Settings", ["Review Archive", "Manage Employees", "Manage Branches", "Manage Tasks", "Audit Logs"])
+            admin_mode = st.radio("Settings", ["Review History", "Manage Employees", "Manage Branches", "Manage Tasks", "Audit Logs"])
             
-            if admin_mode == "Review Archive":
-                st.subheader("📜 Shift History Explorer")
+            if admin_mode == "Review History":
+                st.subheader("📜 Shift Archive Explorer")
                 if not db["history"]:
-                    st.warning("No records found.")
+                    st.warning("No records found in history.")
                 else:
                     hist_df = pd.DataFrame(db["history"])
-                    d_col1, d_col2 = st.columns(2)
-                    with d_col1: search_date = st.date_input("Select Date", datetime.now())
-                    with d_col2: search_br = st.selectbox("Select Branch", ["All"] + db["branches"])
+                    search_date = st.date_input("Filter by Date", datetime.now())
+                    search_branch = st.selectbox("Filter by Branch", ["All"] + db["branches"])
                     
                     filtered = hist_df[hist_df['date'] == str(search_date)]
-                    if search_br != "All": filtered = filtered[filtered['branch'] == search_br]
+                    if search_branch != "All":
+                        filtered = filtered[filtered['branch'] == search_branch]
                     
-                    if not filtered.empty:
-                        # Summary Metrics for Admin
-                        m1, m2, m3, m4 = st.columns(4)
-                        m1.metric("Total Sales", f"{filtered['sales'].sum():,.2f}")
-                        m2.metric("Total Net Diff", f"{filtered['net_diff'].sum():,.2f}")
-                        m3.metric("Opay Move", f"{filtered['opay_move'].sum():,.2f}")
-                        m4.metric("Shifts Found", len(filtered))
+                    if filtered.empty:
+                        st.info("No reports for this selection.")
+                    else:
+                        m1, m2, m3 = st.columns(3)
+                        m1.metric("Day Sales", f"{filtered['sales'].sum():,.2f}")
+                        m2.metric("Day Net Diff", f"{filtered['net_diff'].sum():,.2f}")
+                        m3.metric("Shifts", len(filtered))
                         
                         for _, row in filtered.iterrows():
-                            with st.expander(f"📄 Report: {row['staff']} - {row['shift']} ({row['branch']})"):
-                                st.write(f"**Submission Time:** {row['time']}")
-                                c_a, c_b, c_c = st.columns(3)
-                                with c_a:
-                                    st.markdown("### 💰 Financials")
-                                    st.write(f"Opening: {row['opening_cash']:,.2f}")
-                                    st.write(f"Sales: {row['sales']:,.2f}")
-                                    st.write(f"Debit In: {row['debit_in']:,.2f}")
-                                    st.write(f"Debit Out: {row['debit_pending']:,.2f}")
-                                    st.write(f"Net Diff: {row['net_diff']:,.2f}")
-                                with c_b:
-                                    st.markdown("### 🖨️ Printers")
-                                    st.write(f"Kyocera Used: {row['kyo_used']}")
-                                    st.write(f"Xerox Used: {row['xerox_used']}")
-                                    st.write(f"Opay End: {row['opay_end']:,.2f}")
-                                with c_c:
-                                    st.markdown("### ✅ Tasks")
-                                    st.write(f"Opening Tasks: {row['t_open_count']}")
-                                    st.write(f"Closing Tasks: {row['t_close_count']}")
-                                    st.write(f"Social Tasks: {row['t_social_count']}")
-                                st.table(pd.DataFrame([row]))
+                            # Fix for KeyError using .get() or checking existence
+                            with st.expander(f"Report: {row['staff']} | {row['branch']} | {row['shift']}"):
+                                c1, c2, c3 = st.columns(3)
+                                with c1:
+                                    st.write(f"**Sales:** {row.get('sales', 0.0):,.2f}")
+                                    st.write(f"**Expected:** {row.get('expected_cash', 0.0):,.2f}")
+                                    st.write(f"**Actual:** {row.get('actual_cash', 0.0):,.2f}")
+                                    st.write(f"**Diff:** {row.get('net_diff', 0.0):,.2f}")
+                                with c2:
+                                    st.write(f"**Kyo Used:** {row.get('kyo_used', 0)}")
+                                    st.write(f"**Xerox Used:** {row.get('xerox_used', 0)}")
+                                    st.write(f"**Opay Move:** {row.get('opay_move', 0.0):,.2f}")
+                                with c3:
+                                    st.write(f"**Debit In:** {row.get('debit_in', 0.0):,.2f}")
+                                    st.write(f"**Debit Out:** {row.get('debit_pending', 0.0):,.2f}")
+                                    st.write(f"**Expenses:** {row.get('expenses', 0.0):,.2f}")
+                                st.dataframe(pd.DataFrame([row]))
 
             elif admin_mode == "Manage Employees":
                 st.subheader("👥 Employee Master Control")
@@ -251,6 +247,7 @@ else:
             expenses = st.number_input("Expenses", step=1.0, key="c_exp", on_change=sync_draft)
             
             st.divider()
+            # المعادلة المالية
             expected_cash = t_open + sys_sales + u10_debit - expenses - v22_debit - t_e_pay
             net_diff = t_close - expected_cash
             st.metric("Expected Cash (Drawer)", f"{expected_cash:,.2f} LE")
@@ -293,7 +290,7 @@ else:
         i_cols = st.columns(4)
         for i, task in enumerate(db["tasks"]["interaction"]): i_cols[i%4].checkbox(task, key=f"i_{task}", on_change=sync_draft)
 
-    # --- 6. Exporting & Submission ---
+    # --- 6. Exporting ---
     st.divider()
     diff_status = "✅ Match" if abs(net_diff) < 0.1 else f"⚠️ {net_diff}"
     wa_msg = f"*🚀 NMS FULL REPORT*\n*Branch:* {branch} | *Staff:* {st.session_state['user']}\n\n*💰 FINANCIALS:*\n- Opening: {t_open:,.2f}\n- Sales: {sys_sales:,.2f}\n- Debit In: {u10_debit:,.2f}\n- Expenses: {expenses:,.2f}\n- E-Payments: {t_e_pay:,.2f}\n- Debit Out: {v22_debit:,.2f}\n- Drawer: {t_close:,.2f}\n- *Status:* {diff_status}\n\n*📱 SYSTEMS:*\n- Opay Move: {opay_diff:,.2f}\n\n*🖨️ PRINTERS:*\n- Kyo Used: {k_actual}\n- Xerox Used: {x_actual}"
@@ -314,9 +311,8 @@ else:
             "expected_cash": expected_cash,
             "actual_cash": t_close,
             "net_diff": net_diff,
-            "opay_start": opay_start,
-            "opay_end": opay_end,
             "opay_move": opay_diff,
+            "opay_end": opay_end,
             "kyo_used": k_actual,
             "xerox_used": x_actual,
             "t_open_count": len([t for t in db['tasks']['opening'] if st.session_state.get(f's_{t}')]),
@@ -333,9 +329,9 @@ else:
             buffer = io.BytesIO(); doc = SimpleDocTemplate(buffer, pagesize=letter)
             styles = getSampleStyleSheet(); elements = []
             elements.append(Paragraph(f"NMS DAILY REPORT - {branch}", styles['Title']))
-            elements.append(Paragraph(f"Staff: {st.session_state['user']} | Shift: {shift}", styles['Normal']))
+            elements.append(Paragraph(f"Date: {datetime.now().strftime('%Y-%m-%d')} | Staff: {st.session_state['user']}", styles['Normal']))
             
-            data_f = [["Financial Item", "Amount"], ["Opening Cash", t_open], ["Total Sales", sys_sales], ["Debit In", u10_debit], ["Expenses", expenses], ["E-Payments", t_e_pay], ["Debit Out", v22_debit], ["Actual Cash", t_close], ["Net Difference", net_diff]]
+            data_f = [["Item", "Amount"], ["Opening Cash", t_open], ["Total Sales", sys_sales], ["Debit In", u10_debit], ["Expenses", expenses], ["E-Payments", t_e_pay], ["Debit Out", v22_debit], ["Actual Cash", t_close], ["Net Difference", net_diff]]
             t1 = Table(data_f, colWidths=[200, 100]); t1.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 1, colors.black), ('BACKGROUND', (0,0), (-1,0), colors.indianred), ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke)]))
             elements.append(Spacer(1, 15)); elements.append(Paragraph("1. Financial Summary", styles['Heading3'])); elements.append(t1)
 
@@ -344,7 +340,7 @@ else:
             elements.append(Spacer(1, 15)); elements.append(Paragraph("2. Printer Analysis", styles['Heading3'])); elements.append(t2)
 
             doc.build(elements)
-            st.download_button("💾 Download PDF", data=buffer.getvalue(), file_name=f"NMS_{branch}_{datetime.now().strftime('%Y%m%d')}.pdf")
+            st.download_button("💾 Save PDF Report", data=buffer.getvalue(), file_name=f"NMS_{branch}_{datetime.now().strftime('%Y%m%d')}.pdf")
 
     with rep2:
         wa_url = f"https://wa.me/{MANAGER_PHONE}?text={urllib.parse.quote(wa_msg)}"
