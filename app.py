@@ -21,23 +21,26 @@ def load_db():
             "logo": None,
             "pending_debit": 0.0,
             "users": {
-                "admin": {"pass": "admin123", "role": "admin", "full_name": "Manager", "email": "admin@nms.com", "phone": "000", "id_num": "000", "address": "HQ", "photo": None},
-                "Mina": {"pass": "123", "role": "user", "full_name": "Mina", "photo": None}
+                "admin": {"pass": "admin123", "role": "admin", "full_name": "Manager", "salary": 0, "advances": 0, "deductions": 0, "bonus": 0, "off_days": 0},
+                "Mina": {"pass": "123", "role": "user", "full_name": "Mina", "salary": 0, "advances": 0, "deductions": 0, "bonus": 0, "off_days": 0}
             },
             "branches": ["M. Nageb Branch", "Tram Branch"],
             "exp_categories": ["نثريات", "مشتريات ورق", "صيانة", "أحبار", "كهرباء ومياه"],
             "tasks": {
-                "opening": ["Fingerprint", "Power On", "Uniform & Name Tag", "Music On", "Paper Loaded", "Cash Counted", "All Good"],
-                "closing": ["Contacts on WhatsApp", "Place Cleaned", "Power Off", "Cash Counted", "Fingerprint", "Report Sent"],
-                "social": ["Canva 1", "Canva 2", "WhatsApp Story", "WhatsApp Channel", "Facebook account Story", "Facebook account Post / Reel", "Facebook account Group", "Facebook Page Story", "Facebook Page Post / Reel", "Threads", "Instagram Story", "Instagram Post / Reel", "TikTok Story", "TikTok Post", "Telegram Story", "Telegram Channel", "LinkedIn Post"],
-                "interaction": ["Like", "Love", "Care", "Share"]
+                "opening": ["Fingerprint", "Power On", "Uniform", "Music On", "Paper Loaded", "Cash Counted"],
+                "closing": ["Contacts on WhatsApp", "Place Cleaned", "Power Off", "Cash Counted", "Fingerprint"],
+                "social": ["WhatsApp Story", "Facebook Post", "Instagram Reel", "TikTok"],
+                "interaction": ["Like", "Share", "Comment"]
             },
-            "logs": [], "drafts": {}, "history": []
+            "logs": [], "drafts": {}, "history": [], "payroll_history": []
         }
     with open(DB_FILE, 'r') as f: 
         data = json.load(f)
-        if "history" not in data: data["history"] = []
-        if "exp_categories" not in data: data["exp_categories"] = ["نثريات", "مشتريات ورق", "صيانة"]
+        # Ensure new keys exist for old users
+        for u in data["users"]:
+            for key in ["salary", "advances", "deductions", "bonus", "off_days"]:
+                if key not in data["users"][u]: data["users"][u][key] = 0
+        if "payroll_history" not in data: data["payroll_history"] = []
         return data
 
 def save_db(data):
@@ -89,6 +92,11 @@ else:
         if db.get("logo"): st.image(base64.b64decode(db["logo"]), width=120)
         st.header(f"User: {st.session_state['user']}")
         user_node = db["users"][st.session_state['user']]
+        
+        # Financial Summary for Employee
+        if st.session_state['role'] != 'admin':
+            st.info(f"💰 **Salary Status:**\n- Basic: {user_node.get('salary', 0)}\n- Advances: {user_node.get('advances', 0)}\n- Deductions: {user_node.get('deductions', 0)}\n- Bonus: {user_node.get('bonus', 0)}")
+
         if user_node.get("photo"): st.image(base64.b64decode(user_node["photo"]), width=150)
         prof_pic = st.file_uploader("Upload Personal Photo", type=['jpg', 'png'])
         if st.button("Save Photo"):
@@ -102,9 +110,41 @@ else:
         if st.session_state['role'] == 'admin':
             st.divider()
             st.subheader("🛠️ Admin Master Control")
-            admin_mode = st.radio("Settings", ["Review History", "Manage Employees", "Manage Branches", "Manage Tasks", "Expense Categories", "Audit Logs"])
+            admin_mode = st.radio("Settings", ["Payroll Management", "Review History", "Manage Employees", "Manage Branches", "Manage Tasks", "Expense Categories", "Audit Logs"])
             
-            if admin_mode == "Review History":
+            if admin_mode == "Payroll Management":
+                st.subheader("💳 Salary & Payroll Center")
+                emp = st.selectbox("Select Employee", [u for u in db["users"].keys() if db["users"][u]['role'] != 'admin'])
+                u_data = db["users"][emp]
+                
+                c1, c2 = st.columns(2)
+                with c1:
+                    new_sal = st.number_input("Basic Salary", value=float(u_data.get('salary', 0)))
+                    add_adv = st.number_input("Add Advance (سلفة)", min_value=0.0)
+                    add_ded = st.number_input("Add Deduction (خصم)", min_value=0.0)
+                with c2:
+                    add_bon = st.number_input("Add Bonus (حافز)", min_value=0.0)
+                    add_off = st.number_input("Add Off Days (إجازات)", min_value=0)
+                    if st.button("Apply Financial Changes"):
+                        db["users"][emp]["salary"] = new_sal
+                        db["users"][emp]["advances"] += add_adv
+                        db["users"][emp]["deductions"] += add_ded
+                        db["users"][emp]["bonus"] += add_bon
+                        db["users"][emp]["off_days"] += add_off
+                        save_db(db); st.success("Updated!"); st.rerun()
+                
+                st.divider()
+                net_sal = u_data['salary'] + u_data['bonus'] - u_data['advances'] - u_data['deductions']
+                st.metric(f"Current Net for {emp}", f"{net_sal:,.2f} LE")
+                
+                if st.button(f"🔴 CLOSE MONTH & RESET FOR {emp}", use_container_width=True):
+                    payroll_record = {"date": datetime.now().strftime("%Y-%m"), "employee": emp, "net": net_sal, "details": f"Sal:{u_data['salary']}, Adv:{u_data['advances']}, Ded:{u_data['deductions']}, Bon:{u_data['bonus']}"}
+                    db["payroll_history"].append(payroll_record)
+                    # Reset
+                    db["users"][emp].update({"advances": 0, "deductions": 0, "bonus": 0, "off_days": 0})
+                    save_db(db); st.success("Month closed and balances reset!"); st.rerun()
+
+            elif admin_mode == "Review History":
                 st.subheader("📜 Shift Archive Explorer")
                 if not db["history"]: st.warning("No records found.")
                 else:
@@ -113,14 +153,7 @@ else:
                     search_branch = st.selectbox("Filter by Branch", ["All"] + db["branches"])
                     filtered = hist_df[hist_df['date'] == str(search_date)]
                     if search_branch != "All": filtered = filtered[filtered['branch'] == search_branch]
-                    
                     if not filtered.empty:
-                        m1, m2, m3, m4 = st.columns(4)
-                        m1.metric("Total Sales", f"{filtered['sales'].sum():,.2f}")
-                        m2.metric("Total Net Diff", f"{filtered['net_diff'].sum():,.2f}")
-                        m3.metric("Opay Activity", f"{filtered['opay_move'].sum():,.2f}")
-                        m4.metric("Shifts Count", len(filtered))
-                        
                         for _, row in filtered.iterrows():
                             with st.expander(f"📄 Report: {row['staff']} | {row['branch']} | {row['shift']}"):
                                 st.write(f"**Detailed Expenses:** {row.get('exp_details', 'N/A')}")
@@ -138,16 +171,11 @@ else:
             elif admin_mode == "Manage Employees":
                 st.subheader("👥 Employee Master Control")
                 with st.expander("➕ Register New Employee"):
-                    new_u_name = st.text_input("Username (Login ID)")
-                    new_u_pass = st.text_input("Set Password", type="password")
-                    new_u_full = st.text_input("Full Name")
+                    new_u_name = st.text_input("Username")
+                    new_u_pass = st.text_input("Password", type="password")
                     if st.button("Create Account"):
-                        db["users"][new_u_name] = {"pass": new_u_pass, "role": "user", "full_name": new_u_full}
-                        save_db(db); st.success(f"Account for {new_u_name} created!"); st.rerun()
-                target_user = st.selectbox("Select Employee", list(db["users"].keys()))
-                db["users"][target_user]["full_name"] = st.text_input("Full Name", db["users"][target_user].get("full_name", ""))
-                db["users"][target_user]["pass"] = st.text_input("Password", db["users"][target_user]["pass"])
-                if st.button("💾 Save Changes"): save_db(db); st.success("Updated!")
+                        db["users"][new_u_name] = {"pass": new_u_pass, "role": "user", "full_name": new_u_name, "salary": 0, "advances": 0, "deductions": 0, "bonus": 0, "off_days": 0}
+                        save_db(db); st.rerun()
 
             elif admin_mode == "Manage Branches":
                 st.subheader("🏢 Branch Management")
@@ -176,7 +204,7 @@ else:
     with tab1:
         st.subheader("Opening Procedures")
         if db.get("pending_debit", 0) > 0:
-            st.warning(f"📦 تنبيه هام: يوجد (Debit) مُرحل من الشفت السابق بقيمة: {db['pending_debit']:,.2f} جنيه.")
+            st.warning(f"📦 تنبيه هام: يوجد (Debit) مُرحل بقيمة: {db['pending_debit']:,.2f} جنيه.")
         c1, c2, c3 = st.columns([1, 1.5, 1.5])
         with c1:
             st.write("**Opening Checklist**")
@@ -187,7 +215,7 @@ else:
             for d in [200, 100, 50, 20, 10, 5]:
                 v = st.number_input(f"{d} LE", min_value=0, step=1, key=f"o_{d}", on_change=sync_draft)
                 t_open += (v * d)
-            o_coins = st.number_input("Coins (Decimal)", step=0.5, format="%.2f", key="oc", on_change=sync_draft)
+            o_coins = st.number_input("Coins", step=0.5, format="%.2f", key="oc", on_change=sync_draft)
             t_open += o_coins
             st.success(f"**Total Opening: {t_open:,.2f} LE**")
         with c3:
@@ -215,61 +243,42 @@ else:
             st.write("**Expense Tracker**")
             exp_col1, exp_col2 = st.columns([1, 1])
             with exp_col1: e_type = st.selectbox("Category", db["exp_categories"])
-            with exp_col2: e_amt = st.number_input("Amount", min_value=0.0, step=1.0, key="cur_exp_amt")
+            with exp_col2: e_amt = st.number_input("Amount", min_value=0.0, key="cur_exp_amt")
             e_desc = st.text_input("Details / Reason", key="cur_exp_desc")
             if st.button("➕ Add Expense Item"):
                 st.session_state.exp_list.append({"Type": e_type, "Amount": e_amt, "Details": e_desc})
                 sync_draft(); st.rerun()
-            
             expenses = 0.0
             if st.session_state.exp_list:
                 df_exp = pd.DataFrame(st.session_state.exp_list)
                 st.dataframe(df_exp, use_container_width=True, hide_index=True)
                 expenses = df_exp['Amount'].sum()
                 if st.button("🗑️ Clear Expenses"): st.session_state.exp_list = []; sync_draft(); st.rerun()
-            
             st.divider()
             st.write("**Closing Cash**")
             t_close = 0.0
             for d in [200, 100, 50, 20, 10, 5]:
-                v = st.number_input(f"{d} LE  ", min_value=0, step=1, key=f"c_{d}", on_change=sync_draft)
+                v = st.number_input(f"{d} LE ", min_value=0, step=1, key=f"c_{d}", on_change=sync_draft)
                 t_close += (v * d)
-            c_coins = st.number_input("Closing Coins  ", step=0.5, format="%.2f", key="cc", on_change=sync_draft)
+            c_coins = st.number_input("Closing Coins ", step=0.5, format="%.2f", key="cc", on_change=sync_draft)
             t_close += c_coins
-            
             expected_cash = t_open + sys_sales + u10_debit - expenses - v22_debit - t_e_pay
             net_diff = t_close - expected_cash
-            st.metric("Expected Cash (Drawer)", f"{expected_cash:,.2f} LE")
+            st.metric("Expected Cash", f"{expected_cash:,.2f} LE")
             if abs(net_diff) < 0.1: st.success("✅ Match")
-            elif net_diff > 0: st.warning(f"➕ Surplus: {net_diff:,.2f}")
-            else: st.error(f"➖ Shortage: {net_diff:,.2f}")
-
+            else: st.error(f"⚠️ Diff: {net_diff:,.2f}")
         with c3:
-            st.write("**Systems & Printer Analysis**")
-            opay_end = st.number_input("Opay Final Balance", step=0.01, format="%.4f", key="op_end", on_change=sync_draft)
+            st.write("**Printer Analysis**")
+            opay_end = st.number_input("Opay Final", step=0.01, format="%.4f", key="op_end", on_change=sync_draft)
             opay_diff = opay_start - opay_end
             st.divider()
-            st.markdown("### 🖨️ Kyocera")
-            k_end = st.number_input("Counter End", step=1, key="k1end", on_change=sync_draft)
-            k_os = st.number_input("One-Side", step=1, key="k1os", on_change=sync_draft)
-            k_dp = st.number_input("Duplex", step=1, key="k1dp", on_change=sync_draft)
-            k_err = st.number_input("Errors / Jam", step=1, key="k1err", on_change=sync_draft)
-            k_test = st.number_input("Test / Draft", step=1, key="k1tst", on_change=sync_draft)
+            k_end = st.number_input("Kyocera End", step=1, key="k1end", on_change=sync_draft)
             k_actual = k_end - k_start
-            k_accounted = k_os + (k_dp * 2) + k_err + k_test
-            if (k_accounted - k_actual) == 0: st.success(f"✅ Match (Used: {k_actual})")
-            else: st.error(f"⚠️ Diff: {k_accounted - k_actual}")
+            st.write(f"Kyo Used: {k_actual}")
             st.divider()
-            st.markdown("### 🖨️ Xerox")
-            x_end = st.number_input("Counter End (X)", step=1, key="x2end", on_change=sync_draft)
-            x_os = st.number_input("One-Side (X)", step=1, key="x2os", on_change=sync_draft)
-            x_dp = st.number_input("Duplex (X)", step=1, key="x2dp", on_change=sync_draft)
-            x_err = st.number_input("Errors (X)", step=1, key="x2err", on_change=sync_draft)
-            x_test = st.number_input("Test (X)", step=1, key="x2tst", on_change=sync_draft)
+            x_end = st.number_input("Xerox End", step=1, key="x2end", on_change=sync_draft)
             x_actual = x_end - x_start
-            x_accounted = x_os + (x_dp * 2) + x_err + x_test
-            if (x_accounted - x_actual) == 0: st.success(f"✅ Match (Used: {x_actual})")
-            else: st.error(f"⚠️ Diff: {x_accounted - x_actual}")
+            st.write(f"Xerox Used: {x_actual}")
 
     with tab3:
         st.subheader("Social Media Tasks")
@@ -283,37 +292,22 @@ else:
     st.divider()
     exp_details_str = ", ".join([f"{x['Type']}:{x['Amount']}" for x in st.session_state.exp_list])
     diff_status = "✅ Match" if abs(net_diff) < 0.1 else f"⚠️ {net_diff}"
-    wa_msg = f"*🚀 NMS FULL REPORT*\n*Branch:* {branch} | *Staff:* {st.session_state['user']}\n\n*💰 FINANCIALS:*\n- Sales: {sys_sales:,.2f}\n- Expenses: {expenses:,.2f} ({exp_details_str})\n- Drawer: {t_close:,.2f}\n- *Status:* {diff_status}\n\n*🖨️ PRINTERS:*\n- Kyo Used: {k_actual}\n- Xerox Used: {x_actual}"
+    wa_msg = f"*🚀 NMS REPORT*\n*Branch:* {branch} | *Staff:* {st.session_state['user']}\n*Sales:* {sys_sales}\n*Expenses:* {expenses} ({exp_details_str})\n*Drawer:* {t_close}\n*Diff:* {diff_status}"
 
     if st.button("🏁 SUBMIT & ARCHIVE FULL SHIFT DATA", use_container_width=True):
-        archive_data = {
-            "date": datetime.now().strftime('%Y-%m-%d'), "time": datetime.now().strftime('%H:%M:%S'),
-            "staff": st.session_state['user'], "branch": branch, "shift": shift,
-            "opening_cash": t_open, "sales": sys_sales, "debit_in": u10_debit,
-            "expenses": expenses, "exp_details": exp_details_str, "e_pay": t_e_pay,
-            "debit_pending": v22_debit, "expected_cash": expected_cash, "actual_cash": t_close,
-            "net_diff": net_diff, "opay_move": opay_diff, "kyo_used": k_actual, "xerox_used": x_actual,
-            "t_open_count": len([t for t in db['tasks']['opening'] if st.session_state.get(f's_{t}')]),
-            "t_close_count": len([t for t in db['tasks']['closing'] if st.session_state.get(f'e_{t}')]),
-            "t_social_count": len([t for t in db['tasks']['social'] if st.session_state.get(f'm_{t}')])
-        }
+        archive_data = {"date": datetime.now().strftime('%Y-%m-%d'), "staff": st.session_state['user'], "branch": branch, "sales": sys_sales, "expenses": expenses, "exp_details": exp_details_str, "net_diff": net_diff, "kyo_used": k_actual, "xerox_used": x_actual}
         db["history"].append(archive_data); db["pending_debit"] = v22_debit
         db["drafts"][st.session_state['user']] = {}; st.session_state.exp_list = []
-        save_db(db); st.success("Shift Archived Successfully!"); st.rerun()
+        save_db(db); st.success("Archived!"); st.rerun()
 
     rep1, rep2 = st.columns(2)
     with rep1:
-        if st.button("📥 DOWNLOAD FULL PDF REPORT", use_container_width=True):
+        if st.button("📥 DOWNLOAD PDF REPORT", use_container_width=True):
             buffer = io.BytesIO(); doc = SimpleDocTemplate(buffer, pagesize=letter); elements = []
-            styles = getSampleStyleSheet()
-            elements.append(Paragraph(f"NMS DAILY REPORT - {branch}", styles['Title']))
-            data_f = [["Item", "Amount"], ["Sales", sys_sales], ["Expenses", expenses], ["Drawer", t_close], ["Diff", net_diff]]
-            t1 = Table(data_f, colWidths=[200, 100]); t1.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 1, colors.black)]))
-            elements.append(t1); elements.append(Spacer(1,12))
-            elements.append(Paragraph(f"Expense Details: {exp_details_str}", styles['Normal']))
+            elements.append(Paragraph(f"NMS REPORT - {branch}", getSampleStyleSheet()['Title']))
+            elements.append(Table([["Item", "Value"], ["Sales", sys_sales], ["Expenses", expenses], ["Drawer", t_close]], colWidths=[200, 100]))
             doc.build(elements)
-            st.download_button("💾 Save PDF Report", data=buffer.getvalue(), file_name=f"NMS_{branch}_{datetime.now().strftime('%Y%m%d')}.pdf")
-
+            st.download_button("💾 Save PDF", data=buffer.getvalue(), file_name="report.pdf")
     with rep2:
         wa_url = f"https://wa.me/{MANAGER_PHONE}?text={urllib.parse.quote(wa_msg)}"
-        st.markdown(f'<a href="{wa_url}" target="_blank"><button style="width:100%; background-color:#25D366; color:white; border:none; padding:15px; border-radius:10px; cursor:pointer; font-weight:bold;">📱 SEND FULL WHATSAPP REPORT</button></a>', unsafe_allow_html=True)
+        st.markdown(f'<a href="{wa_url}" target="_blank"><button style="width:100%; background-color:#25D366; color:white; border:none; padding:15px; border-radius:10px; cursor:pointer;">📱 SEND WHATSAPP REPORT</button></a>', unsafe_allow_html=True)
