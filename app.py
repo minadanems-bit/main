@@ -115,7 +115,6 @@ else:
                     if filtered.empty:
                         st.info("No reports for this selection.")
                     else:
-                        # --- MODIFIED: Advanced Review for Manager ---
                         m1, m2, m3, m4 = st.columns(4)
                         m1.metric("Total Sales", f"{filtered['sales'].sum():,.2f}")
                         m2.metric("Total Net Diff", f"{filtered['net_diff'].sum():,.2f}")
@@ -124,7 +123,6 @@ else:
                         
                         st.divider()
                         for _, row in filtered.iterrows():
-                            # Protection against KeyError using .get()
                             with st.expander(f"📄 Report: {row['staff']} | {row['branch']} | {row['shift']}"):
                                 c1, c2, c3 = st.columns(3)
                                 with c1:
@@ -145,8 +143,6 @@ else:
                                     st.write(f"**Opening:** {row.get('t_open_count', 0)}")
                                     st.write(f"**Closing:** {row.get('t_close_count', 0)}")
                                     st.write(f"**Social:** {row.get('t_social_count', 0)}")
-                                
-                                # Show Detailed Row Data in Table
                                 st.dataframe(pd.DataFrame([row]), hide_index=True)
 
             elif admin_mode == "Manage Employees":
@@ -299,58 +295,58 @@ else:
         i_cols = st.columns(4)
         for i, task in enumerate(db["tasks"]["interaction"]): i_cols[i%4].checkbox(task, key=f"i_{task}", on_change=sync_draft)
 
-    # --- 6. Exporting ---
-    st.divider()
-    diff_status = "✅ Match" if abs(net_diff) < 0.1 else f"⚠️ {net_diff}"
-    wa_msg = f"*🚀 NMS FULL REPORT*\n*Branch:* {branch} | *Staff:* {st.session_state['user']}\n\n*💰 FINANCIALS:*\n- Opening: {t_open:,.2f}\n- Sales: {sys_sales:,.2f}\n- Debit In: {u10_debit:,.2f}\n- Expenses: {expenses:,.2f}\n- E-Payments: {t_e_pay:,.2f}\n- Debit Out: {v22_debit:,.2f}\n- Drawer: {t_close:,.2f}\n- *Status:* {diff_status}\n\n*📱 SYSTEMS:*\n- Opay Move: {opay_diff:,.2f}\n\n*🖨️ PRINTERS:*\n- Kyo Used: {k_actual}\n- Xerox Used: {x_actual}"
+        # --- Moved Exporting Inside Tab 3 ---
+        st.divider()
+        diff_status = "✅ Match" if abs(net_diff) < 0.1 else f"⚠️ {net_diff}"
+        wa_msg = f"*🚀 NMS FULL REPORT*\n*Branch:* {branch} | *Staff:* {st.session_state['user']}\n\n*💰 FINANCIALS:*\n- Opening: {t_open:,.2f}\n- Sales: {sys_sales:,.2f}\n- Debit In: {u10_debit:,.2f}\n- Expenses: {expenses:,.2f}\n- E-Payments: {t_e_pay:,.2f}\n- Debit Out: {v22_debit:,.2f}\n- Drawer: {t_close:,.2f}\n- *Status:* {diff_status}\n\n*📱 SYSTEMS:*\n- Opay Move: {opay_diff:,.2f}\n\n*🖨️ PRINTERS:*\n- Kyo Used: {k_actual}\n- Xerox Used: {x_actual}"
 
-    if st.button("🏁 SUBMIT & ARCHIVE FULL SHIFT DATA", use_container_width=True):
-        archive_data = {
-            "date": datetime.now().strftime('%Y-%m-%d'),
-            "time": datetime.now().strftime('%H:%M:%S'),
-            "staff": st.session_state['user'],
-            "branch": branch,
-            "shift": shift,
-            "opening_cash": t_open,
-            "sales": sys_sales,
-            "debit_in": u10_debit,
-            "expenses": expenses,
-            "e_pay": t_e_pay,
-            "debit_pending": v22_debit,
-            "expected_cash": expected_cash,
-            "actual_cash": t_close,
-            "net_diff": net_diff,
-            "opay_move": opay_diff,
-            "opay_end": opay_end,
-            "kyo_used": k_actual,
-            "xerox_used": x_actual,
-            "t_open_count": len([t for t in db['tasks']['opening'] if st.session_state.get(f's_{t}')]),
-            "t_close_count": len([t for t in db['tasks']['closing'] if st.session_state.get(f'e_{t}')]),
-            "t_social_count": len([t for t in db['tasks']['social'] if st.session_state.get(f'm_{t}')])
-        }
-        db["history"].append(archive_data)
-        db["pending_debit"] = v22_debit
-        save_db(db); st.success("Shift Archived Successfully!")
+        if st.button("🏁 SUBMIT & ARCHIVE FULL SHIFT DATA", use_container_width=True):
+            archive_data = {
+                "date": datetime.now().strftime('%Y-%m-%d'),
+                "time": datetime.now().strftime('%H:%M:%S'),
+                "staff": st.session_state['user'],
+                "branch": branch,
+                "shift": shift,
+                "opening_cash": t_open,
+                "sales": sys_sales,
+                "debit_in": u10_debit,
+                "expenses": expenses,
+                "e_pay": t_e_pay,
+                "debit_pending": v22_debit,
+                "expected_cash": expected_cash,
+                "actual_cash": t_close,
+                "net_diff": net_diff,
+                "opay_move": opay_diff,
+                "opay_end": opay_end,
+                "kyo_used": k_actual,
+                "xerox_used": x_actual,
+                "t_open_count": len([t for t in db['tasks']['opening'] if st.session_state.get(f's_{t}')]),
+                "t_close_count": len([t for t in db['tasks']['closing'] if st.session_state.get(f'e_{t}')]),
+                "t_social_count": len([t for t in db['tasks']['social'] if st.session_state.get(f'm_{t}')])
+            }
+            db["history"].append(archive_data)
+            db["pending_debit"] = v22_debit
+            save_db(db); st.success("Shift Archived Successfully!")
 
-    rep1, rep2 = st.columns(2)
-    with rep1:
-        if st.button("📥 DOWNLOAD FULL PDF REPORT", use_container_width=True):
-            buffer = io.BytesIO(); doc = SimpleDocTemplate(buffer, pagesize=letter)
-            styles = getSampleStyleSheet(); elements = []
-            elements.append(Paragraph(f"NMS DAILY REPORT - {branch}", styles['Title']))
-            elements.append(Paragraph(f"Date: {datetime.now().strftime('%Y-%m-%d')} | Staff: {st.session_state['user']}", styles['Normal']))
-            
-            data_f = [["Item", "Amount"], ["Opening Cash", t_open], ["Total Sales", sys_sales], ["Debit In", u10_debit], ["Expenses", expenses], ["E-Payments", t_e_pay], ["Debit Out", v22_debit], ["Actual Cash", t_close], ["Net Difference", net_diff]]
-            t1 = Table(data_f, colWidths=[200, 100]); t1.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 1, colors.black), ('BACKGROUND', (0,0), (-1,0), colors.indianred), ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke)]))
-            elements.append(Spacer(1, 15)); elements.append(Paragraph("1. Financial Summary", styles['Heading3'])); elements.append(t1)
+        rep1, rep2 = st.columns(2)
+        with rep1:
+            if st.button("📥 DOWNLOAD FULL PDF REPORT", use_container_width=True):
+                buffer = io.BytesIO(); doc = SimpleDocTemplate(buffer, pagesize=letter)
+                styles = getSampleStyleSheet(); elements = []
+                elements.append(Paragraph(f"NMS DAILY REPORT - {branch}", styles['Title']))
+                elements.append(Paragraph(f"Date: {datetime.now().strftime('%Y-%m-%d')} | Staff: {st.session_state['user']}", styles['Normal']))
+                
+                data_f = [["Item", "Amount"], ["Opening Cash", t_open], ["Total Sales", sys_sales], ["Debit In", u10_debit], ["Expenses", expenses], ["E-Payments", t_e_pay], ["Debit Out", v22_debit], ["Actual Cash", t_close], ["Net Difference", net_diff]]
+                t1 = Table(data_f, colWidths=[200, 100]); t1.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 1, colors.black), ('BACKGROUND', (0,0), (-1,0), colors.indianred), ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke)]))
+                elements.append(Spacer(1, 15)); elements.append(Paragraph("1. Financial Summary", styles['Heading3'])); elements.append(t1)
 
-            data_p = [["Printer", "Used", "Sold", "Err", "Test"], ["Kyocera", k_actual, k_os+(k_dp*2), k_err, k_test], ["Xerox", x_actual, x_os+(x_dp*2), x_err, x_test]]
-            t2 = Table(data_p, colWidths=[100, 60, 60, 60, 60]); t2.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 1, colors.black), ('BACKGROUND', (0,0), (-1,0), colors.lightblue)]))
-            elements.append(Spacer(1, 15)); elements.append(Paragraph("2. Printer Analysis", styles['Heading3'])); elements.append(t2)
+                data_p = [["Printer", "Used", "Sold", "Err", "Test"], ["Kyocera", k_actual, k_os+(k_dp*2), k_err, k_test], ["Xerox", x_actual, x_os+(x_dp*2), x_err, x_test]]
+                t2 = Table(data_p, colWidths=[100, 60, 60, 60, 60]); t2.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 1, colors.black), ('BACKGROUND', (0,0), (-1,0), colors.lightblue)]))
+                elements.append(Spacer(1, 15)); elements.append(Paragraph("2. Printer Analysis", styles['Heading3'])); elements.append(t2)
 
-            doc.build(elements)
-            st.download_button("💾 Save PDF Report", data=buffer.getvalue(), file_name=f"NMS_{branch}_{datetime.now().strftime('%Y%m%d')}.pdf")
+                doc.build(elements)
+                st.download_button("💾 Save PDF Report", data=buffer.getvalue(), file_name=f"NMS_{branch}_{datetime.now().strftime('%Y%m%d')}.pdf")
 
-    with rep2:
-        wa_url = f"https://wa.me/{MANAGER_PHONE}?text={urllib.parse.quote(wa_msg)}"
-        st.markdown(f'<a href="{wa_url}" target="_blank"><button style="width:100%; background-color:#25D366; color:white; border:none; padding:15px; border-radius:10px; cursor:pointer; font-weight:bold;">📱 SEND FULL WHATSAPP REPORT</button></a>', unsafe_allow_html=True)
+        with rep2:
+            wa_url = f"https://wa.me/{MANAGER_PHONE}?text={urllib.parse.quote(wa_msg)}"
+            st.markdown(f'<a href="{wa_url}" target="_blank"><button style="width:100%; background-color:#25D366; color:white; border:none; padding:15px; border-radius:10px; cursor:pointer; font-weight:bold;">📱 SEND FULL WHATSAPP REPORT</button></a>', unsafe_allow_html=True)
