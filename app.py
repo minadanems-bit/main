@@ -231,8 +231,8 @@ else:
                 else: st.success("Clean Record! No deductions.")
                     
             with st.expander("🏖️ Extra Leave", expanded=False):
-                if user_info['extra_leave']: st.dataframe(pd.DataFrame(user_info['extra_leave']))
-                else: st.success("Clean Record! No extra_leave.")
+                if user_info['extra_leaves']: st.dataframe(pd.DataFrame(user_info['extra_leaves']))
+                else: st.success("Clean Record! No extra_leaves.")
                     
         if st.button("🚪 Logout", use_container_width=True):
             st.session_state['logged_in'] = False; st.rerun()
