@@ -362,58 +362,20 @@ else:
                 new_ex = st.text_input("New Expense Category")
                 if st.button("➕ Add Expense Category"):
                     if new_ex: db["expense_categories"].append(new_ex); save_db(db); st.rerun()
-                        
-            # 5. الأرشيف المتطور - Advanced Archive
-            elif admin_choice == "📂 Archive & History":
-                st.subheader("📜 Advanced Shift Archive")
-                if not db["history"]:
-                    st.warning("No records found in history.")
-                else:
-                    df_hist = pd.DataFrame(db["history"])
-                    
-                    # أدوات الفرز والبحث
-                    col_f1, col_f2 = st.columns(2)
-                    with col_f1:
-                        f_user = st.multiselect("Filter by Staff", options=df_hist['staff'].unique())
-                    with col_f2:
-                        f_branch = st.multiselect("Filter by Branch", options=df_hist['branch'].unique())
-                    
-                    # تطبيق الفلترة
-                    filtered_df = df_hist.copy()
-                    if f_user: filtered_df = filtered_df[filtered_df['staff'].isin(f_user)]
-                    if f_branch: filtered_df = filtered_df[filtered_df['branch'].isin(f_branch)]
-                    
-                    st.dataframe(filtered_df, use_container_width=True)
-                    
-                    # تفاصيل وردية محددة
-                    st.divider()
-                    st.write("🔍 **View Specific Entry Details**")
-                    if not filtered_df.empty:
-                        selected_idx = st.selectbox("Select Record ID to view full details", filtered_df.index)
-                        record = filtered_df.loc[selected_idx]
-                        
-                        with st.expander(f"Details for Shift on {record['date']} - {record['staff']}", expanded=True):
-                            c_r1, c_r2 = st.columns(2)
-                            with c_r1:
-                                st.write(f"**Date:** {record['date']}")
-                                st.write(f"**Branch:** {record['branch']}")
-                                st.write(f"**Staff:** {record['staff']}")
-                            with c_r2:
-                                st.write(f"**Sales:** {record['sales']:,.2f} LE")
-                                st.write(f"**Expenses:** {record.get('expenses', 0):,.2f} LE")
-                                color = "green" if record['diff'] >= 0 else "red"
-                                st.markdown(f"**Difference:** <span style='color:{color}'>{record['diff']:,.2f} LE</span>", unsafe_allow_html=True)
 
-                    if st.button("⚠️ Clear All Archive Data", type="primary"):
-                        db["history"] = []; save_db(db); st.success("Archive Cleared!"); st.rerun()
+            # 5. الأرشيف
+            elif admin_choice == "📂 Archive & History":
+                st.subheader("📜 Shift Logs")
+                if db["history"]: st.dataframe(pd.DataFrame(db["history"]))
+                if st.button("⚠️ Clear All History", type="primary"): 
+                    db["history"] = []; save_db(db); st.rerun()
                 
                 st.divider()
-                st.write("🖼️ **Company Branding**")
                 lg = st.file_uploader("Upload Company Logo", type=['png', 'jpg'])
                 if st.button("💾 Save Logo"):
                     if lg: 
                         db["logo"] = base64.b64encode(lg.getvalue()).decode()
-                        save_db(db); st.success("Logo Updated Successfully!"); st.rerun()
+                        save_db(db); st.success("Logo Updated"); st.rerun()
 
     # --- 6. Main Dashboard: DAILY OPERATIONS ---
     st.title("📊 NMS ERP - Daily Operations")
@@ -506,164 +468,101 @@ else:
             
             st.text_area("📝 Draft Notes / Handover", key="dn_notes", on_change=sync_draft)
 
-# --- TAB 3: SOCIAL ---
+    # --- TAB 3: SOCIAL ---
     with tab3:
-        st.subheader("📱 Social Media & Interaction")
+        st.subheader("📱 Marketing & Finalization")
         sc1, sc2 = st.columns(2)
         with sc1:
-            for t in db["tasks"]["social"]: 
-                st.checkbox(t, key=f"m_{t}_final", on_change=sync_draft)
+            st.markdown("#### 📢 Social Media Tasks")
+            for t in db["tasks"]["social"]: st.checkbox(t, key=f"m_{t}", on_change=sync_draft)
         with sc2:
-            for t in db["tasks"]["interaction"]: 
-                st.checkbox(t, key=f"i_{t}_final", on_change=sync_draft)
+            st.markdown("#### ❤️ Interaction Tasks")
+            for t in db["tasks"]["interaction"]: st.checkbox(t, key=f"i_{t}", on_change=sync_draft)
         
-        # --- جلب كافة القيم بأمان من session_state ---
-        k1_val = st.session_state.get('k1s_v', 0)
-        k2_val = st.session_state.get('k2s_v', 0)
-        x1_val = st.session_state.get('x1s_v', 0)
-        x2_val = st.session_state.get('x2s_v', 0)
-        safe_notes = st.session_state.get('dn_notes', 'لا يوجد')
+        st.divider()
+        st.write("### 🏁 End Shift Actions")
         
-        # حساب إنجاز المهام
-        tasks_op = [st.session_state.get(f"s_{t}", False) for t in db["tasks"]["opening"]]
-        tasks_cl = [st.session_state.get(f"e_{t}", False) for t in db["tasks"]["closing"]]
-        tasks_so = [st.session_state.get(f"m_{t}_final", False) for t in db["tasks"]["social"]]
-        tasks_in = [st.session_state.get(f"i_{t}_final", False) for t in db["tasks"]["interaction"]]
+--- تحديث بناء نص رسالة واتساب (WhatsApp Construction) ---
+
+    # 1. حساب المهام المنجزة
+    def count_tasks(prefix):
+        total = len([k for k in st.session_state if k.startswith(prefix)])
+        done = len([k for k in st.session_state if k.startswith(prefix) and st.session_state[k]])
+        return done, total
+
+    op_done, op_tot = count_tasks('s_')
+    cl_done, cl_tot = count_tasks('e_')
+    soc_done, soc_tot = count_tasks('m_')
+    int_done, int_tot = count_tasks('i_')
+
+    # 2. تجميع ملاحظات الأخطاء والفروقات
+    error_notes = []
+    if abs(diff) > 0.1:
+        error_notes.append(f"⚠️ فرق نقدية: {diff:,.2f}")
+    
+    # فرق طابعات (إذا كان الاستخدام الفعلي لا يساوي مجموع الـ 1s والـ 2s)
+    kyo_actual = ke - ks
+    kyo_reported = k1s + k2s
+    if kyo_actual != kyo_reported:
+        error_notes.append(f"⚠️ فرق عداد كيوسيرا: الفعلي {kyo_actual} والمسجل {kyo_reported}")
         
-        # كشف الأخطاء والفروقات
-        discrepancies = []
-        if diff != 0:
-            discrepancies.append(f"⚠️ خلل نقدية: {diff:,.2f} LE")
-        
-        # فرق الطابعات
-        kyo_actual = ke - ks
-        xerox_actual = xe - xs
-        if (k1_val + k2_val) != kyo_actual:
-            discrepancies.append(f"⚠️ خلل عداد كيوسيرا: سجلت {k1_val+k2_val} من أصل {kyo_actual}")
-        if (x1_val + x2_val) != xerox_actual:
-            discrepancies.append(f"⚠️ خلل عداد زيروكس: سجلت {x1_val+x2_val} من أصل {xerox_actual}")
-            
-        # فرق أوباي
-        opay_diff = ops - ope
-        if opay_diff != 0:
-             discrepancies.append(f"⚠️ حركة أوباي: {opay_diff:,.2f} LE")
+    xerox_actual = xe - xs
+    xerox_reported = x1s + x2s
+    if xerox_actual != xerox_reported:
+        error_notes.append(f"⚠️ فرق عداد زيروكس: الفعلي {xerox_actual} والمسجل {xerox_reported}")
 
-        error_notes = "\n".join(discrepancies) if discrepancies else "✅ لا يوجد فروقات"
+    notes_section = "\n".join(error_notes) if error_notes else "✅ لا توجد فروقات حسابية"
 
-        # صياغة نص الرسالة
-        wa_text = (
-            f"*تقرير وردية NMS شامل*\n"
-            f"--------------------------\n"
-            f"📅 *التاريخ:* {date.today()}\n"
-            f"👤 *الاسم:* {st.session_state['user']}\n"
-            f"📍 *الفرع:* {branch}\n"
-            f"🕒 *الوردية:* {shift}\n"
-            f"--------------------------\n"
-            f"💰 *الماليات:*\n"
-            f"- عجز/زيادة نقدية: {diff:,.2f} LE\n"
-            f"- مبيعات السيستم: {sys_sales:,.2f} LE\n"
-            f"- المصاريف: {ex_val:,.2f} LE ({ex_cat})\n"
-            f"- مدفوعات أونلاين: {t_digital:,.2f} LE\n"
-            f"- فرق رصيد أوباي: {opay_diff:,.2f} LE\n"
-            f"--------------------------\n"
-            f"🖨️ *الطابعات (إجمالي المستهلك):*\n"
-            f"- كيوسيرا: {kyo_actual} ورقة\n"
-            f"- زيروكس: {xerox_actual} ورقة\n"
-            f"--------------------------\n"
-            f"✅ *إنجاز المهام:*\n"
-            f"- افتتاح: ({sum(tasks_op)}/{len(tasks_op)})\n"
-            f"- إغلاق: ({sum(tasks_cl)}/{len(tasks_cl)})\n"
-            f"- سوشيال: ({sum(tasks_so)}/{len(tasks_so)})\n"
-            f"- تفاعل: ({sum(tasks_in)}/{len(tasks_in)})\n"
-            f"--------------------------\n"
-            f"📝 *ملاحظات وفروقات:*\n"
-            f"{error_notes}\n"
-            f"--------------------------\n"
-            f"💬 *ملاحظة الموظف:*\n"
-            f"{safe_notes}"
-        )
+    # 3. بناء نص الرسالة الشامل
+    wa_text = f"*🚀 NMS ERP - تقرير وردية شامل*\n" \
+              f"━━━━━━━━━━━━━━━━\n" \
+              f"📅 التاريخ: {date.today()}\n" \
+              f"👤 الاسم: {st.session_state['user']}\n" \
+              f"📍 الفرع: {branch}\n" \
+              f"🕒 الوردية: {shift}\n\n" \
+              f"*💰 الملخص المالي*\n" \
+              f"━━━━━━━━━━━━━━━━\n" \
+              f"💵 نقدية البداية: {t_open:,.2f}\n" \
+              f"💻 مبيعات السيستم: {sys_sales:,.2f}\n" \
+              f"💸 المصاريف: {ex_val:,.2f} ({ex_cat}: {ex_note})\n" \
+              f"💳 مدفوعات أونلاين: {t_digital:,.2f}\n" \
+              f"   (فودافون: {wall} | إنستا: {insta} | فيزا: {visa})\n" \
+              f"📉 آجل (V22): {v22:,.2f}\n" \
+              f"💰 نقدية النهاية: {t_close:,.2f}\n" \
+              f"⚖️ فرق العجز/الزيادة: {diff:,.2f}\n\n" \
+              f"*🖨️ تقرير الطابعات*\n" \
+              f"━━━━━━━━━━━━━━━━\n" \
+              f"📠 كيوسيرا: {kyo_actual} (حشر: {kj})\n" \
+              f"📠 زيروكس: {xerox_actual} (حشر: {xj})\n" \
+              f"📱 فرق أوباي: {ops-ope:,.2f}\n\n" \
+              f"*✅ إحصائيات المهام*\n" \
+              f"━━━━━━━━━━━━━━━━\n" \
+              f"🌅 مهام الافتتاح: {op_done}/{op_tot}\n" \
+              f"🌇 مهام الإغلاق: {cl_done}/{cl_tot}\n" \
+              f"📱 السوشيال ميديا: {soc_done}/{soc_tot}\n" \
+              f"🤝 التفاعل: {int_done}/{int_tot}\n\n" \
+              f"*📝 ملاحظات وفروقات*\n" \
+              f"━━━━━━━━━━━━━━━━\n" \
+              f"{notes_section}\n" \
+              f"📌 ملاحظات الوردية: {st.session_state.get('dn_notes', '-')}"
 
-        st.divider()
-        # إضافة key فريد لكل زر لمنع تكرار الـ ID
-        if st.button("💾 ARCHIVE SHIFT DATA", use_container_width=True, key="btn_archive_final"):
-            db["history"].append({
-                "date": str(date.today()), "branch": branch, "staff": st.session_state['user'],
-                "sales": sys_sales, "diff": diff, "expenses": ex_val, "notes": error_notes
-            })
-            if st.session_state['user'] in db["drafts"]: del db["drafts"][st.session_state['user']]
-            save_db(db); st.success("Shift Archived!"); st.rerun()
+    # --- زر الأرشفة والأزرار النهائية ---
+    if st.button("💾 ARCHIVE SHIFT & DATA", use_container_width=True):
+        db["history"].append({
+            "date": str(date.today()), "branch": branch, "staff": st.session_state['user'],
+            "sales": sys_sales, "diff": diff, "kyo_jam": kj, "xerox_jam": xj, "expenses": ex_val,
+            "exp_note": f"{ex_cat}: {ex_note}"
+        })
+        if st.session_state['user'] in db["drafts"]: del db["drafts"][st.session_state['user']]
+        save_db(db); st.success("Shift Archived Successfully!")
 
-        crep1, crep2 = st.columns(2)
-        with crep1:
-            if st.button("📄 GENERATE PDF REPORT", use_container_width=True, key="btn_pdf_final"):
-                pdf_bytes = create_downloadable_pdf(branch, st.session_state['user'], str(date.today()), sys_sales, ex_val, f"{ex_cat}: {ex_note}", diff, {'used':ke-ks, 'jam':kj_v, '1s':k1_val, '2s':k2_val}, {'used':xe-xs, 'jam':xj_v, '1s':x1_val, '2s':x2_val}, opay_diff, v22)
-                st.download_button("📥 Download PDF", pdf_bytes, f"Report_{date.today()}.pdf", key="dl_pdf_final")
-        with crep2:
-            url = f"https://wa.me/{MANAGER_PHONE}?text={urllib.parse.quote(wa_text)}"
-            st.markdown(f'<a href="{url}" target="_blank"><button style="width:100%; background-color:#25D366; color:white; border:none; padding:15px; border-radius:10px; cursor:pointer; font-weight:bold;">📱 SEND WHATSAPP REPORT</button></a>', unsafe_allow_html=True)
-
-        st.divider()
-        if st.button("💾 ARCHIVE SHIFT DATA", use_container_width=True):
-            db["history"].append({
-                "date": str(date.today()), "branch": branch, "staff": st.session_state['user'],
-                "sales": sys_sales, "diff": diff, "expenses": ex_val, "notes": error_notes
-            })
-            if st.session_state['user'] in db["drafts"]: del db["drafts"][st.session_state['user']]
-            save_db(db); st.success("Shift Archived!")
-
-        crep1, crep2 = st.columns(2)
-        with crep1:
-            if st.button("📄 GENERATE PDF REPORT", use_container_width=True):
-                pdf_bytes = create_downloadable_pdf(branch, st.session_state['user'], str(date.today()), sys_sales, ex_val, f"{ex_cat}: {ex_note}", diff, {'used':ke-ks, 'jam':kj_v, '1s':k1_val, '2s':k2_val}, {'used':xe-xs, 'jam':xj_v, '1s':x1_val, '2s':x2_val}, opay_diff, v22)
-                st.download_button("📥 Download PDF", pdf_bytes, f"Report_{date.today()}.pdf")
-        with crep2:
-            url = f"https://wa.me/{MANAGER_PHONE}?text={urllib.parse.quote(wa_text)}"
-            st.markdown(f'<a href="{url}" target="_blank"><button style="width:100%; background-color:#25D366; color:white; border:none; padding:15px; border-radius:10px; cursor:pointer; font-weight:bold;">📱 SEND WHATSAPP REPORT</button></a>', unsafe_allow_html=True)
-        st.divider()
-
-        crep1, crep2 = st.columns(2)
-        with crep1:
-            if st.button("📄 GENERATE PDF REPORT", use_container_width=True):
-                pdf_bytes = create_downloadable_pdf(branch, st.session_state['user'], str(date.today()), sys_sales, ex_val, f"{ex_cat}: {ex_note}", diff, {'used':ke-ks, 'jam':kj_v, '1s':k1_val, '2s':k2_val}, {'used':xe-xs, 'jam':xj_v, '1s':x1_val, '2s':x2_val}, opay_diff, v22)
-                st.download_button("📥 Download PDF", pdf_bytes, f"Report_{date.today()}.pdf")
-        with crep2:
-            url = f"https://wa.me/{MANAGER_PHONE}?text={urllib.parse.quote(wa_text)}"
-            st.markdown(f'<a href="{url}" target="_blank"><button style="width:100%; background-color:#25D366; color:white; border:none; padding:15px; border-radius:10px; cursor:pointer; font-weight:bold;">📱 SEND WHATSAPP REPORT</button></a>', unsafe_allow_html=True)
-        st.divider()
-        if st.button("💾 ARCHIVE SHIFT DATA", use_container_width=True):
-            db["history"].append({
-                "date": str(date.today()), "branch": branch, "staff": st.session_state['user'],
-                "sales": sys_sales, "diff": diff, "expenses": ex_val, "notes": error_notes
-            })
-            if st.session_state['user'] in db["drafts"]: del db["drafts"][st.session_state['user']]
-            save_db(db); st.success("Shift Archived!")
-
-        crep1, crep2 = st.columns(2)
-        with crep1:
-            if st.button("📄 GENERATE PDF REPORT", use_container_width=True):
-                # يتم استخدام نفس المنطق في الـ PDF
-                pdf_bytes = create_downloadable_pdf(branch, st.session_state['user'], str(date.today()), sys_sales, ex_val, f"{ex_cat}: {ex_note}", diff, {'used':ke-ks, 'jam':kj_v, '1s':k1s_v, '2s':k2s_v}, {'used':xe-xs, 'jam':xj_v, '1s':x1s_v, '2s':x2s_v}, opay_diff, v22)
-                st.download_button("📥 Download PDF", pdf_bytes, f"Report_{date.today()}.pdf")
-        with crep2:
-            url = f"https://wa.me/{MANAGER_PHONE}?text={urllib.parse.quote(wa_text)}"
-            st.markdown(f'<a href="{url}" target="_blank"><button style="width:100%; background-color:#25D366; color:white; border:none; padding:15px; border-radius:10px; cursor:pointer; font-weight:bold;">📱 SEND WHATSAPP REPORT</button></a>', unsafe_allow_html=True)
-        if st.button("💾 ARCHIVE SHIFT & DATA", use_container_width=True):
-            db["history"].append({
-                "date": str(date.today()), "branch": branch, "staff": st.session_state['user'],
-                "sales": sys_sales, "diff": diff, "kyo_jam": kj, "xerox_jam": xj, "expenses": ex_val,
-                "exp_note": f"{ex_cat}: {ex_note}"
-            })
-            if st.session_state['user'] in db["drafts"]: del db["drafts"][st.session_state['user']]
-            save_db(db); st.success("Shift Archived Successfully!")
-
-        crep1, crep2 = st.columns(2)
-        with crep1:
-            if st.button("📄 GENERATE PRO PDF", use_container_width=True):
-                # Prepare data for the Advanced PDF function
-                kyo_d = {'used': ke-ks, 'jam': kj, '1s': k1s, '2s': k2s}
-                xerox_d = {'used': xe-xs, 'jam': xj, '1s': x1s, '2s': x2s}
-                pdf_bytes = create_downloadable_pdf(branch, st.session_state['user'], str(date.today()), sys_sales, ex_val, f"{ex_cat}: {ex_note}", diff, kyo_d, xerox_d, ops-ope, v22)
-                st.download_button("📥 Download Official Report", pdf_bytes, f"NMS_Pro_{date.today()}.pdf")
-        with crep2:
-            url = f"https://wa.me/{MANAGER_PHONE}?text={urllib.parse.quote(wa_text)}"
-            st.markdown(f'<a href="{url}" target="_blank"><button style="width:100%; background-color:#25D366; color:white; border:none; padding:15px; border-radius:10px; cursor:pointer; font-weight:bold; font-size:16px;">📱 SEND TO WHATSAPP</button></a>', unsafe_allow_html=True)
+    crep1, crep2 = st.columns(2)
+    with crep1:
+        if st.button("📄 GENERATE PRO PDF", use_container_width=True):
+            kyo_d = {'used': ke-ks, 'jam': kj, '1s': k1s, '2s': k2s}
+            xerox_d = {'used': xe-xs, 'jam': xj, '1s': x1s, '2s': x2s}
+            pdf_bytes = create_downloadable_pdf(branch, st.session_state['user'], str(date.today()), sys_sales, ex_val, f"{ex_cat}: {ex_note}", diff, kyo_d, xerox_d, ops-ope, v22)
+            st.download_button("📥 Download Official Report", pdf_bytes, f"NMS_Pro_{date.today()}.pdf")
+    with crep2:
+        url = f"https://wa.me/{MANAGER_PHONE}?text={urllib.parse.quote(wa_text)}"
+        st.markdown(f'<a href="{url}" target="_blank"><button style="width:100%; background-color:#25D366; color:white; border:none; padding:15px; border-radius:10px; cursor:pointer; font-weight:bold; font-size:16px;">📱 SEND TO WHATSAPP</button></a>', unsafe_allow_html=True)
