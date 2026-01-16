@@ -521,25 +521,85 @@ else:
         st.write("### 🏁 End Shift Actions")
         
         # WhatsApp Construction
-        wa_text = f"*🚀 NMS ERP REPORT*\n" \
-                  f"📅 {date.today()} | 👤 {st.session_state['user']}\n" \
-                  f"📍 {branch} | 🕒 {shift}\n\n" \
-                  f"*💰 FINANCIALS*\n" \
-                  f"━━━━━━━━━━━━━━━━\n" \
-                  f"🔹 Sales: {sys_sales:,.2f}\n" \
-                  f"🔹 Expenses: {ex_val:,.2f} ({ex_cat}: {ex_note})\n" \
-                  f"🔹 Drawer: {t_close:,.2f}\n" \
-                  f"🔹 Difference: {diff:,.2f}\n\n" \
-                  f"*🖨️ PRINTERS*\n" \
-                  f"━━━━━━━━━━━━━━━━\n" \
-                  f"🖨️ Kyo: {ke-ks} (Jam: {kj})\n" \
-                  f"🖨️ Xerox: {xe-xs} (Jam: {xj})\n\n" \
-                  f"*⚙️ SYSTEM & NOTES*\n" \
-                  f"━━━━━━━━━━━━━━━━\n" \
-                  f"💳 Opay: {ops-ope:,.2f}\n" \
-                  f"📉 Debit: {v22:,.2f}\n" \
-                  f"📝 Notes: {st.session_state.get('dn_notes', '-')}"
+# --- تحضير بيانات التقرير الشامل للواتساب ---
+        
+        # 1. حساب إنجاز المهام
+        tasks_op = [st.session_state.get(f"s_{t}", False) for t in db["tasks"]["opening"]]
+        tasks_cl = [st.session_state.get(f"e_{t}", False) for t in db["tasks"]["closing"]]
+        tasks_so = [st.session_state.get(f"m_{t}", False) for t in db["tasks"]["social"]]
+        tasks_in = [st.session_state.get(f"i_{t}", False) for t in db["tasks"]["interaction"]]
+        
+        # 2. كشف الأخطاء والفروقات تلقائياً
+        discrepancies = []
+        if diff != 0:
+            discrepancies.append(f"⚠️ خلل نقدية: {diff:,.2f} LE")
+        
+        # فرق الطابعات (المطبوع فعلياً vs المسجل مانيوال)
+        kyo_actual = ke - ks
+        xerox_actual = xe - xs
+        if (k1s_v + k2s_v) != kyo_actual:
+            discrepancies.append(f"⚠️ خلل عداد كيوسيرا: الفرق {kyo_actual - (k1s_v+k2s_v)}")
+        if (x1s_v + x2s_v) != xerox_actual:
+            discrepancies.append(f"⚠️ خلل عداد زيروكس: الفرق {xerox_actual - (x1s_v+x2s_v)}")
+            
+        # فرق أوباي
+        opay_diff = ops - ope
+        if opay_diff != 0:
+             discrepancies.append(f"⚠️ حركة أوباي: {opay_diff:,.2f} LE")
 
+        error_notes = "\n".join(discrepancies) if discrepancies else "✅ لا يوجد فروقات"
+
+        # 3. صياغة نص الرسالة
+        wa_text = (
+            f"*تقرير وردية NMS شامل*\n"
+            f"--------------------------\n"
+            f"📅 *التاريخ:* {date.today()}\n"
+            f"👤 *الاسم:* {st.session_state['user']}\n"
+            f"📍 *الفرع:* {branch}\n"
+            f"🕒 *الوردية:* {shift}\n"
+            f"--------------------------\n"
+            f"💰 *الماليات:*\n"
+            f"- عجز/زيادة نقدية: {diff:,.2f} LE\n"
+            f"- مبيعات السيستم: {sys_sales:,.2f} LE\n"
+            f"- المصاريف: {ex_val:,.2f} LE ({ex_cat})\n"
+            f"- مدفوعات أونلاين: {t_digital:,.2f} LE\n"
+            f"- فرق رصيد أوباي: {opay_diff:,.2f} LE\n"
+            f"--------------------------\n"
+            f"🖨️ *الطابعات (إجمالي المستهلك):*\n"
+            f"- كيوسيرا: {kyo_actual} ورقة\n"
+            f"- زيروكس: {xerox_actual} ورقة\n"
+            f"--------------------------\n"
+            f"✅ *إنجاز المهام:*\n"
+            f"- افتتاح: ({sum(tasks_op)}/{len(tasks_op)})\n"
+            f"- إغلاق: ({sum(tasks_cl)}/{len(tasks_cl)})\n"
+            f"- سوشيال: ({sum(tasks_so)}/{len(tasks_so)})\n"
+            f"- تفاعل: ({sum(tasks_in)}/{len(tasks_in)})\n"
+            f"--------------------------\n"
+            f"📝 *ملاحظات وفروقات:*\n"
+            f"{error_notes}\n"
+            f"--------------------------\n"
+            f"💬 *ملاحظة الموظف:*\n"
+            f"{dn_notes if dn_notes else 'لا يوجد'}"
+        )
+
+        st.divider()
+        if st.button("💾 ARCHIVE SHIFT DATA", use_container_width=True):
+            db["history"].append({
+                "date": str(date.today()), "branch": branch, "staff": st.session_state['user'],
+                "sales": sys_sales, "diff": diff, "expenses": ex_val, "notes": error_notes
+            })
+            if st.session_state['user'] in db["drafts"]: del db["drafts"][st.session_state['user']]
+            save_db(db); st.success("Shift Archived!")
+
+        crep1, crep2 = st.columns(2)
+        with crep1:
+            if st.button("📄 GENERATE PDF REPORT", use_container_width=True):
+                # يتم استخدام نفس المنطق في الـ PDF
+                pdf_bytes = create_downloadable_pdf(branch, st.session_state['user'], str(date.today()), sys_sales, ex_val, f"{ex_cat}: {ex_note}", diff, {'used':ke-ks, 'jam':kj_v, '1s':k1s_v, '2s':k2s_v}, {'used':xe-xs, 'jam':xj_v, '1s':x1s_v, '2s':x2s_v}, opay_diff, v22)
+                st.download_button("📥 Download PDF", pdf_bytes, f"Report_{date.today()}.pdf")
+        with crep2:
+            url = f"https://wa.me/{MANAGER_PHONE}?text={urllib.parse.quote(wa_text)}"
+            st.markdown(f'<a href="{url}" target="_blank"><button style="width:100%; background-color:#25D366; color:white; border:none; padding:15px; border-radius:10px; cursor:pointer; font-weight:bold;">📱 SEND WHATSAPP REPORT</button></a>', unsafe_allow_html=True)
         if st.button("💾 ARCHIVE SHIFT & DATA", use_container_width=True):
             db["history"].append({
                 "date": str(date.today()), "branch": branch, "staff": st.session_state['user'],
