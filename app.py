@@ -506,7 +506,7 @@ else:
             
             st.text_area("📝 Draft Notes / Handover", key="dn_notes", on_change=sync_draft)
 
-    # --- TAB 3: SOCIAL ---
+# --- TAB 3: SOCIAL ---
     with tab3:
         st.subheader("📱 Social Media & Interaction")
         sc1, sc2 = st.columns(2)
