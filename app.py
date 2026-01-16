@@ -16,7 +16,6 @@ DB_FILE = 'nms_enterprise_pro_db.json'
 MANAGER_PHONE = "971522045638"
 
 def load_db():
-    # الهيكل الكامل والافتراضي لضمان عدم نقص أي خانة مستقبلاً
     default_structure = {
         "logo": None,
         "branches": ["M. Nageb Branch", "Tram Branch"],
@@ -31,14 +30,14 @@ def load_db():
         },
         "tasks": {
             "opening": [
-                "Fingerprint / بصمة الحضور", "Power On / تشغيل الأجهزة", "Uniform & Name Tag / الزي الرسمي", 
-                "Music & Ambience / تشغيل الموسيقى", "Paper Loaded / تعبئة الورق", "Cash Counted / عد النقدية", 
-                "Clean Windows & Counters / تنظيف الواجهات", "Check Internet / فحص الإنترنت", "Check Supplies / فحص المخزون"
+                "Fingerprint Attendance", "Power On Devices", "Uniform & Name Tag", 
+                "Music & Ambience", "Paper Loaded", "Cash Counted", 
+                "Clean Windows & Counters", "Check Internet Connection", "Check Supplies Inventory"
             ],
             "closing": [
-                "Save WhatsApp Contacts / حفظ جهات الاتصال", "Place Cleaned / تنظيف المكان", 
-                "Power Off / إطفاء الأجهزة", "Trash Removed / إخراج المهملات", "Fingerprint / بصمة الانصراف", 
-                "Daily Report Sent / إرسال التقرير", "Safe Locked / إغلاق الخزنة", "Lights Off / إطفاء الأنوار"
+                "Save WhatsApp Contacts", "Cleaning Workplace", 
+                "Power Off Devices", "Trash Removed", "Fingerprint Sign-out", 
+                "Daily Report Sent", "Safe Locked", "Lights Off"
             ],
             "social": [
                 "Canva Design 1", "Canva Design 2", "WhatsApp Story", "WhatsApp Channel", 
@@ -48,8 +47,8 @@ def load_db():
                 "Telegram Story", "Telegram Channel", "LinkedIn Post"
             ],
             "interaction": [
-                "Like / إعجاب", "Love / أحببته", "Care / أدعمه", "Share / مشاركة", 
-                "Comment / تعليق", "Reply to Messages / الرد على الرسائل", "Join Groups / دخول جروبات"
+                "Like", "Love", "Care", "Share", 
+                "Comment", "Reply to Messages", "Join Groups"
             ]
         },
         "history": [], "drafts": {}, "logs": []
@@ -60,7 +59,6 @@ def load_db():
     
     with open(DB_FILE, 'r', encoding='utf-8') as f:
         data = json.load(f)
-        # مراجعة كل الموظفين لضمان وجود الهيكل المالي (HR) كاملاً لكل واحد
         for user in data["users"]:
             u = data["users"][user]
             hr_keys = ["bonus", "deductions", "overtime", "extra_leaves"]
@@ -69,7 +67,6 @@ def load_db():
             if "salary" not in u: u["salary"] = 0.0
             if "hiring_date" not in u: u["hiring_date"] = "2024-01-01"
             if "role" not in u: u["role"] = "user"
-            # خانات البيانات الشخصية الجديدة
             personal_keys = ["phone", "national_id", "address", "email", "social_status", "qualification"]
             for pk in personal_keys:
                 if pk not in u: u[pk] = ""
@@ -90,7 +87,6 @@ if 'logged_in' not in st.session_state:
 def sync_draft():
     if st.session_state['logged_in']:
         user = st.session_state['user']
-        # حفظ كل الحقول التي تبدأ بالرموز المخصصة لضمان عدم ضياع أي بيان
         draft_keys = ('s_','o_','e_','c_','m_','i_','ks','xs','op','u10','v22','ex','kj','xj','dn','k1','k2','x1','x2')
         draft_data = {k: v for k, v in st.session_state.items() if k.startswith(draft_keys)}
         if "drafts" not in db: db["drafts"] = {}
@@ -103,14 +99,13 @@ if not st.session_state['logged_in']:
     c1, c2 = st.columns(2)
     with c1:
         if db.get("logo"): st.image(base64.b64decode(db["logo"]), width=300)
-        else: st.info("Place Logo Here via Admin Settings")
+        else: st.info("Place Logo via Admin Settings")
     with c2:
         u_name = st.selectbox("Employee Account", list(db["users"].keys()))
         u_pass = st.text_input("Password", type="password")
         if st.button("Login", use_container_width=True):
             if db["users"][u_name]["pass"] == u_pass:
                 st.session_state.update({'logged_in': True, 'user': u_name, 'role': db["users"][u_name]["role"]})
-                # استعادة المسودة فور تسجيل الدخول
                 if u_name in db.get("drafts", {}):
                     for key, val in db["drafts"][u_name].items(): st.session_state[key] = val
                 db["logs"].append({"user": u_name, "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "action": "Login"})
@@ -135,7 +130,6 @@ else:
                 "Archive & History"
             ])
 
-            # 4.1 HR Profiles
             if admin_choice == "HR & Employee Profiles":
                 st.write("### 👥 Manage Employees")
                 target = st.selectbox("Select User", list(db["users"].keys()))
@@ -171,7 +165,6 @@ else:
                         }
                         save_db(db); st.success(f"Account '{new_un}' is now active."); st.rerun()
 
-            # 4.2 Payroll
             elif admin_choice == "Payroll & Development":
                 st.write("### 💰 Financial Development")
                 target = st.selectbox("Select Staff", list(db["users"].keys()))
@@ -197,7 +190,6 @@ else:
                     db["users"][target][key].append({"date": str(date.today()), "val": amt, "note": note})
                     save_db(db); st.success("Recorded")
 
-            # 4.3 Operational Tasks
             elif admin_choice == "Operational Tasks":
                 st.write("### 📝 Edit Task Lists")
                 t_cat = st.selectbox("Category", ["opening", "closing", "social", "interaction"])
@@ -211,7 +203,6 @@ else:
                 if st.button("Add Task"):
                     if nt: db["tasks"][t_cat].append(nt); save_db(db); st.rerun()
 
-            # 4.4 Branches
             elif admin_choice == "Branches & Expenses":
                 st.write("### 🏢 Manage Locations")
                 for i, b in enumerate(db["branches"]):
@@ -226,7 +217,6 @@ else:
                 if st.button("Add Expense Cat"):
                     if new_ex: db["expense_categories"].append(new_ex); save_db(db); st.rerun()
 
-            # 4.5 History
             elif admin_choice == "Archive & History":
                 st.subheader("Shift Logs")
                 if db["history"]: st.dataframe(pd.DataFrame(db["history"]))
@@ -295,7 +285,6 @@ else:
             ex_val = st.number_input("Amount", step=1.0, key="ex_val")
             ex_note = st.text_input("Reason", key="ex_note")
             
-            # THE CORE CALCULATION
             expected = t_open + sys_sales + u10 - ex_val - v22 - t_digital
             diff = t_close - expected
             st.metric("Expected Drawer", f"{expected:,.2f}")
@@ -308,18 +297,18 @@ else:
             ke = st.number_input("Kyo End", step=1, key="ke")
             k1s = st.number_input("Kyo 1-Side", step=1, key="k1s_v")
             k2s = st.number_input("Kyo 2-Sides", step=1, key="k2s_v")
-            kj = st.number_input("Kyo Jam / حشر ورق", step=1, key="kj_v", on_change=sync_draft)
+            kj = st.number_input("Kyo Paper Jam", step=1, key="kj_v", on_change=sync_draft)
             
             st.write("**Xerox**")
             xe = st.number_input("Xerox End", step=1, key="xe")
             x1s = st.number_input("Xerox 1-Side", step=1, key="x1s_v")
             x2s = st.number_input("Xerox 2-Sides", step=1, key="x2s_v")
-            xj = st.number_input("Xerox Jam / حشر ورق", step=1, key="xj_v", on_change=sync_draft)
+            xj = st.number_input("Xerox Paper Jam", step=1, key="xj_v", on_change=sync_draft)
             
             st.divider()
             ope = st.number_input("Opay End Balance", step=0.01, key="ope")
             st.info(f"Opay Movement: {ops - ope:,.2f}")
-            st.text_area("Notes / مسودة الملاحظات", key="dn_notes", on_change=sync_draft)
+            st.text_area("Internal Draft Notes", key="dn_notes", on_change=sync_draft)
 
     # --- TAB 3: SOCIAL ---
     with tab3:
@@ -333,7 +322,6 @@ else:
             for t in db["tasks"]["interaction"]: st.checkbox(t, key=f"i_{t}", on_change=sync_draft)
         
         st.divider()
-        # WhatsApp Message Construction
         wa_text = f"*🚀 NMS COMPREHENSIVE REPORT*\n*Branch:* {branch} | *Staff:* {st.session_state['user']}\n\n" \
                   f"*💰 FINANCE:*\n- Sales: {sys_sales:,.2f}\n- Exp: {ex_val:,.2f} ({ex_cat})\n- Drawer: {t_close:,.2f}\n- Diff: {diff:,.2f}\n\n" \
                   f"*🖨️ PRINTERS:*\n- Kyo: {ke-ks} (Jam: {kj})\n- Xerox: {xe-xs} (Jam: {xj})\n\n" \
@@ -344,7 +332,6 @@ else:
                 "date": str(date.today()), "branch": branch, "staff": st.session_state['user'],
                 "sales": sys_sales, "diff": diff, "kyo_jam": kj, "xerox_jam": xj
             })
-            # Clear draft for this user after finish
             if st.session_state['user'] in db["drafts"]: del db["drafts"][st.session_state['user']]
             save_db(db); st.success("Shift Successfully Archived")
 
