@@ -218,10 +218,14 @@ else:
             st.write(f"**📅 Hiring Date:** {user_info.get('hiring_date', '-')}")
             st.metric("💰 Base Salary", f"{user_info.get('salary', 0):,.2f} LE")
             
-            with st.expander("🎁 My Bonuses (المكافآت)", expanded=False):
+            with st.expander("🎁 My Bonuses", expanded=False):
                 if user_info['bonus']: st.dataframe(pd.DataFrame(user_info['bonus']))
                 else: st.info("No bonuses yet.")
-            
+                    
+            with st.expander("Overtime ⏳", expanded=False):
+                if user_info['overtime']: st.dataframe(pd.DataFrame(user_info['overtime']))
+                else: st.info("No overtime yet.")
+                    
             with st.expander("⚠️ My Deductions (الخصومات)", expanded=False):
                 if user_info['deductions']: st.dataframe(pd.DataFrame(user_info['deductions']))
                 else: st.success("Clean Record! No deductions.")
