@@ -362,20 +362,58 @@ else:
                 new_ex = st.text_input("New Expense Category")
                 if st.button("➕ Add Expense Category"):
                     if new_ex: db["expense_categories"].append(new_ex); save_db(db); st.rerun()
-
-            # 5. الأرشيف
+                        
+            # 5. الأرشيف المتطور - Advanced Archive
             elif admin_choice == "📂 Archive & History":
-                st.subheader("📜 Shift Logs")
-                if db["history"]: st.dataframe(pd.DataFrame(db["history"]))
-                if st.button("⚠️ Clear All History", type="primary"): 
-                    db["history"] = []; save_db(db); st.rerun()
+                st.subheader("📜 Advanced Shift Archive")
+                if not db["history"]:
+                    st.warning("No records found in history.")
+                else:
+                    df_hist = pd.DataFrame(db["history"])
+                    
+                    # أدوات الفرز والبحث
+                    col_f1, col_f2 = st.columns(2)
+                    with col_f1:
+                        f_user = st.multiselect("Filter by Staff", options=df_hist['staff'].unique())
+                    with col_f2:
+                        f_branch = st.multiselect("Filter by Branch", options=df_hist['branch'].unique())
+                    
+                    # تطبيق الفلترة
+                    filtered_df = df_hist.copy()
+                    if f_user: filtered_df = filtered_df[filtered_df['staff'].isin(f_user)]
+                    if f_branch: filtered_df = filtered_df[filtered_df['branch'].isin(f_branch)]
+                    
+                    st.dataframe(filtered_df, use_container_width=True)
+                    
+                    # تفاصيل وردية محددة
+                    st.divider()
+                    st.write("🔍 **View Specific Entry Details**")
+                    if not filtered_df.empty:
+                        selected_idx = st.selectbox("Select Record ID to view full details", filtered_df.index)
+                        record = filtered_df.loc[selected_idx]
+                        
+                        with st.expander(f"Details for Shift on {record['date']} - {record['staff']}", expanded=True):
+                            c_r1, c_r2 = st.columns(2)
+                            with c_r1:
+                                st.write(f"**Date:** {record['date']}")
+                                st.write(f"**Branch:** {record['branch']}")
+                                st.write(f"**Staff:** {record['staff']}")
+                            with c_r2:
+                                st.write(f"**Sales:** {record['sales']:,.2f} LE")
+                                st.write(f"**Expenses:** {record.get('expenses', 0):,.2f} LE")
+                                color = "green" if record['diff'] >= 0 else "red"
+                                st.markdown(f"**Difference:** <span style='color:{color}'>{record['diff']:,.2f} LE</span>", unsafe_allow_html=True)
+
+                    if st.button("⚠️ Clear All Archive Data", type="primary"):
+                        db["history"] = []; save_db(db); st.success("Archive Cleared!"); st.rerun()
                 
                 st.divider()
+                st.write("🖼️ **Company Branding**")
                 lg = st.file_uploader("Upload Company Logo", type=['png', 'jpg'])
                 if st.button("💾 Save Logo"):
                     if lg: 
                         db["logo"] = base64.b64encode(lg.getvalue()).decode()
-                        save_db(db); st.success("Logo Updated"); st.rerun()
+                        save_db(db); st.success("Logo Updated Successfully!"); st.rerun()
 
     # --- 6. Main Dashboard: DAILY OPERATIONS ---
     st.title("📊 NMS ERP - Daily Operations")
