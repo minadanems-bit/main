@@ -484,12 +484,15 @@ else:
         
 # --- WhatsApp Construction ---
         
-        # 1. Calculate Tasks Stats
+        # 1. Calculate Task Statistics (Safe access via session_state)
         def count_tasks(prefix):
-            all_keys = [k for k in db["tasks"][prefix]]
+            all_keys = db["tasks"].get(prefix, [])
             done = 0
+            # Mapping internal prefixes to session state keys
+            map_p = {'opening':'s_', 'closing':'e_', 'social':'m_', 'interaction':'i_'}
+            p = map_p.get(prefix, '')
             for t in all_keys:
-                if st.session_state.get(f"{'s' if prefix=='opening' else 'e' if prefix=='closing' else 'm' if prefix=='social' else 'i'}_{t}"):
+                if st.session_state.get(f"{p}{t}"):
                     done += 1
             return done, len(all_keys)
 
@@ -498,72 +501,90 @@ else:
         soc_done, soc_tot = count_tasks('social')
         int_done, int_tot = count_tasks('interaction')
 
-        # 2. Financial & Printer Differences
+        # 2. Identify Discrepancies (Financial & Printers)
         error_notes = []
         if abs(diff) > 0.1:
-            error_notes.append(f"⚠️ فرق نقدية: {diff:,.2f}")
+            error_notes.append(f"⚠️ Cash Diff: {diff:,.2f}")
         
-        kyo_actual = ke - ks
-        kyo_reported = k1s_v + k2s_v
+        # Safe retrieval of printer data
+        _ks = st.session_state.get('ks', 0)
+        _ke = st.session_state.get('ke', 0)
+        _xs = st.session_state.get('xs', 0)
+        _xe = st.session_state.get('xe', 0)
+        _k1s = st.session_state.get('k1s_v', 0)
+        _k2s = st.session_state.get('k2s_v', 0)
+        _x1s = st.session_state.get('x1s_v', 0)
+        _x2s = st.session_state.get('x2s_v', 0)
+
+        kyo_actual = _ke - _ks
+        kyo_reported = _k1s + _k2s
         if kyo_actual != kyo_reported:
-            error_notes.append(f"⚠️ فرق عداد كيوسيرا: الفعلي {kyo_actual} والمسجل {kyo_reported}")
+            error_notes.append(f"⚠️ Kyo Counter Diff: Actual {kyo_actual} vs Reported {kyo_reported}")
             
-        xerox_actual = xe - xs
-        xerox_reported = x1s_v + x2s_v
+        xerox_actual = _xe - _xs
+        xerox_reported = _x1s + _x2s
         if xerox_actual != xerox_reported:
-            error_notes.append(f"⚠️ فرق عداد زيروكس: الفعلي {xerox_actual} والمسجل {xerox_reported}")
+            error_notes.append(f"⚠️ Xerox Counter Diff: Actual {xerox_actual} vs Reported {xerox_reported}")
 
-        notes_section = "\n".join(error_notes) if error_notes else "✅ لا توجد فروقات حسابية"
+        notes_section = "\n".join(error_notes) if error_notes else "✅ No discrepancies found"
 
-        # 3. Build Message Text
-        wa_text = f"*🚀 NMS ERP - تقرير وردية شامل*\n" \
+        # 3. Build WhatsApp Message Body
+        wa_text = f"*🚀 NMS ERP - SHIFT REPORT*\n" \
                   f"━━━━━━━━━━━━━━━━\n" \
-                  f"📅 التاريخ: {date.today()}\n" \
-                  f"👤 الاسم: {st.session_state['user']}\n" \
-                  f"📍 الفرع: {branch}\n" \
-                  f"🕒 الوردية: {shift}\n\n" \
-                  f"*💰 الملخص المالي*\n" \
+                  f"📅 Date: {date.today()}\n" \
+                  f"👤 Staff: {st.session_state['user']}\n" \
+                  f"📍 Branch: {branch}\n" \
+                  f"🕒 Shift: {shift}\n\n" \
+                  f"*💰 FINANCIAL SUMMARY*\n" \
                   f"━━━━━━━━━━━━━━━━\n" \
-                  f"💵 نقدية البداية: {t_open:,.2f}\n" \
-                  f"💻 مبيعات السيستم: {sys_sales:,.2f}\n" \
-                  f"💸 المصاريف: {ex_val:,.2f} ({ex_cat}: {ex_note})\n" \
-                  f"💳 مدفوعات أونلاين: {t_digital:,.2f}\n" \
-                  f"   (فودافون: {c_wall} | إنستا: {c_insta} | فيزا: {c_visa})\n" \
-                  f"📉 آجل (V22): {v22_val:,.2f}\n" \
-                  f"💰 نقدية النهاية: {t_close:,.2f}\n" \
-                  f"⚖️ فرق العجز/الزيادة: {diff:,.2f}\n\n" \
-                  f"*🖨️ تقرير الطابعات*\n" \
+                  f"💵 Opening Cash: {t_open:,.2f}\n" \
+                  f"💻 System Sales: {sys_sales:,.2f}\n" \
+                  f"💸 Expenses: {ex_val:,.2f} ({ex_cat}: {ex_note})\n" \
+                  f"💳 Online/Digital: {t_digital:,.2f}\n" \
+                  f"   (Wallet: {st.session_state.get('c_wall', 0)} | Insta: {st.session_state.get('c_insta', 0)} | Visa: {st.session_state.get('c_visa', 0)})\n" \
+                  f"📉 Debit (V22): {st.session_state.get('v22_val', 0):,.2f}\n" \
+                  f"💰 Closing Drawer: {t_close:,.2f}\n" \
+                  f"⚖️ Net Difference: {diff:,.2f}\n\n" \
+                  f"*🖨️ PRINTER ANALYSIS*\n" \
                   f"━━━━━━━━━━━━━━━━\n" \
-                  f"📠 كيوسيرا: {kyo_actual} (حشر: {kj_v})\n" \
-                  f"📠 زيروكس: {xerox_actual} (حشر: {xj_v})\n" \
-                  f"📱 فرق أوباي: {ops-ope:,.2f}\n\n" \
-                  f"*✅ إحصائيات المهام*\n" \
+                  f"📠 Kyocera: {kyo_actual} (Jams: {st.session_state.get('kj_v', 0)})\n" \
+                  f"📠 Xerox: {xerox_actual} (Jams: {st.session_state.get('xj_v', 0)})\n" \
+                  f"📱 Opay Diff: {st.session_state.get('ops', 0) - st.session_state.get('ope', 0):,.2f}\n\n" \
+                  f"*✅ TASK STATISTICS*\n" \
                   f"━━━━━━━━━━━━━━━━\n" \
-                  f"🌅 مهام الافتتاح: {op_done}/{op_tot}\n" \
-                  f"🌇 مهام الإغلاق: {cl_done}/{cl_tot}\n" \
-                  f"📱 السوشيال ميديا: {soc_done}/{soc_tot}\n" \
-                  f"🤝 التفاعل: {int_done}/{int_tot}\n\n" \
-                  f"*📝 ملاحظات وفروقات*\n" \
+                  f"🌅 Opening: {op_done}/{op_tot}\n" \
+                  f"🌇 Closing: {cl_done}/{cl_tot}\n" \
+                  f"📱 Social Media: {soc_done}/{soc_tot}\n" \
+                  f"🤝 Interaction: {int_done}/{int_tot}\n\n" \
+                  f"*📝 DISCREPANCIES & NOTES*\n" \
                   f"━━━━━━━━━━━━━━━━\n" \
                   f"{notes_section}\n" \
-                  f"📌 ملاحظات الوردية: {st.session_state.get('dn_notes', '-')}"
+                  f"📌 Shift Notes: {st.session_state.get('dn_notes', '-')}"
 
-        # --- Footer Actions ---
+        # --- Footer Action Buttons ---
         if st.button("💾 ARCHIVE SHIFT & DATA", use_container_width=True):
             db["history"].append({
-                "date": str(date.today()), "branch": branch, "staff": st.session_state['user'],
-                "sales": sys_sales, "diff": diff, "kyo_jam": kj_v, "xerox_jam": xj_v, "expenses": ex_val,
+                "date": str(date.today()), 
+                "branch": branch, 
+                "staff": st.session_state['user'],
+                "sales": sys_sales, 
+                "diff": diff, 
+                "kyo_jam": st.session_state.get('kj_v', 0), 
+                "xerox_jam": st.session_state.get('xj_v', 0), 
+                "expenses": ex_val,
                 "exp_note": f"{ex_cat}: {ex_note}"
             })
-            if st.session_state['user'] in db["drafts"]: del db["drafts"][st.session_state['user']]
-            save_db(db); st.success("Shift Archived Successfully!")
+            if st.session_state['user'] in db["drafts"]: 
+                del db["drafts"][st.session_state['user']]
+            save_db(db)
+            st.success("Shift Archived Successfully!")
 
         crep1, crep2 = st.columns(2)
         with crep1:
             if st.button("📄 GENERATE PRO PDF", use_container_width=True):
-                kyo_d = {'used': ke-ks, 'jam': kj_v, '1s': k1s_v, '2s': k2s_v}
-                xerox_d = {'used': xe-xs, 'jam': xj_v, '1s': x1s_v, '2s': x2s_v}
-                pdf_bytes = create_downloadable_pdf(branch, st.session_state['user'], str(date.today()), sys_sales, ex_val, f"{ex_cat}: {ex_note}", diff, kyo_d, xerox_d, ops-ope, v22_val)
+                kyo_d = {'used': _ke-_ks, 'jam': st.session_state.get('kj_v', 0), '1s': _k1s, '2s': _k2s}
+                xerox_d = {'used': _xe-_xs, 'jam': st.session_state.get('xj_v', 0), '1s': _x1s, '2s': _x2s}
+                pdf_bytes = create_downloadable_pdf(branch, st.session_state['user'], str(date.today()), sys_sales, ex_val, f"{ex_cat}: {ex_note}", diff, kyo_d, xerox_d, st.session_state.get('ops',0)-st.session_state.get('ope',0), st.session_state.get('v22_val',0))
                 st.download_button("📥 Download Official Report", pdf_bytes, f"NMS_Pro_{date.today()}.pdf")
         with crep2:
             url = f"https://wa.me/{MANAGER_PHONE}?text={urllib.parse.quote(wa_text)}"
