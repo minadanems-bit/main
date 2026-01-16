@@ -321,18 +321,17 @@ else:
                     save_db(db); st.success("Added to HR Record")
 
             # 3. إدارة المهام
-            elif admin_choice == "📝 Operational Tasks":
-                st.info("Add/Delete Tasks in Checklists")
+            elif admin_choice == "📝 Tasks & Checklists":
                 cat = st.selectbox("Category", ["opening", "closing", "social", "interaction"])
                 for i, t in enumerate(db["tasks"][cat]):
                     c1, c2 = st.columns([5, 1])
                     c1.text(f"📌 {t}")
                     if c2.button("🗑️", key=f"del_t_{cat}_{i}"):
                         db["tasks"][cat].pop(i); save_db(db); st.rerun()
-                new_t = st.text_input("New Task Description")
+                new_t = st.text_input("New Task")
                 if st.button("➕ Add Task"):
                     if new_t: db["tasks"][cat].append(new_t); save_db(db); st.rerun()
-
+                        
             # 4. الفروع والمصاريف
             elif admin_choice == "🏢 Branches & Expenses":
                 st.info("Manage Locations & Expenses")
