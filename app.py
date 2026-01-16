@@ -222,8 +222,8 @@ else:
                 if user_info['bonus']: st.dataframe(pd.DataFrame(user_info['bonus']))
                 else: st.info("No bonuses yet.")
             
-            with st.expander("⚠️ My Deduction (الخصومات)", expanded=False):
-                if user_info['deduction']: st.dataframe(pd.DataFrame(user_info['deduction']))
+            with st.expander("⚠️ My Deductions (الخصومات)", expanded=False):
+                if user_info['deductions']: st.dataframe(pd.DataFrame(user_info['deductions']))
                 else: st.success("Clean Record! No deductions.")
 
         if st.button("🚪 Logout", use_container_width=True):
@@ -303,7 +303,7 @@ else:
                 
                 st.divider()
                 st.write("**Add Financial Entry:**")
-                dev_type = st.radio("Type", ["Bonus 🎁", "Deduction ⚠️", "Overtime ⏳", "Extra Leave 🏖️"], horizontal=True)
+                dev_type = st.radio("Type", ["Bonus 🎁", "Deductions ⚠️", "Overtime ⏳", "Extra Leave 🏖️"], horizontal=True)
                 amt = st.number_input("Value (LE)", step=10.0)
                 note = st.text_input("Reason / Note")
                 if st.button("✅ Submit Entry"):
