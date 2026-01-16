@@ -521,7 +521,7 @@ else:
         st.write("### 🏁 End Shift Actions")
         
         # WhatsApp Construction
-# --- تحضير بيانات التقرير الشامل للواتساب ---
+    # --- تحضير بيانات التقرير الشامل للواتساب ---
         
         # 1. حساب إنجاز المهام
         tasks_op = [st.session_state.get(f"s_{t}", False) for t in db["tasks"]["opening"]]
