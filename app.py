@@ -222,8 +222,8 @@ else:
                 if user_info['bonus']: st.dataframe(pd.DataFrame(user_info['bonus']))
                 else: st.info("No bonuses yet.")
             
-            with st.expander("⚠️ My Deductions (الخصومات)", expanded=False):
-                if user_info['deductions']: st.dataframe(pd.DataFrame(user_info['deductions']))
+            with st.expander("⚠️ My Deduction (الخصومات)", expanded=False):
+                if user_info['deduction']: st.dataframe(pd.DataFrame(user_info['deduction']))
                 else: st.success("Clean Record! No deductions.")
 
         if st.button("🚪 Logout", use_container_width=True):
@@ -258,6 +258,7 @@ else:
                     up_full = st.text_input("Full Name", value=u_prof.get('full_name', ''))
                     up_pass = st.text_input("Password", value=u_prof.get('pass', ''))
                     up_phone = st.text_input("Phone Number", value=u_prof.get('phone', ''))
+                    up_email = st.text_input("E-Mail", value=u_prof.get('email', ''))                    
                     up_nid = st.text_input("National ID", value=u_prof.get('national_id', ''))
                     up_addr = st.text_area("Address", value=u_prof.get('address', ''))
                     up_qual = st.text_input("Qualification", value=u_prof.get('qualification', ''))
