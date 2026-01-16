@@ -515,13 +515,14 @@ else:
         with sc2:
             for t in db["tasks"]["interaction"]: st.checkbox(t, key=f"i_{t}", on_change=sync_draft)
         
-        # --- تحضير بيانات التقرير الشامل (إصلاح الـ NameError) ---
-        
-        # جلب القيم بأمان من session_state
+        # --- جلب كافة القيم بأمان من session_state لتجنب الـ NameError ---
         k1_val = st.session_state.get('k1s_v', 0)
         k2_val = st.session_state.get('k2s_v', 0)
         x1_val = st.session_state.get('x1s_v', 0)
         x2_val = st.session_state.get('x2s_v', 0)
+        
+        # جلب الملاحظات (حل المشكلة الحالية)
+        safe_notes = st.session_state.get('dn_notes', 'لا يوجد')
         
         # حساب إنجاز المهام
         tasks_op = [st.session_state.get(f"s_{t}", False) for t in db["tasks"]["opening"]]
@@ -579,9 +580,26 @@ else:
             f"{error_notes}\n"
             f"--------------------------\n"
             f"💬 *ملاحظة الموظف:*\n"
-            f"{dn_notes if dn_notes else 'لا يوجد'}"
+            f"{safe_notes}"
         )
 
+        st.divider()
+        if st.button("💾 ARCHIVE SHIFT DATA", use_container_width=True):
+            db["history"].append({
+                "date": str(date.today()), "branch": branch, "staff": st.session_state['user'],
+                "sales": sys_sales, "diff": diff, "expenses": ex_val, "notes": error_notes
+            })
+            if st.session_state['user'] in db["drafts"]: del db["drafts"][st.session_state['user']]
+            save_db(db); st.success("Shift Archived!")
+
+        crep1, crep2 = st.columns(2)
+        with crep1:
+            if st.button("📄 GENERATE PDF REPORT", use_container_width=True):
+                pdf_bytes = create_downloadable_pdf(branch, st.session_state['user'], str(date.today()), sys_sales, ex_val, f"{ex_cat}: {ex_note}", diff, {'used':ke-ks, 'jam':kj_v, '1s':k1_val, '2s':k2_val}, {'used':xe-xs, 'jam':xj_v, '1s':x1_val, '2s':x2_val}, opay_diff, v22)
+                st.download_button("📥 Download PDF", pdf_bytes, f"Report_{date.today()}.pdf")
+        with crep2:
+            url = f"https://wa.me/{MANAGER_PHONE}?text={urllib.parse.quote(wa_text)}"
+            st.markdown(f'<a href="{url}" target="_blank"><button style="width:100%; background-color:#25D366; color:white; border:none; padding:15px; border-radius:10px; cursor:pointer; font-weight:bold;">📱 SEND WHATSAPP REPORT</button></a>', unsafe_allow_html=True)
         st.divider()
         if st.button("💾 ARCHIVE SHIFT DATA", use_container_width=True):
             db["history"].append({
