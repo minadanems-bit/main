@@ -222,15 +222,19 @@ else:
                 if user_info['bonus']: st.dataframe(pd.DataFrame(user_info['bonus']))
                 else: st.info("No bonuses yet.")
                     
-            with st.expander("Overtime ⏳", expanded=False):
+            with st.expander("⏳ Overtime", expanded=False):
                 if user_info['overtime']: st.dataframe(pd.DataFrame(user_info['overtime']))
                 else: st.info("No overtime yet.")
                     
-            with st.expander("⚠️ My Deductions (الخصومات)", expanded=False):
+            with st.expander("⚠️ My Deductions", expanded=False):
                 if user_info['deductions']: st.dataframe(pd.DataFrame(user_info['deductions']))
                 else: st.success("Clean Record! No deductions.")
-
-        if st.button("🚪 Logout", use_container_width=True):
+                    
+            with st.expander("🏖️ Extra Leave", expanded=False):
+                if user_info['Extra Leave']: st.dataframe(pd.DataFrame(user_info['Extra Leave']))
+                else: st.success("Clean Record! No Extra Leave.")
+                    
+                if st.button("🚪 Logout", use_container_width=True):
             st.session_state['logged_in'] = False; st.rerun()
         
         # --- صلاحيات المدير المطلقة (Master Control) ---
