@@ -374,11 +374,11 @@ else:
     st.title("📊 NMS ERP - Daily Operations")
     m1, m2, m3, m4 = st.columns(4)
     with m1: branch = st.selectbox("📍 Branch", db["branches"])
-    with m2: shift = st.selectbox("🕒 Shift", ["Morning", "Night"])
+    with m2: shift = st.selectbox("🕒 Shift", ["Morning", "Between", "Night"])
     with m3: st.info(f"📅 {datetime.now().strftime('%Y-%m-%d')}")
     with m4: st.info(f"👤 {st.session_state['user']}")
 
-    tab1, tab2, tab3 = st.tabs(["🟢 TAB 1: OPENING", "🔴 TAB 2: CLOSING", "📱 TAB 3: SOCIAL"])
+    tab1, tab2, tab3 = st.tabs(["🟢 OPENING", "🔴 CLOSING", "📱 SOCIAL"])
 
     # --- TAB 1: OPENING ---
     with tab1:
@@ -401,7 +401,7 @@ else:
             ks = st.number_input("Kyocera Start", step=1, key="ks", on_change=sync_draft)
             xs = st.number_input("Xerox Start", step=1, key="xs", on_change=sync_draft)
             ops = st.number_input("Opay Start Balance", step=0.01, key="ops", on_change=sync_draft)
-            u10 = st.number_input("Debit In (U10)", step=1.0, key="u10_val", on_change=sync_draft)
+            u10 = st.number_input("Debit", step=1.0, key="u10_val", on_change=sync_draft)
 
     # --- TAB 2: CLOSING ---
     with tab2:
@@ -416,7 +416,7 @@ else:
             insta = st.number_input("📱 Instapay", step=1.0, key="c_insta", on_change=sync_draft)
             wall = st.number_input("👛 Wallet (VF/Etisalat)", step=1.0, key="c_wall", on_change=sync_draft)
             visa = st.number_input("💳 Visa", step=1.0, key="c_visa", on_change=sync_draft)
-            v22 = st.number_input("📉 Debit Out (V22)", step=1.0, key="v22_val", on_change=sync_draft)
+            v22 = st.number_input("📉 Debit", step=1.0, key="v22_val", on_change=sync_draft)
             t_digital = insta + wall + visa
         with c_c2:
             st.markdown("#### 💵 Cash Denominations (Closing)")
@@ -492,7 +492,7 @@ else:
                   f"*⚙️ SYSTEM & NOTES*\n" \
                   f"━━━━━━━━━━━━━━━━\n" \
                   f"💳 Opay: {ops-ope:,.2f}\n" \
-                  f"📉 V22 Debit: {v22:,.2f}\n" \
+                  f"📉 Debit: {v22:,.2f}\n" \
                   f"📝 Notes: {st.session_state.get('dn_notes', '-')}"
 
         if st.button("💾 ARCHIVE SHIFT & DATA", use_container_width=True):
