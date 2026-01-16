@@ -482,87 +482,89 @@ else:
         st.divider()
         st.write("### 🏁 End Shift Actions")
         
---- تحديث بناء نص رسالة واتساب (WhatsApp Construction) ---
-
-    # 1. حساب المهام المنجزة
-    def count_tasks(prefix):
-        total = len([k for k in st.session_state if k.startswith(prefix)])
-        done = len([k for k in st.session_state if k.startswith(prefix) and st.session_state[k]])
-        return done, total
-
-    op_done, op_tot = count_tasks('s_')
-    cl_done, cl_tot = count_tasks('e_')
-    soc_done, soc_tot = count_tasks('m_')
-    int_done, int_tot = count_tasks('i_')
-
-    # 2. تجميع ملاحظات الأخطاء والفروقات
-    error_notes = []
-    if abs(diff) > 0.1:
-        error_notes.append(f"⚠️ فرق نقدية: {diff:,.2f}")
-    
-    # فرق طابعات (إذا كان الاستخدام الفعلي لا يساوي مجموع الـ 1s والـ 2s)
-    kyo_actual = ke - ks
-    kyo_reported = k1s + k2s
-    if kyo_actual != kyo_reported:
-        error_notes.append(f"⚠️ فرق عداد كيوسيرا: الفعلي {kyo_actual} والمسجل {kyo_reported}")
+# --- WhatsApp Construction ---
         
-    xerox_actual = xe - xs
-    xerox_reported = x1s + x2s
-    if xerox_actual != xerox_reported:
-        error_notes.append(f"⚠️ فرق عداد زيروكس: الفعلي {xerox_actual} والمسجل {xerox_reported}")
+        # 1. Calculate Tasks Stats
+        def count_tasks(prefix):
+            all_keys = [k for k in db["tasks"][prefix]]
+            done = 0
+            for t in all_keys:
+                if st.session_state.get(f"{'s' if prefix=='opening' else 'e' if prefix=='closing' else 'm' if prefix=='social' else 'i'}_{t}"):
+                    done += 1
+            return done, len(all_keys)
 
-    notes_section = "\n".join(error_notes) if error_notes else "✅ لا توجد فروقات حسابية"
+        op_done, op_tot = count_tasks('opening')
+        cl_done, cl_tot = count_tasks('closing')
+        soc_done, soc_tot = count_tasks('social')
+        int_done, int_tot = count_tasks('interaction')
 
-    # 3. بناء نص الرسالة الشامل
-    wa_text = f"*🚀 NMS ERP - تقرير وردية شامل*\n" \
-              f"━━━━━━━━━━━━━━━━\n" \
-              f"📅 التاريخ: {date.today()}\n" \
-              f"👤 الاسم: {st.session_state['user']}\n" \
-              f"📍 الفرع: {branch}\n" \
-              f"🕒 الوردية: {shift}\n\n" \
-              f"*💰 الملخص المالي*\n" \
-              f"━━━━━━━━━━━━━━━━\n" \
-              f"💵 نقدية البداية: {t_open:,.2f}\n" \
-              f"💻 مبيعات السيستم: {sys_sales:,.2f}\n" \
-              f"💸 المصاريف: {ex_val:,.2f} ({ex_cat}: {ex_note})\n" \
-              f"💳 مدفوعات أونلاين: {t_digital:,.2f}\n" \
-              f"   (فودافون: {wall} | إنستا: {insta} | فيزا: {visa})\n" \
-              f"📉 آجل (V22): {v22:,.2f}\n" \
-              f"💰 نقدية النهاية: {t_close:,.2f}\n" \
-              f"⚖️ فرق العجز/الزيادة: {diff:,.2f}\n\n" \
-              f"*🖨️ تقرير الطابعات*\n" \
-              f"━━━━━━━━━━━━━━━━\n" \
-              f"📠 كيوسيرا: {kyo_actual} (حشر: {kj})\n" \
-              f"📠 زيروكس: {xerox_actual} (حشر: {xj})\n" \
-              f"📱 فرق أوباي: {ops-ope:,.2f}\n\n" \
-              f"*✅ إحصائيات المهام*\n" \
-              f"━━━━━━━━━━━━━━━━\n" \
-              f"🌅 مهام الافتتاح: {op_done}/{op_tot}\n" \
-              f"🌇 مهام الإغلاق: {cl_done}/{cl_tot}\n" \
-              f"📱 السوشيال ميديا: {soc_done}/{soc_tot}\n" \
-              f"🤝 التفاعل: {int_done}/{int_tot}\n\n" \
-              f"*📝 ملاحظات وفروقات*\n" \
-              f"━━━━━━━━━━━━━━━━\n" \
-              f"{notes_section}\n" \
-              f"📌 ملاحظات الوردية: {st.session_state.get('dn_notes', '-')}"
+        # 2. Financial & Printer Differences
+        error_notes = []
+        if abs(diff) > 0.1:
+            error_notes.append(f"⚠️ فرق نقدية: {diff:,.2f}")
+        
+        kyo_actual = ke - ks
+        kyo_reported = k1s_v + k2s_v
+        if kyo_actual != kyo_reported:
+            error_notes.append(f"⚠️ فرق عداد كيوسيرا: الفعلي {kyo_actual} والمسجل {kyo_reported}")
+            
+        xerox_actual = xe - xs
+        xerox_reported = x1s_v + x2s_v
+        if xerox_actual != xerox_reported:
+            error_notes.append(f"⚠️ فرق عداد زيروكس: الفعلي {xerox_actual} والمسجل {xerox_reported}")
 
-    # --- زر الأرشفة والأزرار النهائية ---
-    if st.button("💾 ARCHIVE SHIFT & DATA", use_container_width=True):
-        db["history"].append({
-            "date": str(date.today()), "branch": branch, "staff": st.session_state['user'],
-            "sales": sys_sales, "diff": diff, "kyo_jam": kj, "xerox_jam": xj, "expenses": ex_val,
-            "exp_note": f"{ex_cat}: {ex_note}"
-        })
-        if st.session_state['user'] in db["drafts"]: del db["drafts"][st.session_state['user']]
-        save_db(db); st.success("Shift Archived Successfully!")
+        notes_section = "\n".join(error_notes) if error_notes else "✅ لا توجد فروقات حسابية"
 
-    crep1, crep2 = st.columns(2)
-    with crep1:
-        if st.button("📄 GENERATE PRO PDF", use_container_width=True):
-            kyo_d = {'used': ke-ks, 'jam': kj, '1s': k1s, '2s': k2s}
-            xerox_d = {'used': xe-xs, 'jam': xj, '1s': x1s, '2s': x2s}
-            pdf_bytes = create_downloadable_pdf(branch, st.session_state['user'], str(date.today()), sys_sales, ex_val, f"{ex_cat}: {ex_note}", diff, kyo_d, xerox_d, ops-ope, v22)
-            st.download_button("📥 Download Official Report", pdf_bytes, f"NMS_Pro_{date.today()}.pdf")
-    with crep2:
-        url = f"https://wa.me/{MANAGER_PHONE}?text={urllib.parse.quote(wa_text)}"
-        st.markdown(f'<a href="{url}" target="_blank"><button style="width:100%; background-color:#25D366; color:white; border:none; padding:15px; border-radius:10px; cursor:pointer; font-weight:bold; font-size:16px;">📱 SEND TO WHATSAPP</button></a>', unsafe_allow_html=True)
+        # 3. Build Message Text
+        wa_text = f"*🚀 NMS ERP - تقرير وردية شامل*\n" \
+                  f"━━━━━━━━━━━━━━━━\n" \
+                  f"📅 التاريخ: {date.today()}\n" \
+                  f"👤 الاسم: {st.session_state['user']}\n" \
+                  f"📍 الفرع: {branch}\n" \
+                  f"🕒 الوردية: {shift}\n\n" \
+                  f"*💰 الملخص المالي*\n" \
+                  f"━━━━━━━━━━━━━━━━\n" \
+                  f"💵 نقدية البداية: {t_open:,.2f}\n" \
+                  f"💻 مبيعات السيستم: {sys_sales:,.2f}\n" \
+                  f"💸 المصاريف: {ex_val:,.2f} ({ex_cat}: {ex_note})\n" \
+                  f"💳 مدفوعات أونلاين: {t_digital:,.2f}\n" \
+                  f"   (فودافون: {c_wall} | إنستا: {c_insta} | فيزا: {c_visa})\n" \
+                  f"📉 آجل (V22): {v22_val:,.2f}\n" \
+                  f"💰 نقدية النهاية: {t_close:,.2f}\n" \
+                  f"⚖️ فرق العجز/الزيادة: {diff:,.2f}\n\n" \
+                  f"*🖨️ تقرير الطابعات*\n" \
+                  f"━━━━━━━━━━━━━━━━\n" \
+                  f"📠 كيوسيرا: {kyo_actual} (حشر: {kj_v})\n" \
+                  f"📠 زيروكس: {xerox_actual} (حشر: {xj_v})\n" \
+                  f"📱 فرق أوباي: {ops-ope:,.2f}\n\n" \
+                  f"*✅ إحصائيات المهام*\n" \
+                  f"━━━━━━━━━━━━━━━━\n" \
+                  f"🌅 مهام الافتتاح: {op_done}/{op_tot}\n" \
+                  f"🌇 مهام الإغلاق: {cl_done}/{cl_tot}\n" \
+                  f"📱 السوشيال ميديا: {soc_done}/{soc_tot}\n" \
+                  f"🤝 التفاعل: {int_done}/{int_tot}\n\n" \
+                  f"*📝 ملاحظات وفروقات*\n" \
+                  f"━━━━━━━━━━━━━━━━\n" \
+                  f"{notes_section}\n" \
+                  f"📌 ملاحظات الوردية: {st.session_state.get('dn_notes', '-')}"
+
+        # --- Footer Actions ---
+        if st.button("💾 ARCHIVE SHIFT & DATA", use_container_width=True):
+            db["history"].append({
+                "date": str(date.today()), "branch": branch, "staff": st.session_state['user'],
+                "sales": sys_sales, "diff": diff, "kyo_jam": kj_v, "xerox_jam": xj_v, "expenses": ex_val,
+                "exp_note": f"{ex_cat}: {ex_note}"
+            })
+            if st.session_state['user'] in db["drafts"]: del db["drafts"][st.session_state['user']]
+            save_db(db); st.success("Shift Archived Successfully!")
+
+        crep1, crep2 = st.columns(2)
+        with crep1:
+            if st.button("📄 GENERATE PRO PDF", use_container_width=True):
+                kyo_d = {'used': ke-ks, 'jam': kj_v, '1s': k1s_v, '2s': k2s_v}
+                xerox_d = {'used': xe-xs, 'jam': xj_v, '1s': x1s_v, '2s': x2s_v}
+                pdf_bytes = create_downloadable_pdf(branch, st.session_state['user'], str(date.today()), sys_sales, ex_val, f"{ex_cat}: {ex_note}", diff, kyo_d, xerox_d, ops-ope, v22_val)
+                st.download_button("📥 Download Official Report", pdf_bytes, f"NMS_Pro_{date.today()}.pdf")
+        with crep2:
+            url = f"https://wa.me/{MANAGER_PHONE}?text={urllib.parse.quote(wa_text)}"
+            st.markdown(f'<a href="{url}" target="_blank"><button style="width:100%; background-color:#25D366; color:white; border:none; padding:15px; border-radius:10px; cursor:pointer; font-weight:bold; font-size:16px;">📱 SEND TO WHATSAPP</button></a>', unsafe_allow_html=True)
