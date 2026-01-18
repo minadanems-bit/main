@@ -363,54 +363,66 @@ else:
                 if st.button("➕ Add Expense Category"):
                     if new_ex: db["expense_categories"].append(new_ex); save_db(db); st.rerun()
 
-# --- Manager Dashboard / Archive View ---
-if st.session_state.get('role') == 'Manager':
+# --- تعديل قسم لوحة تحكم المدير (Archive View) ---
+if st.session_state.get('role') == 'admin': # تأكد أن الرول 'admin' كما في قاعدة بياناتك
+    st.divider()
     st.header("📊 Manager Control Panel")
     
-    if not db["history"]:
+    if not db.get("history"):
         st.info("No archived shifts found yet.")
     else:
-        # 1. Dashboard Metrics (Summary)
+        # 1. Dashboard Metrics (إحصائيات سريعة)
         h_data = db["history"]
         total_sales = sum(float(item.get('sales', 0)) for item in h_data)
         total_exp = sum(float(item.get('expenses', 0)) for item in h_data)
         total_diff = sum(float(item.get('diff', 0)) for item in h_data)
         
         m1, m2, m3 = st.columns(3)
-        m1.metric("Total Sales", f"{total_sales:,.2f}")
-        m2.metric("Total Expenses", f"{total_exp:,.2f}")
-        m3.metric("Net Cash Diff", f"{total_diff:,.2f}")
+        m1.metric("Total Sales", f"{total_sales:,.2f} LE")
+        m2.metric("Total Expenses", f"{total_exp:,.2f} LE")
+        m3.metric("Net Cash Diff", f"{total_diff:,.2f} LE")
 
         st.divider()
 
-        # 2. Detailed Data Table
+        # 2. Detailed Data Table (عرض الجدول)
         st.subheader("📜 Detailed Shift History")
         
-        # Prepare data for display
-        display_list = []
-        for entry in reversed(h_data): # Newest first
-            display_list.append({
-                "Date": entry.get("date"),
-                "Staff": entry.get("staff"),
-                "Branch": entry.get("branch"),
-                "Sales": entry.get("sales"),
-                "Expenses": entry.get("expenses"),
-                "Exp. Note": entry.get("exp_note"),
-                "Cash Diff": entry.get("diff"),
-                "Kyo Jam": entry.get("kyo_jam"),
-                "Xerox Jam": entry.get("xerox_jam")
-            })
+        # تحويل البيانات لـ DataFrame لسهولة العرض والفلترة
+        df_history = pd.DataFrame(reversed(h_data))
         
-        # Show as a nice table
-        st.table(display_list)
+        # إعادة ترتيب وتسمية الأعمدة لتكون واضحة
+        column_mapping = {
+            "date": "Date",
+            "staff": "Employee",
+            "branch": "Branch",
+            "sales": "Sales",
+            "expenses": "Expenses",
+            "exp_note": "Exp. Details",
+            "diff": "Cash Diff",
+            "kyo_jam": "Kyo Jam",
+            "xerox_jam": "Xerox Jam"
+        }
+        
+        # عرض الجدول بشكل احترافي
+        st.dataframe(
+            df_history.rename(columns=column_mapping),
+            use_container_width=True,
+            column_config={
+                "Sales": st.column_config.NumberColumn(format="%.2f LE"),
+                "Expenses": st.column_config.NumberColumn(format="%.2f LE"),
+                "Cash Diff": st.column_config.NumberColumn(format="%.2f LE"),
+            }
+        )
 
-        # 3. Quick Actions
-        st.divider()
-        if st.button("🗑️ Clear All History (Warning)", type="secondary"):
-            if st.checkbox("Confirm permanent deletion of all records?"):
-                db["history"] = []
-                save_db(db)
-                st.rerun()                
+        # 3. Quick Actions (عمليات إضافية)
+        with st.expander("🗑️ Advanced Settings"):
+            if st.button("Clear All History", type="secondary"):
+                # استخدام مكون تأكيد بسيط
+                st.warning("Are you sure? This will delete all records.")
+                if st.checkbox("Yes, I am sure"):
+                    db["history"] = []
+                    save_db(db)
+                    st.rerun()    
 # --- 6. Main Dashboard: DAILY OPERATIONS ---
     st.title("📊 NMS ERP - Daily Operations")
     m1, m2, m3, m4 = st.columns(4)
