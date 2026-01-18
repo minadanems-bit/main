@@ -365,7 +365,7 @@ else:
 
             # --- Manager Dashboard / Archive View ---
                 if st.session_state.get('role') == 'Manager':
-                st.header("📊 Manager Control Panel")
+        st.header("📊 Manager Control Panel")
     
                 if not db["history"]:
                 st.info("No archived shifts found yet.")
