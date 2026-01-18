@@ -241,7 +241,7 @@ else:
         if st.session_state['role'] == 'admin':
             st.divider()
             st.subheader("⚙️ Admin Authority")
-admin_choice = st.selectbox("Select Management Module:", [
+            admin_choice = st.selectbox("Select Management Module:", [
                 "👥 Manage Employees (HR)", 
                 "💰 Payroll & Money", 
                 "📝 Tasks & Checklists", 
