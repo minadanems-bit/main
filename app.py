@@ -635,3 +635,66 @@ if st.session_state.get('role') == 'admin': # تأكد أن الرول 'admin' �
         with crep2:
             url = f"https://wa.me/{MANAGER_PHONE}?text={urllib.parse.quote(wa_text)}"
             st.markdown(f'<a href="{url}" target="_blank"><button style="width:100%; background-color:#25D366; color:white; border:none; padding:15px; border-radius:10px; cursor:pointer; font-weight:bold; font-size:16px;">📱 SEND TO WHATSAPP</button></a>', unsafe_allow_html=True)
+# 1. انسخ هذه الدالة كاملة وضعها في نهاية ملف البرمجة الخاص بك (آخر سطر)
+def show_training_page():
+    st.title("🎓 مركز تدريب الموظفين الجدد")
+    st.info("دليل شامل للأقسام، الأدوات، وإرشادات العمل")
+
+    # تقسيم المحتوى لسهولة الوصول
+    tab1, tab2, tab3 = st.tabs(["📋 إرشادات العمل", "🛠️ الأدوات والمعدات", "📱 الأنظمة والتقنية"])
+
+    with tab1:
+        st.subheader("⚠️ قواعد ذهبية للموظف")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("""
+            - **الأمان:** متابعة الكاميرات، البصمة، لوحة الكهرباء.
+            - **المظهر:** الالتزام بالـ Uniform والـ ID.
+            - **الماليات:** استلام عربون قبل أي خدمة.
+            - **السرية:** ممنوع الإفصاح عن بيانات الموظفين أو العملاء.
+            """)
+        with col2:
+            st.markdown("""
+            - **المواعيد:** (كتابة: 15د | عقود: 3-5س | CV: 24س).
+            - **التواصل:** التواصل الفوري على الجروب، عدم تجاهل المشاكل الصغيرة.
+            - **التعامل:** ممنوع انتظار العملاء داخل المركز للخدمات الطويلة.
+            """)
+
+    with tab2:
+        st.subheader("⚙️ تشغيل الماكينات والمقر")
+        c1, c2 = st.columns(2)
+        with c1:
+            st.write("**الماكينات:**")
+            st.checkbox("Xerox & Kyocera")
+            st.checkbox("برنتر الكاشير ودرج النقدية")
+            st.checkbox("مقص الورق والدباسات")
+            st.checkbox("التغليف (حلزوني وحراري)")
+        with c2:
+            st.write("**المقر:**")
+            st.checkbox("تشحيم الباب شهرياً")
+            st.checkbox("تنظيم المخزن والبوفيه")
+            st.checkbox("التكييف والحديد الخارجي")
+
+    with tab3:
+        st.subheader("💻 البرامج والخدمات")
+        st.write("يجب إتقان التعامل مع:")
+        st.code("AnyDesk, Canva, CamScanner, Google Drive, OPay, InstaPay")
+        st.markdown("""
+        - الخدمات الحكومية (منصة مصر الرقمية).
+        - البحث عبر Google و ChatGPT.
+        - تعديل الأصناف على السيستم والدرايف.
+        """)
+
+    st.divider()
+    if st.button("تسجيل إتمام تدريب موظف"):
+        st.success("تم تفعيل سجل التدريب")
+
+# 2. الآن ابحث في الكود الخاص بك عن السطر الذي تختار منه الصفحات (غالباً selectbox في Sidebar)
+# وأضف كلمة "Training" للخيارات.
+# ثم أضف هذا الشرط أسفل بقية الصفحات:
+
+# if choice == "Training":
+#     if st.session_state.get('role') == 'admin':
+#         show_training_page()
+#     else:
+#         st.error("غير مسموح لك بالدخول")
