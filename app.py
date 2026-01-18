@@ -363,21 +363,54 @@ else:
                 if st.button("➕ Add Expense Category"):
                     if new_ex: db["expense_categories"].append(new_ex); save_db(db); st.rerun()
 
-            # 5. الأرشيف
-            elif admin_choice == "📂 Archive & History":
-                st.subheader("📜 Shift Logs")
-                if db["history"]: st.dataframe(pd.DataFrame(db["history"]))
-                if st.button("⚠️ Clear All History", type="primary"): 
-                    db["history"] = []; save_db(db); st.rerun()
-                
-                st.divider()
-                lg = st.file_uploader("Upload Company Logo", type=['png', 'jpg'])
-                if st.button("💾 Save Logo"):
-                    if lg: 
-                        db["logo"] = base64.b64encode(lg.getvalue()).decode()
-                        save_db(db); st.success("Logo Updated"); st.rerun()
+# --- Manager Dashboard / Archive View ---
+if st.session_state.get('role') == 'Manager':
+    st.header("📊 Manager Control Panel")
+    
+    if not db["history"]:
+        st.info("No archived shifts found yet.")
+    else:
+        # 1. Dashboard Metrics (Summary)
+        h_data = db["history"]
+        total_sales = sum(float(item.get('sales', 0)) for item in h_data)
+        total_exp = sum(float(item.get('expenses', 0)) for item in h_data)
+        total_diff = sum(float(item.get('diff', 0)) for item in h_data)
+        
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Total Sales", f"{total_sales:,.2f}")
+        m2.metric("Total Expenses", f"{total_exp:,.2f}")
+        m3.metric("Net Cash Diff", f"{total_diff:,.2f}")
 
-    # --- 6. Main Dashboard: DAILY OPERATIONS ---
+        st.divider()
+
+        # 2. Detailed Data Table
+        st.subheader("📜 Detailed Shift History")
+        
+        # Prepare data for display
+        display_list = []
+        for entry in reversed(h_data): # Newest first
+            display_list.append({
+                "Date": entry.get("date"),
+                "Staff": entry.get("staff"),
+                "Branch": entry.get("branch"),
+                "Sales": entry.get("sales"),
+                "Expenses": entry.get("expenses"),
+                "Exp. Note": entry.get("exp_note"),
+                "Cash Diff": entry.get("diff"),
+                "Kyo Jam": entry.get("kyo_jam"),
+                "Xerox Jam": entry.get("xerox_jam")
+            })
+        
+        # Show as a nice table
+        st.table(display_list)
+
+        # 3. Quick Actions
+        st.divider()
+        if st.button("🗑️ Clear All History (Warning)", type="secondary"):
+            if st.checkbox("Confirm permanent deletion of all records?"):
+                db["history"] = []
+                save_db(db)
+                st.rerun()    # --- 6. Main Dashboard: DAILY OPERATIONS ---
     st.title("📊 NMS ERP - Daily Operations")
     m1, m2, m3, m4 = st.columns(4)
     with m1: branch = st.selectbox("📍 Branch", db["branches"])
