@@ -241,15 +241,14 @@ else:
         if st.session_state['role'] == 'admin':
             st.divider()
             st.subheader("⚙️ Admin Authority")
-admin_choice = st.selectbox("Select Management Module:", [
-    "👥 Manage Employees (HR)", 
-    "💰 Payroll & Money", 
-    "📝 Tasks & Checklists", 
-    "🏢 Branches & Expenses", 
-    "📂 Archive & History",
-    "🎓 Employee Training"  # <--- هذا هو السطر الجديد
-])
-            # 1. إدارة الموظفين (HR)
+    admin_choice = st.selectbox("Select Management Module:", [
+                "👥 Manage Employees (HR)", 
+                "💰 Payroll & Money", 
+                "📝 Tasks & Checklists", 
+                "🏢 Branches & Expenses", 
+                "📂 Archive & History",
+                "🎓 Employee Training"
+            ])            # 1. إدارة الموظفين (HR)
             if admin_choice == "👥 Manage Employees (HR)":
                 st.info("Edit, Delete, or Add Employees")
                 target = st.selectbox("Select Employee to Edit", list(db["users"].keys()))
