@@ -410,7 +410,9 @@ st.header("📊 Manager Control Panel")
             if st.checkbox("Confirm permanent deletion of all records?"):
                 db["history"] = []
                 save_db(db)
-                st.rerun()    # --- 6. Main Dashboard: DAILY OPERATIONS ---
+                st.rerun()
+                
+# --- 6. Main Dashboard: DAILY OPERATIONS ---
     st.title("📊 NMS ERP - Daily Operations")
     m1, m2, m3, m4 = st.columns(4)
     with m1: branch = st.selectbox("📍 Branch", db["branches"])
