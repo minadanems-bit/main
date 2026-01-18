@@ -363,9 +363,9 @@ else:
                 if st.button("➕ Add Expense Category"):
                     if new_ex: db["expense_categories"].append(new_ex); save_db(db); st.rerun()
 
-            # --- Manager Dashboard / Archive View ---
+# --- Manager Dashboard / Archive View ---
 if st.session_state.get('role') == 'Manager':
-st.header("📊 Manager Control Panel")
+    st.header("📊 Manager Control Panel")
     
     if not db["history"]:
         st.info("No archived shifts found yet.")
@@ -410,8 +410,7 @@ st.header("📊 Manager Control Panel")
             if st.checkbox("Confirm permanent deletion of all records?"):
                 db["history"] = []
                 save_db(db)
-                st.rerun()
-                
+                st.rerun()                
 # --- 6. Main Dashboard: DAILY OPERATIONS ---
     st.title("📊 NMS ERP - Daily Operations")
     m1, m2, m3, m4 = st.columns(4)
