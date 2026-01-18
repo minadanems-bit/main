@@ -241,14 +241,14 @@ else:
         if st.session_state['role'] == 'admin':
             st.divider()
             st.subheader("⚙️ Admin Authority")
-            admin_choice = st.selectbox("Select Management Module:", [
-                "👥 Manage Employees (HR)", 
-                "💰 Payroll & Money", 
-                "📝 Tasks & Checklists", 
-                "🏢 Branches & Expenses", 
-                "📂 Archive & History"
-            ])
-
+admin_choice = st.selectbox("Select Management Module:", [
+    "👥 Manage Employees (HR)", 
+    "💰 Payroll & Money", 
+    "📝 Tasks & Checklists", 
+    "🏢 Branches & Expenses", 
+    "📂 Archive & History",
+    "🎓 Employee Training"  # <--- هذا هو السطر الجديد
+])
             # 1. إدارة الموظفين (HR)
             if admin_choice == "👥 Manage Employees (HR)":
                 st.info("Edit, Delete, or Add Employees")
@@ -423,7 +423,43 @@ if st.session_state.get('role') == 'admin': # تأكد أن الرول 'admin' �
                     db["history"] = []
                     save_db(db)
                     st.rerun()    
-# --- 6. Main Dashboard: DAILY OPERATIONS ---
+
+    # 5. صفحة تدريب الموظفين الجدد
+            elif admin_choice == "🎓 Employee Training":
+                st.subheader("🎓 دليل تدريب الموظفين الجدد")
+                
+                t_tabs = st.tabs(["🏗️ التأسيس والسياسات", "⚙️ المعدات والتشغيل", "📜 دليل الجودة"])
+                
+                with t_tabs[0]:
+                    st.markdown("""
+                    **📌 الهيكل والالتزام:**
+                    - [ ] الزي الرسمي (Uniform) والـ ID.
+                    - [ ] مواعيد الرواتب، البونص، والخصومات.
+                    - [ ] الحفاظ على سرية بيانات العملاء والموظفين.
+                    - [ ] الالتزام بمهام الـ Opening و الـ Closing.
+                    """)
+                
+                with t_tabs[1]:
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        st.write("**📟 الماكينات والأجهزة:**")
+                        st.checkbox("Xerox & Kyocera (التشغيل وحل الورق المحشور)")
+                        st.checkbox("برنتر الكاشير ودرج النقدية")
+                        st.checkbox("تغليف حراري وحلزوني")
+                    with c2:
+                        st.write("**💻 الأنظمة الرقمية:**")
+                        st.checkbox("منصة مصر الرقمية وخدمات OPay")
+                        st.checkbox("التصميم عبر Canva والبحث الذكي")
+                
+                with t_tabs[2]:
+                    st.warning("⚠️ إرشادات جودة الخدمة")
+                    st.markdown("""
+                    - **السرعة:** (ورقة: 15د | عقد: 3-5س | CV: 24س).
+                    - **الماليات:** استلام العربون أولاً، والحذر من المحتالين.
+                    - **المهنية:** تنسيق العقود باحترافية وعدم تجاهل أي مشكلة تقنية.
+                    """)
+                    
+    # --- 6. Main Dashboard: DAILY OPERATIONS ---
     st.title("📊 NMS ERP - Daily Operations")
     m1, m2, m3, m4 = st.columns(4)
     with m1: branch = st.selectbox("📍 Branch", db["branches"])
@@ -588,7 +624,7 @@ if st.session_state.get('role') == 'admin': # تأكد أن الرول 'admin' �
                   f"💸 Expenses: {ex_val:,.2f} ({ex_cat}: {ex_note})\n" \
                   f"💳 Online/Digital: {t_digital:,.2f}\n" \
                   f"   (Wallet: {st.session_state.get('c_wall', 0)} | Insta: {st.session_state.get('c_insta', 0)} | Visa: {st.session_state.get('c_visa', 0)})\n" \
-                  f"📉 Debit (V22): {st.session_state.get('v22_val', 0):,.2f}\n" \
+                  f"📉 Debit: {st.session_state.get('v22_val', 0):,.2f}\n" \
                   f"💰 Closing Drawer: {t_close:,.2f}\n" \
                   f"⚖️ Net Difference: {diff:,.2f}\n\n" \
                   f"*🖨️ PRINTER ANALYSIS*\n" \
