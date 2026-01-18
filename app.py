@@ -364,12 +364,12 @@ else:
                     if new_ex: db["expense_categories"].append(new_ex); save_db(db); st.rerun()
 
             # --- Manager Dashboard / Archive View ---
-                if st.session_state.get('role') == 'Manager':
-        st.header("📊 Manager Control Panel")
+if st.session_state.get('role') == 'Manager':
+st.header("📊 Manager Control Panel")
     
-                if not db["history"]:
-                st.info("No archived shifts found yet.")
-                else:
+    if not db["history"]:
+        st.info("No archived shifts found yet.")
+    else:
         # 1. Dashboard Metrics (Summary)
         h_data = db["history"]
         total_sales = sum(float(item.get('sales', 0)) for item in h_data)
