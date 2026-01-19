@@ -370,7 +370,7 @@ else:
                 # التأكد من صلاحية الأدمن (حسب نظامك)
                 if st.session_state.get('role') != 'admin':
                     st.error("Access Denied: Admins Only.")
-                    return
+                    pass
             
                 st.divider()
                 
