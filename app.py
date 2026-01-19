@@ -363,6 +363,7 @@ else:
                 new_ex = st.text_input("New Expense Category")
                 if st.button("➕ Add Expense Category"):
                     if new_ex: db["expense_categories"].append(new_ex); save_db(db); st.rerun()
+
 def show_archive_page():
     st.header("📂 Archive & History")
     
