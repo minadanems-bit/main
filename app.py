@@ -363,35 +363,46 @@ else:
                 new_ex = st.text_input("New Expense Category")
                 if st.button("➕ Add Expense Category"):
                     if new_ex: db["expense_categories"].append(new_ex); save_db(db); st.rerun()
-            
-        elif admin_choice == "📂 Archive & History":
-            if st.session_state.get('role') == 'admin': # تأكد أن الرول 'admin' كما في قاعدة بياناتك
-    st.divider()
-    st.header("📊 Manager Control Panel")
+def show_archive_page():
+    st.header("📂 Archive & History")
     
-    if not db.get("history"):
+    # التأكد من صلاحية الأدمن (حسب نظامك)
+    if st.session_state.get('role') != 'admin':
+        st.error("Access Denied: Admins Only.")
+        return
+
+    st.divider()
+    
+    # التحقق من وجود بيانات في الهيستوري
+    if not db.get("history") or len(db["history"]) == 0:
         st.info("No archived shifts found yet.")
     else:
         # 1. Dashboard Metrics (إحصائيات سريعة)
         h_data = db["history"]
-        total_sales = sum(float(item.get('sales', 0)) for item in h_data)
-        total_exp = sum(float(item.get('expenses', 0)) for item in h_data)
-        total_diff = sum(float(item.get('diff', 0)) for item in h_data)
         
+        # استخدام try-except أو التحويل الآمن لضمان عدم حدوث خطأ لو القيمة نصية
+        try:
+            total_sales = sum(float(item.get('sales', 0)) for item in h_data)
+            total_exp = sum(float(item.get('expenses', 0)) for item in h_data)
+            total_diff = sum(float(item.get('diff', 0)) for item in h_data)
+        except ValueError:
+            st.error("Error in data types within History. Please check database.")
+            total_sales = total_exp = total_diff = 0
+
         m1, m2, m3 = st.columns(3)
         m1.metric("Total Sales", f"{total_sales:,.2f} LE")
         m2.metric("Total Expenses", f"{total_exp:,.2f} LE")
-        m3.metric("Net Cash Diff", f"{total_diff:,.2f} LE")
+        m3.metric("Net Cash Diff", f"{total_diff:,.2f} LE", delta=total_diff, delta_color="normal")
 
         st.divider()
 
         # 2. Detailed Data Table (عرض الجدول)
         st.subheader("📜 Detailed Shift History")
         
-        # تحويل البيانات لـ DataFrame لسهولة العرض والفلترة
+        # تحويل البيانات لـ DataFrame لسهولة العرض
         df_history = pd.DataFrame(reversed(h_data))
         
-        # إعادة ترتيب وتسمية الأعمدة لتكون واضحة
+        # خريطة تسمية الأعمدة لتناسب الكود الخاص بك
         column_mapping = {
             "date": "Date",
             "staff": "Employee",
@@ -404,9 +415,11 @@ else:
             "xerox_jam": "Xerox Jam"
         }
         
-        # عرض الجدول بشكل احترافي
+        # فلترة الأعمدة الموجودة فعلياً في الـ DataFrame فقط لتجنب الأخطاء
+        existing_columns = {k: v for k, v in column_mapping.items() if k in df_history.columns}
+        
         st.dataframe(
-            df_history.rename(columns=column_mapping),
+            df_history.rename(columns=existing_columns),
             use_container_width=True,
             column_config={
                 "Sales": st.column_config.NumberColumn(format="%.2f LE"),
@@ -415,15 +428,17 @@ else:
             }
         )
 
-        # 3. Quick Actions (عمليات إضافية)
-        with st.expander("🗑️ Advanced Settings"):
-            if st.button("Clear All History", type="secondary"):
-                # استخدام مكون تأكيد بسيط
-                st.warning("Are you sure? This will delete all records.")
-                if st.checkbox("Yes, I am sure"):
+        # 3. Quick Actions (عمليات الحذف والتأمين)
+        st.divider()
+        with st.expander("🗑️ Advanced Settings (Danger Zone)"):
+            st.warning("Action below is irreversible!")
+            confirm_check = st.checkbox("I understand that 'Clear History' will delete everything.")
+            if confirm_check:
+                if st.button("🚨 Permanently Clear All History"):
                     db["history"] = []
                     save_db(db)
-                    st.rerun()    
+                    st.success("History Cleared!")
+                    st.rerun()  
                     
     # --- 6. Main Dashboard: DAILY OPERATIONS ---
     st.title("📊 NMS ERP - Daily Operations")
