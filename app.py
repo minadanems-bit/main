@@ -364,8 +364,8 @@ else:
                 if st.button("➕ Add Expense Category"):
                     if new_ex: db["expense_categories"].append(new_ex); save_db(db); st.rerun()
             
-# --- تعديل قسم لوحة تحكم المدير (Archive View) ---
-if st.session_state.get('role') == 'admin': # تأكد أن الرول 'admin' كما في قاعدة بياناتك
+        elif admin_choice == "📂 Archive & History":
+            if st.session_state.get('role') == 'admin': # تأكد أن الرول 'admin' كما في قاعدة بياناتك
     st.divider()
     st.header("📊 Manager Control Panel")
     
