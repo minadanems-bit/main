@@ -131,7 +131,7 @@ def create_downloadable_pdf(branch, staff_name, date_str, sales, expenses, exp_n
         ["Total Sales", f"{sales:,.2f}", "-"],
         ["Expenses", f"{expenses:,.2f}", exp_note],
         ["Opay Movement", f"{opay_move:,.2f}", "-"],
-        ["Debit (V22)", f"{debit_v22:,.2f}", "Postponed"],
+        ["Debit", f"{debit_v22:,.2f}", "Postponed"],
         ["NET DIFFERENCE", f"{diff:,.2f}", "Final Status"]
     ]
     fin_table = Table(fin_data, colWidths=[2.5*inch, 2.5*inch, 4*inch])
@@ -366,8 +366,7 @@ else:
                         
             # 5. Training
             elif admin_choice == "🎓 Employee Training":
-                show_training_page()
-                
+                        show_training_page()
                 st.markdown("""
         <div style="background-color: #f0f2f6; padding: 20px; border-radius: 15px; margin-bottom: 25px; border-left: 5px solid #ff4b4b;">
             <h1 style="margin: 0; color: #31333F;">🎓 مركز تدريب الكوادر الجديدة</h1>
