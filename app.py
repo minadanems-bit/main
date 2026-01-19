@@ -363,41 +363,106 @@ else:
                 new_ex = st.text_input("New Expense Category")
                 if st.button("➕ Add Expense Category"):
                     if new_ex: db["expense_categories"].append(new_ex); save_db(db); st.rerun()
-    # 5. صفحة تدريب الموظفين الجدد
-            elif admin_choice == "🎓 Employee Training":
-                st.subheader("🎓 دليل تدريب الموظفين الجدد")
-                
-                t_tabs = st.tabs(["🏗️ التأسيس والسياسات", "⚙️ المعدات والتشغيل", "📜 دليل الجودة"])
-                
-                with t_tabs[0]:
-                    st.markdown("""
-                    **📌 الهيكل والالتزام:**
-                    - [ ] الزي الرسمي (Uniform) والـ ID.
-                    - [ ] مواعيد الرواتب، البونص، والخصومات.
-                    - [ ] الحفاظ على سرية بيانات العملاء والموظفين.
-                    - [ ] الالتزام بمهام الـ Opening و الـ Closing.
-                    """)
-                
-                with t_tabs[1]:
-                    c1, c2 = st.columns(2)
-                    with c1:
-                        st.write("**📟 الماكينات والأجهزة:**")
-                        st.checkbox("Xerox & Kyocera (التشغيل وحل الورق المحشور)")
-                        st.checkbox("برنتر الكاشير ودرج النقدية")
-                        st.checkbox("تغليف حراري وحلزوني")
-                    with c2:
-                        st.write("**💻 الأنظمة الرقمية:**")
-                        st.checkbox("منصة مصر الرقمية وخدمات OPay")
-                        st.checkbox("التصميم عبر Canva والبحث الذكي")
-                
-                with t_tabs[2]:
-                    st.warning("⚠️ إرشادات جودة الخدمة")
-                    st.markdown("""
-                    - **السرعة:** (ورقة: 15د | عقد: 3-5س | CV: 24س).
-                    - **الماليات:** استلام العربون أولاً، والحذر من المحتالين.
-                    - **المهنية:** تنسيق العقود باحترافية وعدم تجاهل أي مشكلة تقنية.
-                    """)
-                    
+def show_training_page():
+    # --- Header Section ---
+    st.markdown("""
+        <div style="background-color: #f0f2f6; padding: 20px; border-radius: 15px; margin-bottom: 25px; border-left: 5px solid #ff4b4b;">
+            <h1 style="margin: 0; color: #31333F;">🎓 مركز تدريب الكوادر الجديدة</h1>
+            <p style="margin: 5px 0 0 0; color: #5e6066; font-size: 1.1rem;">أهلاً بك في فريق NMS. هذا الدليل هو مرجعك الأول لإتقان العمل باحترافية.</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # --- Main Tabs with Custom Icons ---
+    t_tabs = st.tabs(["🏛️ السياسات العامة", "📟 تشغيل المعدات", "💻 الأنظمة الرقمية", "🌟 معايير الجودة"])
+
+    # --- TAB 1: Policies ---
+    with t_tabs[0]:
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("### 📌 الالتزام والمظهر")
+            with st.container(border=True):
+                st.markdown("""
+                - 👕 **الزي الرسمي:** الالتزام بالـ Uniform النظيف والـ ID بشكل واضح.
+                - ⏰ **المواعيد:** الحضور قبل الشفت بـ 10 دقائق لتجهيز المكان.
+                - 🔒 **الخصوصية:** بيانات العملاء أمانة، يمنع تصوير أو نقل أي بيانات خارج المركز.
+                """)
+        with col2:
+            st.markdown("### 💰 النظام المالي")
+            with st.container(border=True):
+                st.markdown("""
+                - 💵 **العربون أولاً:** لا يبدأ العمل على أي خدمة (عقود/تصميم) بدون عربون.
+                - 💳 **التحويلات:** التأكد من وصول رسالة البنك في حالات InstaPay أو المحافظ.
+                - 🧾 **الفواتير:** كل قرش يدخل المركز يجب أن يسجل على السيستم فوراً.
+                """)
+
+    # --- TAB 2: Equipment ---
+    with t_tabs[1]:
+        st.markdown("### ⚙️ دليل تشغيل الماكينات")
+        c1, c2, c3 = st.columns(3)
+        
+        with c1:
+            with st.expander("🖨️ Xerox & Kyocera", expanded=True):
+                st.info("الأساسيات:")
+                st.write("- تشغيل/إطفاء الماكينة.")
+                st.write("- حل مشكلة الورق المحشور (Jam).")
+                st.write("- تبديل الحبر (Toner).")
+        
+        with c2:
+            with st.expander("✂️ التجهيز الفني", expanded=True):
+                st.info("اللمسات النهائية:")
+                st.write("- التغليف الحراري (Lamination).")
+                st.write("- التغليف الحلزوني (Spiral).")
+                st.write("- استخدام مقص الورق الكهربائي.")
+
+        with c3:
+            with st.expander("🏪 المرافق العامة", expanded=True):
+                st.info("صيانة المقر:")
+                st.write("- لوحة الكهرباء الرئيسية.")
+                st.write("- نظام الكاميرات وشاشة العرض.")
+                st.write("- تأمين الأبواب والحديد الخارجي.")
+
+    # --- TAB 3: Digital Systems ---
+    with t_tabs[2]:
+        st.markdown("### 🌐 الأدوات الرقمية اللازمة")
+        with st.container(border=True):
+            sc1, sc2, sc3 = st.columns(3)
+            with sc1:
+                st.image("https://img.icons8.com/color/96/canva.png", width=50)
+                st.markdown("**Canva**")
+                st.caption("للتصاميم السريعة والـ CVs")
+            with sc2:
+                st.image("https://img.icons8.com/color/96/google-logo.png", width=50)
+                st.markdown("**Google Search**")
+                st.caption("البحث الذكي عن الثغرات القانونية")
+            with sc3:
+                st.image("https://img.icons8.com/color/96/anydesk.png", width=50)
+                st.markdown("**AnyDesk**")
+                st.caption("للدعم الفني عن بعد")
+        
+        st.info("💡 **نصيحة:** يجب أن تتقن التعامل مع بوابة مصر الرقمية لتقديم خدمات التموين والمرور.")
+
+    # --- TAB 4: Quality Control ---
+    with t_tabs[3]:
+        st.error("⚠️ خطوط حمراء في التعامل")
+        col_q1, col_q2 = st.columns([1, 2])
+        with col_q1:
+            st.metric("سرعة الرد", "فوري")
+            st.metric("وقت التنفيذ (ورقة)", "15 دقيقة")
+        with col_q2:
+            st.markdown("""
+            1. **الاحترافية:** لا نجادل العميل، بل نقدم حلولاً.
+            2. **الدقة:** مراجعة البيانات المكتوبة في العقود 3 مرات قبل الطباعة.
+            3. **النظافة:** مكتبك عنوانك، يجب تنظيف الأجهزة بعد كل شفت.
+            4. **الصدق:** إذا حدث خطأ تقني، أخبر المدير فوراً ولا تحاول إخفاءه.
+            """)
+
+    # --- Completion Button ---
+    st.divider()
+    c_btn1, c_btn2, c_btn3 = st.columns([1, 2, 1])
+    with c_btn2:
+        if st.button("✅ أقر أنا الموظف أنني أتممت قراءة وفهم دليل التدريب", use_container_width=True):
+            st.balloons()
+            st.success("تم تسجيل إتمام التدريب في ملفك الشخصي!")                    
 # --- تعديل قسم لوحة تحكم المدير (Archive View) ---
 if st.session_state.get('role') == 'admin': # تأكد أن الرول 'admin' كما في قاعدة بياناتك
     st.divider()
