@@ -364,6 +364,7 @@ else:
                 if st.button("➕ Add Expense Category"):
                     if new_ex: db["expense_categories"].append(new_ex); save_db(db); st.rerun()
 
+            elif admin_choice == "📂 Archive & History":
             def show_archive_page():
                 st.header("📂 Archive & History")
                 
