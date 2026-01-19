@@ -248,7 +248,9 @@ else:
                 "🏢 Branches & Expenses", 
                 "📂 Archive & History",
                 "🎓 Employee Training"
-            ])            # 1. إدارة الموظفين (HR)
+            ])            
+            
+            # 1. إدارة الموظفين (HR)
             if admin_choice == "👥 Manage Employees (HR)":
                 st.info("Edit, Delete, or Add Employees")
                 target = st.selectbox("Select Employee to Edit", list(db["users"].keys()))
@@ -361,7 +363,41 @@ else:
                 new_ex = st.text_input("New Expense Category")
                 if st.button("➕ Add Expense Category"):
                     if new_ex: db["expense_categories"].append(new_ex); save_db(db); st.rerun()
-
+    # 5. صفحة تدريب الموظفين الجدد
+            elif admin_choice == "🎓 Employee Training":
+                st.subheader("🎓 دليل تدريب الموظفين الجدد")
+                
+                t_tabs = st.tabs(["🏗️ التأسيس والسياسات", "⚙️ المعدات والتشغيل", "📜 دليل الجودة"])
+                
+                with t_tabs[0]:
+                    st.markdown("""
+                    **📌 الهيكل والالتزام:**
+                    - [ ] الزي الرسمي (Uniform) والـ ID.
+                    - [ ] مواعيد الرواتب، البونص، والخصومات.
+                    - [ ] الحفاظ على سرية بيانات العملاء والموظفين.
+                    - [ ] الالتزام بمهام الـ Opening و الـ Closing.
+                    """)
+                
+                with t_tabs[1]:
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        st.write("**📟 الماكينات والأجهزة:**")
+                        st.checkbox("Xerox & Kyocera (التشغيل وحل الورق المحشور)")
+                        st.checkbox("برنتر الكاشير ودرج النقدية")
+                        st.checkbox("تغليف حراري وحلزوني")
+                    with c2:
+                        st.write("**💻 الأنظمة الرقمية:**")
+                        st.checkbox("منصة مصر الرقمية وخدمات OPay")
+                        st.checkbox("التصميم عبر Canva والبحث الذكي")
+                
+                with t_tabs[2]:
+                    st.warning("⚠️ إرشادات جودة الخدمة")
+                    st.markdown("""
+                    - **السرعة:** (ورقة: 15د | عقد: 3-5س | CV: 24س).
+                    - **الماليات:** استلام العربون أولاً، والحذر من المحتالين.
+                    - **المهنية:** تنسيق العقود باحترافية وعدم تجاهل أي مشكلة تقنية.
+                    """)
+                    
 # --- تعديل قسم لوحة تحكم المدير (Archive View) ---
 if st.session_state.get('role') == 'admin': # تأكد أن الرول 'admin' كما في قاعدة بياناتك
     st.divider()
@@ -422,41 +458,6 @@ if st.session_state.get('role') == 'admin': # تأكد أن الرول 'admin' �
                     db["history"] = []
                     save_db(db)
                     st.rerun()    
-
-    # 5. صفحة تدريب الموظفين الجدد
-            elif admin_choice == "🎓 Employee Training":
-                st.subheader("🎓 دليل تدريب الموظفين الجدد")
-                
-                t_tabs = st.tabs(["🏗️ التأسيس والسياسات", "⚙️ المعدات والتشغيل", "📜 دليل الجودة"])
-                
-                with t_tabs[0]:
-                    st.markdown("""
-                    **📌 الهيكل والالتزام:**
-                    - [ ] الزي الرسمي (Uniform) والـ ID.
-                    - [ ] مواعيد الرواتب، البونص، والخصومات.
-                    - [ ] الحفاظ على سرية بيانات العملاء والموظفين.
-                    - [ ] الالتزام بمهام الـ Opening و الـ Closing.
-                    """)
-                
-                with t_tabs[1]:
-                    c1, c2 = st.columns(2)
-                    with c1:
-                        st.write("**📟 الماكينات والأجهزة:**")
-                        st.checkbox("Xerox & Kyocera (التشغيل وحل الورق المحشور)")
-                        st.checkbox("برنتر الكاشير ودرج النقدية")
-                        st.checkbox("تغليف حراري وحلزوني")
-                    with c2:
-                        st.write("**💻 الأنظمة الرقمية:**")
-                        st.checkbox("منصة مصر الرقمية وخدمات OPay")
-                        st.checkbox("التصميم عبر Canva والبحث الذكي")
-                
-                with t_tabs[2]:
-                    st.warning("⚠️ إرشادات جودة الخدمة")
-                    st.markdown("""
-                    - **السرعة:** (ورقة: 15د | عقد: 3-5س | CV: 24س).
-                    - **الماليات:** استلام العربون أولاً، والحذر من المحتالين.
-                    - **المهنية:** تنسيق العقود باحترافية وعدم تجاهل أي مشكلة تقنية.
-                    """)
                     
     # --- 6. Main Dashboard: DAILY OPERATIONS ---
     st.title("📊 NMS ERP - Daily Operations")
