@@ -803,3 +803,121 @@ def show_training_page():
 #         show_training_page()
 #     else:
 #         st.error("غير مسموح لك بالدخول")
+
+def show_training_page():
+    # --- Header بتصميم مميز ---
+    st.markdown("""
+        <div style="background-color: #e8f4f8; padding: 20px; border-radius: 10px; border-right: 5px solid #00a8cc; text-align: right; margin-bottom: 20px;">
+            <h2 style="color: #004e66; margin:0;">🎓 مركز تدريب وتأهيل الموظفين</h2>
+            <p style="color: #555; margin:5px 0 0 0;">الدليل الشامل للسياسات، تشغيل المعدات، وأنظمة الجودة</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # التبويبات الرئيسية
+    tabs = st.tabs(["📋 السياسات والالتزام", "⚙️ المعدات والتشغيل", "💻 الأنظمة الرقمية", "🌟 معايير الجودة"])
+
+    # --- 1. السياسات ---
+    with tabs[0]:
+        c1, c2 = st.columns(2)
+        with c1:
+            with st.container(border=True):
+                st.markdown("### 👔 المظهر والانضباط")
+                st.info("الأساسيات:")
+                st.markdown("""
+                - ✅ الالتزام بالزي الرسمي (Uniform).
+                - 🆔 ارتداء بطاقة التعريف (ID).
+                - ⏰ الحضور قبل الموعد بـ 10 دقائق.
+                - 🔇 الموبايل للاستخدام الشخصي ممنوع أثناء العمل.
+                """)
+        with c2:
+            with st.container(border=True):
+                st.markdown("### 🔒 الأمان والسرية")
+                st.error("ممنوعات:")
+                st.markdown("""
+                - 🚫 الإفصاح عن بيانات العملاء.
+                - 🚫 تعديل أي مستند رسمي دون إذن.
+                - 📹 متابعة الكاميرات والبصمة بانتظام.
+                - ⚡ التأكد من لوحة الكهرباء والأقفال.
+                """)
+
+    # --- 2. المعدات ---
+    with tabs[1]:
+        st.markdown("### 🛠️ دليل التشغيل والصيانة")
+        col_m1, col_m2, col_m3 = st.columns(3)
+        
+        with col_m1:
+            st.success("🖨️ الطباعة (Xerox/Kyo)")
+            st.checkbox("تعلم الطباعة وجه/وجهين")
+            st.checkbox("حل مشكلة حشر الورق")
+            st.checkbox("تغيير الأحبار (Toner)")
+            st.checkbox("مراجعة مقاسات الأدراج")
+
+        with col_m2:
+            st.warning("✂️ التشطيب (Finishing)")
+            st.checkbox("التغليف الحراري")
+            st.checkbox("التغليف الحلزوني")
+            st.checkbox("استخدام المقص والدباسات")
+            st.checkbox("قص الكروهات والكروت")
+
+        with col_m3:
+            st.info("🏢 صيانة المكان")
+            st.checkbox("تشحيم الباب (شهرياً)")
+            st.checkbox("تنظيم البوفيه والمخزن")
+            st.checkbox("متابعة التكييف")
+            st.checkbox("جرد الخامات والنواقص")
+
+    # --- 3. الأنظمة ---
+    with tabs[2]:
+        st.markdown("### 🌐 البرامج والخدمات الإلكترونية")
+        
+        c_prog1, c_prog2 = st.columns([1, 2])
+        with c_prog1:
+            st.metric("سرعة النت", "مطلوب فحص دوري")
+            st.write("---")
+            st.image("https://img.icons8.com/color/48/google-logo.png", width=30)
+            st.caption("Google & ChatGPT")
+        
+        with c_prog2:
+            with st.expander("📂 البرامج الأساسية (يجب الإتقان)", expanded=True):
+                st.markdown("""
+                1. **Canva:** للتصاميم السريعة.
+                2. **AnyDesk:** للدعم الفني عن بعد.
+                3. **CamScanner:** لرفع المستندات.
+                4. **Excel/Sheets:** لشيت المهام.
+                """)
+            
+            with st.expander("💳 الخدمات المالية والحكومية"):
+                st.markdown("""
+                - **المدفوعات:** OPay, InstaPay, المحافظ.
+                - **الحكومي:** بوابة مصر الرقمية (تموين، مرور، توثيق).
+                """)
+
+    # --- 4. الجودة ---
+    with tabs[3]:
+        st.markdown("### 🏆 ميثاق خدمة العملاء")
+        
+        # كروت المعلومات
+        qc1, qc2, qc3 = st.columns(3)
+        qc1.metric("⏱️ ورقة الكتابة", "15 دقيقة")
+        qc2.metric("📄 كتابة العقود", "3 - 5 ساعات")
+        qc3.metric("💼 السيرة الذاتية", "24 ساعة")
+        
+        st.divider()
+        st.markdown("""
+        > **قاعدة ذهبية:** "استلم العربون قبل البدء في أي عمل، ولا تسلم الخدمة إلا بعد استلام باقي المبلغ."
+        """)
+        
+        st.markdown("#### 🚫 أخطاء قاتلة:")
+        st.markdown("""
+        - ❌ الأخطاء الإملائية في رسائل الواتساب مع العملاء.
+        - ❌ ترك العميل ينتظر داخل المركز في الخدمات الطويلة.
+        - ❌ تجاهل المشاكل التقنية الصغيرة حتى تكبر.
+        """)
+
+    # زر التسجيل
+    st.divider()
+    col_b1, col_b2 = st.columns([3, 1])
+    with col_b2:
+        if st.button("✅ تسجيل إتمام التدريب", use_container_width=True):
+            st.balloons()
+            st.success("تم حفظ سجل التدريب للموظف!")
