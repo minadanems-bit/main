@@ -366,7 +366,7 @@ else:
                         
             # 5. Training
             elif admin_choice == "🎓 Employee Training":
-                st.info("Manage Locations & Expenses") show_training_page():
+                st.info("Manage Locations & Expenses") show_training_page()
     # --- Header Section ---
     st.markdown("""
         <div style="background-color: #f0f2f6; padding: 20px; border-radius: 15px; margin-bottom: 25px; border-left: 5px solid #ff4b4b;">
