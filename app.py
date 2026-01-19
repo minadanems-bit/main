@@ -363,6 +363,7 @@ else:
                 new_ex = st.text_input("New Expense Category")
                 if st.button("➕ Add Expense Category"):
                     if new_ex: db["expense_categories"].append(new_ex); save_db(db); st.rerun()
+                        
 def show_training_page():
     # --- Header Section ---
     st.markdown("""
@@ -462,7 +463,8 @@ def show_training_page():
     with c_btn2:
         if st.button("✅ أقر أنا الموظف أنني أتممت قراءة وفهم دليل التدريب", use_container_width=True):
             st.balloons()
-            st.success("تم تسجيل إتمام التدريب في ملفك الشخصي!")                    
+            st.success("تم تسجيل إتمام التدريب في ملفك الشخصي!")   
+            
 # --- تعديل قسم لوحة تحكم المدير (Archive View) ---
 if st.session_state.get('role') == 'admin': # تأكد أن الرول 'admin' كما في قاعدة بياناتك
     st.divider()
