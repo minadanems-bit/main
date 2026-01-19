@@ -365,7 +365,7 @@ else:
                     if new_ex: db["expense_categories"].append(new_ex); save_db(db); st.rerun()
                         
             # 5. Training
-            elif admin_choice == "🎓 مركز التدريب":
+            elif admin_choice == "🎓 Employee Training":
                 st.info("Manage Locations & Expenses") show_training_page():
     # --- Header Section ---
     st.markdown("""
