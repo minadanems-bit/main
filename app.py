@@ -364,7 +364,9 @@ else:
                 if st.button("➕ Add Expense Category"):
                     if new_ex: db["expense_categories"].append(new_ex); save_db(db); st.rerun()
                         
-def show_training_page():
+            # 5. Training
+            elif admin_choice == "🎓 مركز التدريب":
+                st.info("Manage Locations & Expenses") show_training_page():
     # --- Header Section ---
     st.markdown("""
         <div style="background-color: #f0f2f6; padding: 20px; border-radius: 15px; margin-bottom: 25px; border-left: 5px solid #ff4b4b;">
