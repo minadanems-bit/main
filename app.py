@@ -365,7 +365,6 @@ else:
                     if new_ex: db["expense_categories"].append(new_ex); save_db(db); st.rerun()
 
             elif admin_choice == "📂 Archive & History":
-                show_archive_page():
                 st.header("📂 Archive & History")
                 
                 # التأكد من صلاحية الأدمن (حسب نظامك)
