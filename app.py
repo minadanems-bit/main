@@ -367,8 +367,8 @@ else:
             # 5. Training
             elif admin_choice == "🎓 Employee Training":
                 show_training_page()
-    # --- Header Section ---
-    st.markdown("""
+                
+                st.markdown("""
         <div style="background-color: #f0f2f6; padding: 20px; border-radius: 15px; margin-bottom: 25px; border-left: 5px solid #ff4b4b;">
             <h1 style="margin: 0; color: #31333F;">🎓 مركز تدريب الكوادر الجديدة</h1>
             <p style="margin: 5px 0 0 0; color: #5e6066; font-size: 1.1rem;">أهلاً بك في فريق NMS. هذا الدليل هو مرجعك الأول لإتقان العمل باحترافية.</p>
