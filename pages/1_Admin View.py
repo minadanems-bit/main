@@ -5,6 +5,7 @@ from database import load_db, save_db
 
 # إعداد الصفحة
 st.set_page_config(page_title="Admin View", page_icon="🛠️", layout="wide")
+
 # تحميل قاعدة البيانات
 db = load_db()
 
@@ -24,10 +25,11 @@ for username, info in db["users"].items():
         salary = st.number_input("Salary", value=float(info.get("salary", 0)), key=f"sal_{username}")
         phone = st.text_input("Phone", value=info.get("phone", ""), key=f"phone_{username}")
 
-        if st.button(f"💾 Save Changes for {username}"):
-            db["users"][username]["full_name"] = full_name
-            db["users"][username]["salary"] = salary
-            db["users"][username]["phone"] = phone
-            save_db(db)
-            st.success(f"Saved changes for {username}")
-            st.rerun()
+        if st.button(f"💾 Save Changes for {username}", key=f"save_btn_{username}"):
+            if username in db["users"]:
+                db["users"][username]["full_name"] = full_name
+                db["users"][username]["salary"] = salary
+                db["users"][username]["phone"] = phone
+                save_db(db)
+                st.success(f"Saved changes for {username}")
+                st.rerun()
