@@ -24,8 +24,13 @@ if 'logged_in' not in st.session_state:
 def sync_draft():
     if st.session_state['logged_in']:
         user = st.session_state['user']
-        draft_keys = ('s_','o_','e_','c_','m_','i_','ks','xs','op','u10','v22','ex','kj','xj','dn','k1','k2','x1','x2')
-        draft_data = {k: v for k, v in st.session_state.items() if k.startswith(draft_keys)}
+        draft_keys = (
+            's_','o_','e_','c_','m_','i_','ks','xs','op',
+            'u10','v22','ex','kj','xj','dn','k1','k2','x1','x2'
+        )
+        draft_data = {
+            k: v for k, v in st.session_state.items() if k.startswith(draft_keys)
+        }
         if "drafts" not in db:
             db["drafts"] = {}
         db["drafts"][user] = draft_data
