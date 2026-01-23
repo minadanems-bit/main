@@ -5,7 +5,6 @@ from database import load_db, save_db
 
 # إعداد الصفحة
 st.set_page_config(page_title="Admin View", page_icon="🛠️", layout="wide")
-
 # تحميل قاعدة البيانات
 db = load_db()
 
