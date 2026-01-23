@@ -548,7 +548,7 @@ else:
                 # if st.session_state['page'] == 'training':
                 #     show_training_page()
     
-        with st.expander("🧰 Backup Manager"):
+    with st.expander("🧰 Backup Manager"):
         backup_folder = "backups"
         if not os.path.exists(backup_folder) or len(os.listdir(backup_folder)) == 0:
             st.warning("لا توجد نسخ احتياطية حتى الآن.")
