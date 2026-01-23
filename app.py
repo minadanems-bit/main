@@ -13,8 +13,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 
 # --- 1. إعدادات قاعدة البيانات (Database Configuration) ---
-from database import load_db, save_db
-
+from database import load_db, save_db, MANAGER_PHONE
 db = load_db()
 
 # --- 2. Advanced PDF Generation (تقرير شامل) ---
