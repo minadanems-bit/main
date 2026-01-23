@@ -562,6 +562,16 @@ else:
     
             with open(latest_path, "rb") as f:
                 st.download_button("📥 تحميل النسخة الاحتياطية", f, file_name=latest_file)
+                st.divider()
+    st.markdown("### ♻️ استرجاع نسخة قديمة")
+
+    restore_file = st.selectbox("اختر نسخة احتياطية", os.listdir(backup_folder))
+    if st.button("♻️ استرجاع النسخة المحددة"):
+        selected_path = os.path.join(backup_folder, restore_file)
+        with open(selected_path, "r", encoding="utf-8") as f:
+            restored_data = json.load(f)
+        save_db(restored_data)
+        st.success("✅ تم استرجاع النسخة بنجاح. برجاء إعادة تحميل الصفحة.")
     # --- 6. Main Dashboard: DAILY OPERATIONS ---
     st.title("📊 NMS ERP - Daily Operations")
     m1, m2, m3, m4 = st.columns(4)
