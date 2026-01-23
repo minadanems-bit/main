@@ -76,6 +76,6 @@ if not st.session_state['logged_in']:
 # Role-based redirection (after login)
 else:
     if st.session_state['role'] == "admin":
-        st.switch_page("Admin View")
+        st.switch_page("1_Admin View")  # لازم يكون الملف اسمه كده
     else:
-        st.switch_page("User View")
+        st.switch_page("2_User View")   # وده برضه نفس الاسم
