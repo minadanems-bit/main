@@ -546,7 +546,22 @@ else:
                 
                 # لاستدعاء الدالة في القائمة الجانبية أو كصفحة مستقلة:
                 # if st.session_state['page'] == 'training':
-                #     show_training_page()    
+                #     show_training_page()
+    
+    with st.expander("🧰 Backup Manager"):
+    backup_folder = "backups"
+    if not os.path.exists(backup_folder) or len(os.listdir(backup_folder)) == 0:
+        st.warning("لا توجد نسخ احتياطية حتى الآن.")
+    else:
+        # ترتيب الملفات حسب التاريخ الأحدث
+        backup_files = sorted(os.listdir(backup_folder), reverse=True)
+        latest_file = backup_files[0]
+        latest_path = os.path.join(backup_folder, latest_file)
+
+        st.info(f"🕒 أحدث نسخة: {latest_file}")
+
+        with open(latest_path, "rb") as f:
+            st.download_button("📥 تحميل النسخة الاحتياطية", f, file_name=latest_file)
     # --- 6. Main Dashboard: DAILY OPERATIONS ---
     st.title("📊 NMS ERP - Daily Operations")
     m1, m2, m3, m4 = st.columns(4)
