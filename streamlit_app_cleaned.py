@@ -64,8 +64,6 @@ if not st.session_state['logged_in']:
                 st.error("Incorrect Password")
 else:
     # Redirect to Admin or User Interface based on role
-    
-    # Redirect to Admin or User Interface based on role
     if st.session_state['role'] == "admin":
         st.switch_page("admin_view.py")
     else:
