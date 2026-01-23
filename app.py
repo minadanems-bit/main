@@ -1,4 +1,3 @@
-from pdf_generator import create_downloadable_pdf
 import streamlit as st
 import pandas as pd
 from datetime import datetime, date
