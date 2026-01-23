@@ -84,13 +84,18 @@ def load_db():
         return data
 
 def save_db(data):
-    # 1. حفظ النسخة الرئيسية
+    # 1. حفظ الملف الأصلي
     with open(DB_FILE, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
-    # 2. إنشاء نسخة احتياطية باسم فيه التاريخ والوقت
+    # 2. تأكد من وجود مجلد backup، ولو مش موجود أنشئه
+    backup_folder = "backups"
+    if not os.path.exists(backup_folder):
+        os.makedirs(backup_folder)
+
+    # 3. أنشئ النسخة الاحتياطية داخل المجلد باسم فيه التاريخ والساعة
     now = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    backup_filename = f"backup_{now}.json"
+    backup_filename = f"{backup_folder}/backup_{now}.json"
     
     with open(backup_filename, 'w', encoding='utf-8') as backup:
         json.dump(data, backup, ensure_ascii=False, indent=4)
