@@ -1,32 +1,173 @@
 {
-  "users": {
-    "admin": {
-      "pass": "admin",
-      "role": "admin",
-      "full_name": "Administrator",
-      "salary": 0,
-      "bonus": [],
-      "deductions": [],
-      "overtime": [],
-      "extra_leaves": [],
-      "photo": null,
-      "hiring_date": "2024-01-01",
-      "phone": "",
-      "national_id": "",
-      "address": "",
-      "qualification": ""
-    }
-  },
-  "branches": ["M.Nageb"],
-  "tasks": {
-    "opening": ["Turn on Machines", "Check Supplies"],
-    "closing": ["Clean Area", "Shutdown Systems"],
-    "social": ["Post Instagram", "Reply Comments"],
-    "interaction": ["Greet Clients", "Follow Up"]
-  },
-  "expense_categories": ["Maintenance", "Supplies", "Salary"],
-  "drafts": {},
-  "history": [],
-  "logo": "",
-  "logs": []
+    "logo": null,
+    "branches": [
+        "M. Nageb Branch",
+        "Tram Branch"
+    ],
+    "expense_categories": [
+        "Electricity",
+        "Water",
+        "Maintenance",
+        "Supplies",
+        "Salary Advance",
+        "Rent",
+        "Other"
+    ],
+    "users": {
+        "admin": {
+            "pass": "admin123",
+            "role": "admin",
+            "full_name": "Manager",
+            "phone": "",
+            "national_id": "",
+            "address": "",
+            "email": "",
+            "social_status": "Single",
+            "qualification": "",
+            "hiring_date": "2024-01-01",
+            "salary": 0.0,
+            "bonus": [],
+            "deductions": [],
+            "overtime": [],
+            "extra_leaves": [],
+            "photo": null
+        },
+        "Mark": {
+            "pass": "123",
+            "role": "user",
+            "full_name": "Mark",
+            "salary": 0.0,
+            "bonus": [],
+            "deductions": [],
+            "overtime": [],
+            "extra_leaves": [],
+            "photo": null,
+            "hiring_date": "2026-01-23",
+            "phone": "",
+            "national_id": "",
+            "address": "",
+            "qualification": "",
+            "email": "",
+            "social_status": ""
+        },
+        "Youstina": {
+            "pass": "123",
+            "role": "user",
+            "full_name": "Youstina",
+            "salary": 0.0,
+            "bonus": [],
+            "deductions": [],
+            "overtime": [],
+            "extra_leaves": [],
+            "photo": null,
+            "hiring_date": "2026-01-23",
+            "phone": "",
+            "national_id": "",
+            "address": "",
+            "qualification": "",
+            "email": "",
+            "social_status": ""
+        },
+        "Fatma": {
+            "pass": "123",
+            "role": "user",
+            "full_name": "Fatma",
+            "salary": 0.0,
+            "bonus": [],
+            "deductions": [],
+            "overtime": [],
+            "extra_leaves": [],
+            "photo": null,
+            "hiring_date": "2026-01-23",
+            "phone": "",
+            "national_id": "",
+            "address": "",
+            "qualification": "",
+            "email": "",
+            "social_status": ""
+        }
+    },
+    "tasks": {
+        "opening": [
+            "Fingerprint Attendance 👆",
+            "Power On Devices 🔌",
+            "Uniform & Name Tag 👔",
+            "Music & Ambience 🎶",
+            "Paper Loaded 📄",
+            "Cash Counted 💵",
+            "Clean Windows & Counters 🧹",
+            "Check Internet Connection 🌐",
+            "Check Supplies Inventory 📦",
+            "Picture Check-up 📸"
+        ],
+        "closing": [
+            "Save WhatsApp Contacts 📱",
+            "Cleaning Workplace 🧹",
+            "Power Off Devices 🔌",
+            "Trash Removed 🗑️",
+            "Fingerprint Sign-out 👆",
+            "Daily Report Sent 📩",
+            "Safe Locked 🔒",
+            "Lights Off 💡"
+        ],
+        "social": [
+            "Canva Design 1 🎨",
+            "Canva Design 2 🎨",
+            "WhatsApp Story 🟢",
+            "WhatsApp Channel 📢",
+            "Facebook Account Story 🔵",
+            "Facebook Account Post/Reel 🎬",
+            "Facebook Account Group 👥",
+            "Facebook Page Story 📄",
+            "Facebook Page Post/Reel 🎬",
+            "Threads Post 🧵",
+            "Instagram Story 📸",
+            "Instagram Post/Reel 🎥",
+            "TikTok Story 🎵",
+            "TikTok Post 🕺",
+            "Telegram Story ✈️",
+            "Telegram Channel 📢",
+            "LinkedIn Post 💼"
+        ],
+        "interaction": [
+            "Like 👍",
+            "Love ❤️",
+            "Care 🤗",
+            "Share 🔗",
+            "Comment 💬",
+            "Reply to Messages 📩",
+            "Join Groups 👥"
+        ]
+    },
+    "history": [
+        {
+            "date": "2026-01-23",
+            "branch": "M. Nageb Branch",
+            "staff": "admin",
+            "sales": 0.0,
+            "diff": 0.0,
+            "kyo_jam": 0,
+            "xerox_jam": 0,
+            "expenses": 0.0,
+            "exp_note": "Electricity: "
+        }
+    ],
+    "drafts": {},
+    "logs": [
+        {
+            "user": "admin",
+            "time": "2026-01-23 20:33:37",
+            "action": "Login"
+        },
+        {
+            "user": "admin",
+            "time": "2026-01-23 20:41:55",
+            "action": "Login"
+        },
+        {
+            "user": "admin",
+            "time": "2026-01-23 20:46:01",
+            "action": "Login"
+        }
+    ]
 }
