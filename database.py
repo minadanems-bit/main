@@ -1,6 +1,7 @@
 import json
 import os
-from datetime import date
+import shutil
+from datetime import datetime, date
 
 DB_FILE = 'nms_enterprise_pro_db.json'
 
@@ -48,5 +49,17 @@ def load_db():
     return data
 
 def save_db(data):
+    # حفظ الملف الأساسي
     with open(DB_FILE, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
+
+    # إنشاء مجلد النسخ الاحتياطية إن لم يكن موجود
+    backup_folder = "backups"
+    if not os.path.exists(backup_folder):
+        os.makedirs(backup_folder)
+
+    # إنشاء نسخة احتياطية باسم يحتوي على التاريخ والوقت
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_filename = f"backup_{timestamp}.json"
+    backup_path = os.path.join(backup_folder, backup_filename)
+    shutil.copyfile(DB_FILE, backup_path)
