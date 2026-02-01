@@ -16,5 +16,17 @@
       "address": "",
       "qualification": ""
     }
-  }
+  },
+  "branches": ["Main"],
+  "tasks": {
+    "opening": ["Turn on Machines", "Check Supplies"],
+    "closing": ["Clean Area", "Shutdown Systems"],
+    "social": ["Post Instagram", "Reply Comments"],
+    "interaction": ["Greet Clients", "Follow Up"]
+  },
+  "expense_categories": ["Maintenance", "Supplies", "Salary"],
+  "drafts": {},
+  "history": [],
+  "logo": "",
+  "logs": []
 }
