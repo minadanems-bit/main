@@ -1,18 +1,1 @@
-"users": {
-  "admin": {
-    "pass": "123",
-    "role": "admin",
-    "full_name": "Administrator",
-    "salary": 0,
-    "bonus": [],
-    "deductions": [],
-    "overtime": [],
-    "extra_leaves": [],
-    "photo": null,
-    "hiring_date": "2024-01-01",
-    "phone": "",
-    "national_id": "",
-    "address": "",
-    "qualification": ""
-  }
-}
+
