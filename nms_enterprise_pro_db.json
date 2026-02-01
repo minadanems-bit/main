@@ -1,7 +1,7 @@
 {
   "users": {
     "admin": {
-      "pass": "123",
+      "pass": "admin",
       "role": "admin",
       "full_name": "Administrator",
       "salary": 0,
@@ -17,7 +17,7 @@
       "qualification": ""
     }
   },
-  "branches": ["Main"],
+  "branches": ["M.Nageb"],
   "tasks": {
     "opening": ["Turn on Machines", "Check Supplies"],
     "closing": ["Clean Area", "Shutdown Systems"],
