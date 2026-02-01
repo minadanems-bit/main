@@ -119,7 +119,7 @@ if not st.session_state['logged_in']:
         u = st.selectbox("Select Your Account", list(db["users"].keys()))
         p = st.text_input("Enter Password", type="password")
         if st.button("🚀 Login", use_container_width=True):
-            if db["users"][u]["pass"] == p:
+            if u in db["users"] and db["users"][u]["pass"] == p:
                 st.session_state.update({'logged_in': True, 'user': u, 'role': db["users"][u]["role"]})
                 if u in db.get("drafts", {}):
                     for key, val in db["drafts"][u].items(): st.session_state[key] = val
