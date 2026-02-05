@@ -77,7 +77,7 @@ def create_downloadable_pdf(branch, staff_name, date_str, sales, expenses, exp_n
     elements.append(Paragraph("🖨️ Printers Analysis", styles['Heading2']))
     prn_data = [
         ["Machine", "Total Used", "Paper Jam", "1-Sided", "2-Sided"],
-        [["Kyocera", kyo_data['1s'] + kyo_data['2s'], kyo_data['jam'], kyo_data['1s'], kyo_data['2s']],
+        ["Kyocera", kyo_data['1s'] + kyo_data['2s'], kyo_data['jam'], kyo_data['1s'], kyo_data['2s']],
         ["Xerox", xerox_data['1s'] + xerox_data['2s'], xerox_data['jam'], xerox_data['1s'], xerox_data['2s']]
     ]
     prn_table = Table(prn_data, colWidths=[2*inch, 1.5*inch, 1.5*inch, 2*inch, 2*inch])
@@ -628,15 +628,15 @@ else:
         _x1s = st.session_state.get('x1s_v', 0)
         _x2s = st.session_state.get('x2s_v', 0)
 
-        kyo_actual = _ke - _ks
-        kyo_reported = _k1s + _k2s
+        kyo_actual = _k1s + _k2s
+        kyo_reported = _ke - _ks
         if kyo_actual != kyo_reported:
-            error_notes.append(f"⚠️ Kyo Counter Diff: Actual {kyo_actual} vs Reported {kyo_reported}")
+            error_notes.append(f"⚠️ Kyo Counter Diff: Reported {kyo_reported} vs Sum {kyo_actual}")
             
-        xerox_actual = _xe - _xs
-        xerox_reported = _x1s + _x2s
+        xerox_actual = _x1s + _x2s
+        xerox_reported = _xe - _xs
         if xerox_actual != xerox_reported:
-            error_notes.append(f"⚠️ Xerox Counter Diff: Actual {xerox_actual} vs Reported {xerox_reported}")
+            error_notes.append(f"⚠️ Xerox Counter Diff: Reported {xerox_reported} vs Sum {xerox_actual}")
 
         notes_section = "\n".join(error_notes) if error_notes else "✅ No discrepancies found"
 
