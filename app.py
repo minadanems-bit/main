@@ -629,12 +629,12 @@ else:
         _x2s = st.session_state.get('x2s_v', 0)
 
         kyo_actual = _k1s + _k2s
-        kyo_reported = _k1s + (_k2s * 2)
+        kyo_reported = _k1s + (_k2s * 2) + st.session_state.get('kj_v', 0)
         if kyo_actual != kyo_reported:
             error_notes.append(f"⚠️ Kyo Counter Diff: Reported {kyo_reported} vs Sum {kyo_actual}")
             
         xerox_actual = _x1s + _x2s
-        xerox_reported = _x1s + (_x2s * 2)
+        xerox_reported = _x1s + (_x2s * 2) + st.session_state.get('xj_v', 0)
         if xerox_actual != xerox_reported:
             error_notes.append(f"⚠️ Xerox Counter Diff: Reported {xerox_reported} vs Sum {xerox_actual}")
 
