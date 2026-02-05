@@ -77,8 +77,8 @@ def create_downloadable_pdf(branch, staff_name, date_str, sales, expenses, exp_n
     elements.append(Paragraph("🖨️ Printers Analysis", styles['Heading2']))
     prn_data = [
         ["Machine", "Total Used", "Paper Jam", "1-Sided", "2-Sided"],
-        ["Kyocera", kyo_data['used'], kyo_data['jam'], kyo_data['1s'], kyo_data['2s']],
-        ["Xerox", xerox_data['used'], xerox_data['jam'], xerox_data['1s'], xerox_data['2s']]
+        [["Kyocera", kyo_data['1s'] + kyo_data['2s'], kyo_data['jam'], kyo_data['1s'], kyo_data['2s']],
+        ["Xerox", xerox_data['1s'] + xerox_data['2s'], xerox_data['jam'], xerox_data['1s'], xerox_data['2s']]
     ]
     prn_table = Table(prn_data, colWidths=[2*inch, 1.5*inch, 1.5*inch, 2*inch, 2*inch])
     prn_table.setStyle(TableStyle([
