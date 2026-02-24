@@ -663,6 +663,7 @@ with tab1:
         t_open += o_coins
 
         st.success(f"**Total Opening: {t_open:,.2f} LE**")
+        st.session_state["t_open"] = t_open
 
     with c_o3:
         st.markdown("#### 🔢 Printers Counters")
@@ -778,6 +779,8 @@ with tab2:
 
         expected = t_open + sys_sales + u10 - ex_val - v22 - t_digital
         diff = t_close - expected
+        st.session_state["t_close"] = t_close
+        st.session_state["cash_diff"] = diff
 
         st.metric("Expected Drawer", f"{expected:,.2f} LE")
 
@@ -955,9 +958,9 @@ with tab3:
 
 *🖨️ PRINTER SUMMARY*
 ━━━━━━━━━━━━━━━━
-📠 Kyocera 1 Used: {kyo_used}
-📠 Xerox Used: {xerox_used}
-📠 Kyocera 2 Used: {kyo_used}
+📠 Kyocera 3010i: {kyo_used}
+📠 Xerox 7835: {xerox_used}
+📠 Kyocera P5031DN: {hp_used}
 📱 Opay Used: {st.session_state.get('ops',0) - st.session_state.get('ope',0):,.2f}
 
 *✅ TASK STATUS*
