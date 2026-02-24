@@ -803,131 +803,229 @@ with tab2:
                      key="dn_notes",
                      on_change=sync_draft)
         
-    # --- TAB 3: SOCIAL ---
-    with tab3:
-        st.subheader("📱 Marketing & Finalization")
-        sc1, sc2 = st.columns(2)
-        with sc1:
-            st.markdown("#### 📢 Social Media Tasks")
-            for t in db["tasks"]["social"]: st.checkbox(t, key=f"m_{t}", on_change=sync_draft)
-        with sc2:
-            st.markdown("#### ❤️ Interaction Tasks")
-            for t in db["tasks"]["interaction"]: st.checkbox(t, key=f"i_{t}", on_change=sync_draft)
-        
-        st.divider()
-        st.write("### 🏁 End Shift Actions")
-        
-# --- WhatsApp Construction ---
-        
-        # 1. Calculate Task Statistics (Safe access via session_state)
-        def count_tasks(prefix):
-            all_keys = db["tasks"].get(prefix, [])
-            done = 0
-            # Mapping internal prefixes to session state keys
-            map_p = {'opening':'s_', 'closing':'e_', 'social':'m_', 'interaction':'i_'}
-            p = map_p.get(prefix, '')
-            for t in all_keys:
-                if st.session_state.get(f"{p}{t}"):
-                    done += 1
-            return done, len(all_keys)
+# --- TAB 3: SOCIAL ---
+with tab3:
 
-        op_done, op_tot = count_tasks('opening')
-        cl_done, cl_tot = count_tasks('closing')
-        soc_done, soc_tot = count_tasks('social')
-        int_done, int_tot = count_tasks('interaction')
+    st.subheader("📱 Marketing & Finalization")
 
-        # 2. Identify Discrepancies (Financial & Printers)
-        error_notes = []
-        if abs(diff) > 0.1:
-            error_notes.append(f"⚠️ Cash Diff: {diff:,.2f}")
-        
-        # Safe retrieval of printer data
-        _ks = st.session_state.get('ks', 0)
-        _ke = st.session_state.get('ke', 0)
-        _xs = st.session_state.get('xs', 0)
-        _xe = st.session_state.get('xe', 0)
-        _k1s = st.session_state.get('k1s_v', 0)
-        _k2s = st.session_state.get('k2s_v', 0)
-        _x1s = st.session_state.get('x1s_v', 0)
-        _x2s = st.session_state.get('x2s_v', 0)
+    sc1, sc2 = st.columns(2)
 
-        kyo_actual = _k1s + _k2s
-        kyo_reported = _k1s + (_k2s * 2) + st.session_state.get('kj_v', 0)
-        if kyo_actual != kyo_reported:
-            error_notes.append(f"⚠️ Kyo Counter Diff: Reported {kyo_reported} vs Sum {kyo_actual}")
-            
-        xerox_actual = _x1s + _x2s
-        xerox_reported = _x1s + (_x2s * 2) + st.session_state.get('xj_v', 0)
-        if xerox_actual != xerox_reported:
-            error_notes.append(f"⚠️ Xerox Counter Diff: Reported {xerox_reported} vs Sum {xerox_actual}")
+    # =========================
+    # SOCIAL TASKS
+    # =========================
+    with sc1:
+        st.markdown("#### 📢 Social Media Tasks")
+        for t in db["tasks"].get("social", []):
+            st.checkbox(t, key=f"m_{t}", on_change=sync_draft)
 
-        notes_section = "\n".join(error_notes) if error_notes else "✅ No discrepancies found"
+    with sc2:
+        st.markdown("#### ❤️ Interaction Tasks")
+        for t in db["tasks"].get("interaction", []):
+            st.checkbox(t, key=f"i_{t}", on_change=sync_draft)
 
-        # 3. Build WhatsApp Message Body
-        wa_text = f"*🚀 NMS ERP - SHIFT REPORT*\n" \
-                  f"━━━━━━━━━━━━━━━━\n" \
-                  f"📅 Date: {date.today()}\n" \
-                  f"👤 Staff: {st.session_state['user']}\n" \
-                  f"📍 Branch: {branch}\n" \
-                  f"🕒 Shift: {shift}\n\n" \
-                  f"*💰 FINANCIAL SUMMARY*\n" \
-                  f"━━━━━━━━━━━━━━━━\n" \
-                  f"💵 Opening Cash: {t_open:,.2f}\n" \
-                  f"💻 System Sales: {sys_sales:,.2f}\n" \
-                  f"💸 Expenses: {ex_val:,.2f} ({ex_cat}: {ex_note})\n" \
-                  f"💳 Online/Digital: {t_digital:,.2f}\n" \
-                  f"   (Wallet: {st.session_state.get('c_wall', 0)} | Insta: {st.session_state.get('c_insta', 0)} | Visa: {st.session_state.get('c_visa', 0)})\n" \
-                  f"📉 Debit: {st.session_state.get('v22_val', 0):,.2f}\n" \
-                  f"💰 Closing Drawer: {t_close:,.2f}\n" \
-                  f"⚖️ Net Difference: {diff:,.2f}\n\n" \
-                  f"*🖨️ PRINTER ANALYSIS*\n" \
-                  f"━━━━━━━━━━━━━━━━\n" \
-                  f"📠 Kyocera: {kyo_actual} (Jams: {st.session_state.get('kj_v', 0)})\n" \
-                  f"📠 Xerox: {xerox_actual} (Jams: {st.session_state.get('xj_v', 0)})\n" \
-                  f"📱 Opay Diff: {st.session_state.get('ops', 0) - st.session_state.get('ope', 0):,.2f}\n\n" \
-                  f"*✅ TASK STATISTICS*\n" \
-                  f"━━━━━━━━━━━━━━━━\n" \
-                  f"🌅 Opening: {op_done}/{op_tot}\n" \
-                  f"🌇 Closing: {cl_done}/{cl_tot}\n" \
-                  f"📱 Social Media: {soc_done}/{soc_tot}\n" \
-                  f"🤝 Interaction: {int_done}/{int_tot}\n\n" \
-                  f"*📝 DISCREPANCIES & NOTES*\n" \
-                  f"━━━━━━━━━━━━━━━━\n" \
-                  f"{notes_section}\n" \
-                  f"📌 Shift Notes: {st.session_state.get('dn_notes', '-')}"
+    st.divider()
+    st.write("### 🏁 End Shift Actions")
 
-        # --- Footer Action Buttons ---
-        if st.button("💾 ARCHIVE SHIFT & DATA", use_container_width=True):
+    # =====================================================
+    # SAFE VARIABLES
+    # =====================================================
+    t_open = st.session_state.get("t_open", 0)
+    t_close = st.session_state.get("t_close", 0)
+    sys_sales = st.session_state.get("c_sys_sales", 0)
+    ex_val = st.session_state.get("ex_val", 0)
+    ex_cat = st.session_state.get("ex_cat", "-")
+    ex_note = st.session_state.get("ex_note", "-")
 
-            printer_snapshot = auto_scan_and_attach_to_shift()
+    t_digital = (
+        st.session_state.get("c_insta", 0)
+        + st.session_state.get("c_wall", 0)
+        + st.session_state.get("c_visa", 0)
+    )
 
-            db["history"].append({
-                "date": str(date.today()), 
-                "branch": branch, 
-                "staff": st.session_state['user'],
-                "sales": sys_sales, 
-                "diff": diff, 
-                "kyo_jam": st.session_state.get('kj_v', 0), 
-                "xerox_jam": st.session_state.get('xj_v', 0), 
-                "expenses": ex_val,
-                "exp_note": f"{ex_cat}: {ex_note}",
-                "printer_snapshot": printer_snapshot   # 🔥 أهم سطر جديد
-            })
+    diff = st.session_state.get("cash_diff", 0)
 
-            if st.session_state['user'] in db["drafts"]:
-                del db["drafts"][st.session_state['user']]
-        
-            save_db(db)
-        
-            st.success("✅ Shift Archived + Printers Auto Scanned!")
+    # =========================
+    # PRINTER SAFE VALUES
+    # =========================
 
-        crep1, crep2 = st.columns(2)
-        with crep1:
-            if st.button("📄 GENERATE PRO PDF", use_container_width=True):
-                kyo_d = {'used': _ke-_ks, 'jam': st.session_state.get('kj_v', 0), '1s': _k1s, '2s': _k2s}
-                xerox_d = {'used': _xe-_xs, 'jam': st.session_state.get('xj_v', 0), '1s': _x1s, '2s': _x2s}
-                pdf_bytes = create_downloadable_pdf(branch, st.session_state['user'], str(date.today()), sys_sales, ex_val, f"{ex_cat}: {ex_note}", diff, kyo_d, xerox_d, st.session_state.get('ops',0)-st.session_state.get('ope',0), st.session_state.get('v22_val',0))
-                st.download_button("📥 Download Official Report", pdf_bytes, f"NMS_Pro_{date.today()}.pdf")
-        with crep2:
-            url = f"https://wa.me/{MANAGER_PHONE}?text={urllib.parse.quote(wa_text)}"
-            st.markdown(f'<a href="{url}" target="_blank"><button style="width:100%; background-color:#25D366; color:white; border:none; padding:15px; border-radius:10px; cursor:pointer; font-weight:bold; font-size:16px;">📱 SEND TO WHATSAPP</button></a>', unsafe_allow_html=True)
+    # Kyocera
+    _ks = st.session_state.get("ks", 0)
+    _ke = st.session_state.get("ke", 0)
+    _k1 = st.session_state.get("k1s_v", 0)
+    _k2 = st.session_state.get("k2s_v", 0)
+
+    # Xerox
+    _xs = st.session_state.get("xs", 0)
+    _xe = st.session_state.get("xe", 0)
+    _x1 = st.session_state.get("x1s_v", 0)
+    _x2 = st.session_state.get("x2s_v", 0)
+
+    # HP (الطابعة التالتة)
+    _hs = st.session_state.get("hs", 0)
+    _he = st.session_state.get("he", 0)
+    _h1 = st.session_state.get("h1s_v", 0)
+    _h2 = st.session_state.get("h2s_v", 0)
+
+    # =========================
+    # CALCULATIONS
+    # =========================
+
+    kyo_used = _ke - _ks
+    xerox_used = _xe - _xs
+    hp_used = _he - _hs
+
+    kyo_actual = _k1 + _k2
+    xerox_actual = _x1 + _x2
+    hp_actual = _h1 + _h2
+
+    # =====================================================
+    # TASK STATISTICS
+    # =====================================================
+    def count_tasks(prefix):
+        tasks_list = db["tasks"].get(prefix, [])
+        done = 0
+        map_p = {
+            "opening": "s_",
+            "closing": "e_",
+            "social": "m_",
+            "interaction": "i_",
+        }
+        p = map_p.get(prefix, "")
+        for t in tasks_list:
+            if st.session_state.get(f"{p}{t}", False):
+                done += 1
+        return done, len(tasks_list)
+
+    op_done, op_tot = count_tasks("opening")
+    cl_done, cl_tot = count_tasks("closing")
+    soc_done, soc_tot = count_tasks("social")
+    int_done, int_tot = count_tasks("interaction")
+
+    # =====================================================
+    # DISCREPANCY CHECK
+    # =====================================================
+    error_notes = []
+
+    if abs(diff) > 0.1:
+        error_notes.append(f"⚠️ Cash Difference: {diff:,.2f}")
+
+    kyo_reported = _k1 + (_k2 * 2) + st.session_state.get("kj_v", 0)
+    if kyo_actual != kyo_reported:
+        error_notes.append(
+            f"⚠️ Kyocera Counter Diff: {kyo_reported} vs {kyo_actual}"
+        )
+
+    xerox_reported = _x1 + (_x2 * 2) + st.session_state.get("xj_v", 0)
+    if xerox_actual != xerox_reported:
+        error_notes.append(
+            f"⚠️ Xerox Counter Diff: {xerox_reported} vs {xerox_actual}"
+        )
+
+    hp_reported = _h1 + (_h2 * 2) + st.session_state.get("hj_v", 0)
+    if hp_actual != hp_reported:
+        error_notes.append(
+            f"⚠️ HP Counter Diff: {hp_reported} vs {hp_actual}"
+        )
+
+    notes_section = "\n".join(error_notes) if error_notes else "✅ No discrepancies found"
+
+    # =====================================================
+    # WHATSAPP MESSAGE
+    # =====================================================
+    wa_text = f"""*🚀 NMS ERP - SHIFT REPORT*
+━━━━━━━━━━━━━━━━
+📅 Date: {date.today()}
+👤 Staff: {st.session_state.get('user')}
+📍 Branch: {branch}
+🕒 Shift: {shift}
+
+*💰 FINANCIAL SUMMARY*
+━━━━━━━━━━━━━━━━
+💵 Opening Cash: {t_open:,.2f}
+💻 System Sales: {sys_sales:,.2f}
+💸 Expenses: {ex_val:,.2f} ({ex_cat}: {ex_note})
+💳 Digital Total: {t_digital:,.2f}
+💰 Closing Drawer: {t_close:,.2f}
+⚖️ Net Difference: {diff:,.2f}
+
+*🖨️ PRINTER SUMMARY*
+━━━━━━━━━━━━━━━━
+📠 Kyocera 1 Used: {kyo_used}
+📠 Xerox Used: {xerox_used}
+📠 Kyocera 2 Used: {kyo_used}
+📱 Opay Used: {st.session_state.get('ops',0) - st.session_state.get('ope',0):,.2f}
+
+*✅ TASK STATUS*
+━━━━━━━━━━━━━━━━
+🌅 Opening: {op_done}/{op_tot}
+🌇 Closing: {cl_done}/{cl_tot}
+📱 Social: {soc_done}/{soc_tot}
+🤝 Interaction: {int_done}/{int_tot}
+
+*📝 DISCREPANCIES & NOTES*
+━━━━━━━━━━━━━━━━
+{notes_section}
+
+📌 Shift Notes:
+{st.session_state.get('dn_notes', '-')}
+"""
+
+    # =====================================================
+    # ARCHIVE BUTTON
+    # =====================================================
+    if st.button("💾 ARCHIVE SHIFT & DATA", use_container_width=True):
+
+        printer_snapshot = auto_scan_and_attach_to_shift()
+
+        db["history"].append({
+            "date": str(date.today()),
+            "branch": branch,
+            "staff": st.session_state.get("user"),
+            "sales": sys_sales,
+            "diff": diff,
+            "expenses": ex_val,
+            "exp_note": f"{ex_cat}: {ex_note}",
+            "kyo_used": kyo_used,
+            "xerox_used": xerox_used,
+            "hp_used": hp_used,
+            "printer_snapshot": printer_snapshot
+        })
+
+        if st.session_state.get("user") in db.get("drafts", {}):
+            del db["drafts"][st.session_state.get("user")]
+
+        save_db(db)
+        st.success("✅ Shift Archived Successfully!")
+
+    # =====================================================
+    # PDF + WHATSAPP
+    # =====================================================
+    crep1, crep2 = st.columns(2)
+
+    with crep1:
+        if st.button("📄 GENERATE PRO PDF", use_container_width=True):
+            pdf_bytes = create_downloadable_pdf(
+                branch,
+                st.session_state.get("user"),
+                str(date.today()),
+                sys_sales,
+                ex_val,
+                f"{ex_cat}: {ex_note}",
+                diff,
+            )
+            st.download_button(
+                "📥 Download Official Report",
+                pdf_bytes,
+                f"NMS_Pro_{date.today()}.pdf"
+            )
+
+    with crep2:
+        url = f"https://wa.me/{MANAGER_PHONE}?text={urllib.parse.quote(wa_text)}"
+        st.markdown(
+            f'<a href="{url}" target="_blank">'
+            f'<button style="width:100%; background-color:#25D366; color:white; '
+            f'border:none; padding:15px; border-radius:10px; cursor:pointer; '
+            f'font-weight:bold; font-size:16px;">'
+            f'📱 SEND TO WHATSAPP</button></a>',
+            unsafe_allow_html=True
+        )
