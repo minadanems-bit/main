@@ -650,7 +650,50 @@ else:
                             - **المقص الكهربائي:** الالتزام التام بقواعد السلامة، يمنع وضع اليد قريباً من السكينة.
                             - **التكعيب:** تأكد من عدد الورق المناسب لحجم السلك (الحلزوني).
                             """)
-                
+
+            elif admin_choice == "🖨 Printer Management":
+            
+                st.subheader("🖨 Manage Printers")
+            
+                # عرض الطابعات الحالية
+                for name, ip in PRINTERS.items():
+            
+                    col1, col2, col3 = st.columns([2,2,1])
+            
+                    with col1:
+                        new_name = st.text_input("Printer Name", value=name, key=f"name_{name}")
+            
+                    with col2:
+                        new_ip = st.text_input("IP Address", value=ip, key=f"ip_{name}")
+            
+                    with col3:
+                        if st.button("❌ Delete", key=f"del_{name}"):
+                            PRINTERS.pop(name)
+                            save_db(db)
+                            st.rerun()
+            
+                    # زر تعديل
+                    if st.button("💾 Update Printer", key=f"update_{name}"):
+                        PRINTERS.pop(name)
+                        PRINTERS[new_name] = new_ip
+                        save_db(db)
+                        st.success("Updated!")
+                        st.rerun()
+            
+                st.divider()
+            
+                # ➕ إضافة برنتر جديدة
+                st.subheader("➕ Add New Printer")
+            
+                p_name = st.text_input("Printer Name")
+                p_ip = st.text_input("Printer IP")
+            
+                if st.button("Add Printer"):
+                    if p_name and p_ip:
+                        PRINTERS[p_name] = p_ip
+                        save_db(db)
+                        st.success("Printer Added!")
+                        st.rerun()
                     # 3. خدمة العملاء (الجانب السلوكي)
                     with tabs[2]:
                         st.markdown('<div class="section-header">🌟 فن التعامل مع الجمهور</div>', unsafe_allow_html=True)
