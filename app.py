@@ -43,6 +43,7 @@ def snmp_get(ip, oid):
             return None
 
         for varBind in varBinds:
+            print("SNMP VALUE:", varBind[1])
             return varBind[1]
     except:
         return None
@@ -774,14 +775,37 @@ if st.session_state.get("role") == "admin":
 
         save_db(restored_data)
         st.success("✅ تم استرجاع النسخة بنجاح")
-    # --- 6. Main Dashboard: DAILY OPERATIONS ---
-    st.title("📊 NMS ERP - Daily Operations")
-    m1, m2, m3, m4 = st.columns(4)
-    with m1: branch = st.selectbox("📍 Branch", db["branches"])
-    with m2: shift = st.selectbox("🕒 Shift", ["Morning", "Between", "Night"])
-    with m3: st.info(f"📅 {datetime.now().strftime('%Y-%m-%d')}")
-    with m4: st.info(f"👤 {st.session_state['user']}")
+# --- 6. Main Dashboard: DAILY OPERATIONS ---
+st.title("📊 NMS ERP - Daily Operations")
 
+# ✅ حفظ الفرع في session_state
+if "branch" not in st.session_state:
+    st.session_state["branch"] = db["branches"][0]
+
+if "shift" not in st.session_state:
+    st.session_state["shift"] = "Morning"
+
+m1, m2, m3, m4 = st.columns(4)
+
+with m1:
+    st.session_state["branch"] = st.selectbox(
+        "📍 Branch",
+        db["branches"],
+        index=db["branches"].index(st.session_state["branch"])
+    )
+
+with m2:
+    st.session_state["shift"] = st.selectbox(
+        "🕒 Shift",
+        ["Morning", "Between", "Night"],
+        index=["Morning", "Between", "Night"].index(st.session_state["shift"])
+    )
+
+with m3:
+    st.info(f"📅 {datetime.now().strftime('%Y-%m-%d')}")
+
+with m4:
+    st.info(f"👤 {st.session_state['user']}")
 # ========== LOGIN CHECK ==========
 if "user" not in st.session_state:
     show_login()
@@ -829,8 +853,26 @@ with tab1:
         st.markdown("#### 🔢 Printers Counters")
 
         # ✅ العرض مرة واحدة فقط هنا
-        if "printer_start" in st.session_state:
-            st.json(st.session_state["printer_start"])
+        from snmp_engine import get_kyocera_3010i_counters
+        
+        st.markdown("#### 🔢 Printers Counters")
+        
+        printer_ip = "192.168.1.120"  # أو خليه من قائمة طابعات
+        
+        try:
+            data = get_kyocera_3010i_counters(printer_ip)
+        
+            if data:
+                st.success("✅ Printer Connected")
+                st.json(data)
+        
+                # 🔥 تخزنهم في session علشان تستخدمهم في الحسابات
+                st.session_state["printer_start"] = data
+            else:
+                st.error("❌ Failed to fetch printer data")
+        
+        except Exception as e:
+            st.error(f"SNMP Error: {e}")
         else:
             st.info("No Scan Data Yet")
 
