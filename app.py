@@ -622,9 +622,14 @@ else:
     with m3: st.info(f"📅 {datetime.now().strftime('%Y-%m-%d')}")
     with m4: st.info(f"👤 {st.session_state['user']}")
 
+# ========== LOGIN CHECK ==========
+if "user" not in st.session_state:
+    show_login()
+    st.stop()
+
+# ========== MAIN SYSTEM ==========
 tab1, tab2, tab3 = st.tabs(["🟢 OPENING", "🔴 CLOSING", "📱 SOCIAL"])
 
-# --- TAB 1: OPENING ---
 with tab1:
 
     st.subheader("🌅 Opening Procedures")
