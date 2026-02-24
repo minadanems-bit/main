@@ -736,7 +736,7 @@ else:
                 # if st.session_state['page'] == 'training':
                 #     show_training_page()
     
- if st.session_state.get("role") == "admin":   
+if st.session_state.get("role") == "admin":   
     with st.expander("🧰 Backup Manager"):
         backup_folder = "backups"
         if not os.path.exists(backup_folder) or len(os.listdir(backup_folder)) == 0:
