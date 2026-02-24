@@ -736,6 +736,7 @@ else:
                 # if st.session_state['page'] == 'training':
                 #     show_training_page()
     
+ if st.session_state.get("role") == "admin":   
     with st.expander("🧰 Backup Manager"):
         backup_folder = "backups"
         if not os.path.exists(backup_folder) or len(os.listdir(backup_folder)) == 0:
@@ -751,7 +752,8 @@ else:
             with open(latest_path, "rb") as f:
                 st.download_button("📥 تحميل النسخة الاحتياطية", f, file_name=latest_file)
                 st.divider()
-    st.markdown("### ♻️ استرجاع نسخة قديمة")
+if st.session_state.get("role") == "admin":    
+     st.markdown("### ♻️ استرجاع نسخة قديمة")
 
     if not os.path.exists(backup_folder):
         os.makedirs(backup_folder)
