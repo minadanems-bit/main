@@ -173,65 +173,65 @@ def create_downloadable_pdf(branch, staff_name, date_str, sales, expenses, exp_n
     elements.append(fin_table)
     elements.append(Spacer(1, 20))
 
-# ==============================
-# 🖨️ Printers Analysis (3 Printers)
-# ==============================
-
-elements.append(Paragraph("🖨️ Printers Analysis", styles['Heading2']))
-kyo3010 = st.session_state.get("printer_diff", {}).get("Kyocera 3010i", {})
-xerox7835 = st.session_state.get("printer_diff", {}).get("Xerox 7835", {})
-p5031 = st.session_state.get("printer_diff", {}).get("Kyocera P5031DN", {})
-# --------- KYOCERA 3010i ----------
-k1 = kyo3010.get("1s", 0)
-k2 = kyo3010.get("2s", 0)
-kjam = kyo3010.get("jam", 0)
-
-# --------- XEROX 7835 ----------
-x1 = xerox7835.get("1s", 0)
-x2 = xerox7835.get("2s", 0)
-xjam = xerox7835.get("jam", 0)
-
-# --------- KYOCERA P5031DN ----------
-p1 = p5031.get("1s", 0)
-p2 = p5031.get("2s", 0)
-pjam = p5031.get("jam", 0)
-
-prn_data = [
-    ["Machine", "Total Used", "Paper Jam", "1-Sided", "2-Sided"],
+    # ==============================
+    # 🖨️ Printers Analysis (3 Printers)
+    # ==============================
     
-    [
-        "Kyocera 3010i",
-        k1 + k2,
-        kjam,
-        k1,
-        k2
-    ],
-
-    [
-        "Xerox 7835",
-        x1 + x2,
-        xjam,
-        x1,
-        x2
-    ],
-
-    [
-        "Kyocera P5031DN",
-        p1 + p2,
-        pjam,
-        p1,
-        p2
+    elements.append(Paragraph("🖨️ Printers Analysis", styles['Heading2']))
+    kyo3010 = st.session_state.get("printer_diff", {}).get("Kyocera 3010i", {})
+    xerox7835 = st.session_state.get("printer_diff", {}).get("Xerox 7835", {})
+    p5031 = st.session_state.get("printer_diff", {}).get("Kyocera P5031DN", {})
+    # --------- KYOCERA 3010i ----------
+    k1 = kyo3010.get("1s", 0)
+    k2 = kyo3010.get("2s", 0)
+    kjam = kyo3010.get("jam", 0)
+    
+    # --------- XEROX 7835 ----------
+    x1 = xerox7835.get("1s", 0)
+    x2 = xerox7835.get("2s", 0)
+    xjam = xerox7835.get("jam", 0)
+    
+    # --------- KYOCERA P5031DN ----------
+    p1 = p5031.get("1s", 0)
+    p2 = p5031.get("2s", 0)
+    pjam = p5031.get("jam", 0)
+    
+    prn_data = [
+        ["Machine", "Total Used", "Paper Jam", "1-Sided", "2-Sided"],
+        
+        [
+            "Kyocera 3010i",
+            k1 + k2,
+            kjam,
+            k1,
+            k2
+        ],
+    
+        [
+            "Xerox 7835",
+            x1 + x2,
+            xjam,
+            x1,
+            x2
+        ],
+    
+        [
+            "Kyocera P5031DN",
+            p1 + p2,
+            pjam,
+            p1,
+            p2
+        ]
     ]
-]
-
-prn_table = Table(prn_data, colWidths=[2*inch, 1.5*inch, 1.5*inch, 2*inch, 2*inch])
-
-prn_table.setStyle(TableStyle([
-    ('BACKGROUND', (0,0), (-1,0), colors.darkred),
-    ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
-    ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-    ('GRID', (0,0), (-1,-1), 1, colors.black)
-]))
+    
+    prn_table = Table(prn_data, colWidths=[2*inch, 1.5*inch, 1.5*inch, 2*inch, 2*inch])
+    
+    prn_table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.darkred),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('GRID', (0,0), (-1,-1), 1, colors.black)
+    ]))
 
     elements.append(prn_table)
     elements.append(Spacer(1, 20))
