@@ -622,8 +622,7 @@ else:
     with m3: st.info(f"📅 {datetime.now().strftime('%Y-%m-%d')}")
     with m4: st.info(f"👤 {st.session_state['user']}")
 
-    tab1, tab2, tab3 = st.tabs(["🟢 OPENING", "🔴 CLOSING", "📱 SOCIAL"])
-
+tab1, tab2, tab3 = st.tabs(["🟢 OPENING", "🔴 CLOSING", "📱 SOCIAL"])
 # --- TAB 1: OPENING ---
 with tab1:
 
