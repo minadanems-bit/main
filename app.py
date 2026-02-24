@@ -736,35 +736,44 @@ else:
                 # if st.session_state['page'] == 'training':
                 #     show_training_page()
     
-if st.session_state.get("role") == "admin":   
+if st.session_state.get("role") == "admin":
+
     with st.expander("🧰 Backup Manager"):
         backup_folder = "backups"
+
         if not os.path.exists(backup_folder) or len(os.listdir(backup_folder)) == 0:
             st.warning("لا توجد نسخ احتياطية حتى الآن.")
+
         else:
-            # ترتيب الملفات حسب التاريخ الأحدث
             backup_files = sorted(os.listdir(backup_folder), reverse=True)
             latest_file = backup_files[0]
             latest_path = os.path.join(backup_folder, latest_file)
-    
+
             st.info(f"🕒 أحدث نسخة: {latest_file}")
-    
+
             with open(latest_path, "rb") as f:
-                st.download_button("📥 تحميل النسخة الاحتياطية", f, file_name=latest_file)
-                st.divider()
-if st.session_state.get("role") == "admin":    
-     st.markdown("### ♻️ استرجاع نسخة قديمة")
+                st.download_button("📥 تحميل النسخة الاحتياطية",
+                                   f,
+                                   file_name=latest_file)
+
+    # ✅ ده بره expander لكن جوه admin
+    st.markdown("### ♻️ استرجاع نسخة قديمة")
 
     if not os.path.exists(backup_folder):
         os.makedirs(backup_folder)
 
-    restore_file = st.selectbox("اختر نسخة احتياطية", os.listdir(backup_folder))
+    restore_file = st.selectbox(
+        "اختر نسخة احتياطية",
+        os.listdir(backup_folder)
+    )
+
     if st.button("♻️ استرجاع النسخة المحددة"):
         selected_path = os.path.join(backup_folder, restore_file)
         with open(selected_path, "r", encoding="utf-8") as f:
             restored_data = json.load(f)
+
         save_db(restored_data)
-        st.success("✅ تم استرجاع النسخة بنجاح. برجاء إعادة تحميل الصفحة.")
+        st.success("✅ تم استرجاع النسخة بنجاح")
     # --- 6. Main Dashboard: DAILY OPERATIONS ---
     st.title("📊 NMS ERP - Daily Operations")
     m1, m2, m3, m4 = st.columns(4)
