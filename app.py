@@ -15,6 +15,53 @@ from reportlab.lib.units import inch
 # --- 1. إعدادات قاعدة البيانات (Database Configuration) ---
 from database import load_db, save_db, MANAGER_PHONE
 db = load_db()
+# ===============================
+# PRINTER CONFIG
+# ===============================
+
+PRINTERS = {
+    "Kyocera 3010i": "192.168.1.120",
+    "Xerox 7835": "192.168.1.65",
+    "Kyocera P5031DN": "192.168.1.126"
+}
+
+from pysnmp.hlapi import *
+
+def snmp_get(ip, oid):
+    try:
+        iterator = getCmd(
+            SnmpEngine(),
+            CommunityData('public', mpModel=0),
+            UdpTransportTarget((ip, 161), timeout=3, retries=1),
+            ContextData(),
+            ObjectType(ObjectIdentity(oid))
+        )
+
+        errorIndication, errorStatus, errorIndex, varBinds = next(iterator)
+
+        if errorIndication or errorStatus:
+            return None
+
+        for varBind in varBinds:
+            return varBind[1]
+    except:
+        return None
+
+
+def scan_all_printers():
+    results = {}
+
+    for name, ip in PRINTERS.items():
+        data = {}
+
+        # أهم عدادات
+        data["Total Pages"] = snmp_get(ip, "1.3.6.1.2.1.43.10.2.1.4.1.1")
+        data["Toner Level"] = snmp_get(ip, "1.3.6.1.2.1.43.11.1.1.9.1.1")
+        data["Status"] = snmp_get(ip, "1.3.6.1.2.1.25.3.2.1.5.1")
+
+        results[name] = data
+
+    return results
 
 # --- 2. Advanced PDF Generation (تقرير شامل) ---
 def create_downloadable_pdf(branch, staff_name, date_str, sales, expenses, exp_note, diff, kyo_data, xerox_data, opay_move, debit_v22):
@@ -562,6 +609,18 @@ else:
 
         with c_c3:
             st.markdown("#### 🖨️ Printers Detail")
+            st.divider()
+            if st.button("📡 Scan Printers Now"):
+                scan_result = scan_all_printers()
+                def auto_scan_and_attach_to_shift():
+                    try:
+                        printer_data = scan_all_printers()
+                        return printer_data
+                    except:
+                        return {}
+                st.session_state["printer_scan"] = scan_result
+                st.success("✅ Scan Completed")
+                st.json(scan_result)
             st.info("Kyocera")
             ke = st.number_input("Kyo End", step=1, key="ke")
             k1s = st.number_input("1-Sided", step=1, key="k1s_v")
@@ -675,6 +734,9 @@ else:
 
         # --- Footer Action Buttons ---
         if st.button("💾 ARCHIVE SHIFT & DATA", use_container_width=True):
+
+            printer_snapshot = auto_scan_and_attach_to_shift()
+
             db["history"].append({
                 "date": str(date.today()), 
                 "branch": branch, 
@@ -684,12 +746,16 @@ else:
                 "kyo_jam": st.session_state.get('kj_v', 0), 
                 "xerox_jam": st.session_state.get('xj_v', 0), 
                 "expenses": ex_val,
-                "exp_note": f"{ex_cat}: {ex_note}"
+                "exp_note": f"{ex_cat}: {ex_note}",
+                "printer_snapshot": printer_snapshot   # 🔥 أهم سطر جديد
             })
-            if st.session_state['user'] in db["drafts"]: 
+
+            if st.session_state['user'] in db["drafts"]:
                 del db["drafts"][st.session_state['user']]
+        
             save_db(db)
-            st.success("Shift Archived Successfully!")
+        
+            st.success("✅ Shift Archived + Printers Auto Scanned!")
 
         crep1, crep2 = st.columns(2)
         with crep1:
