@@ -271,22 +271,22 @@ def calculate_printer_difference():
             end_data = end.get(printer_ip, {})
 
             # تجنب الكراش لو مفيش بيانات
-            start_total = start_data.get("total_pages", 0)
+            start_total = start_data.get("Total Pages", 0)
             end_total = end_data.get("total_pages", 0)
 
-            start_a4 = start_data.get("a4", 0)
+            start_a4 = start_data.get("A4 Pages", 0)
             end_a4 = end_data.get("a4", 0)
 
-            start_a3 = start_data.get("a3", 0)
+            start_a3 = start_data.get("A3 Pages", 0)
             end_a3 = end_data.get("a3", 0)
 
-            start_a5 = start_data.get("a5", 0)
+            start_a5 = start_data.get("A5 Pages", 0)
             end_a5 = end_data.get("a5", 0)
 
-            start_scanner = start_data.get("scanner", 0)
+            start_scanner = start_data.get("Scanner Count", 0)
             end_scanner = end_data.get("scanner", 0)
 
-            start_jam = start_data.get("jam", 0)
+            start_jam = start_data.get("Jam Count", 0)
             end_jam = end_data.get("jam", 0)
 
             result[printer_ip] = {
@@ -859,17 +859,9 @@ with tab1:
     
         st.markdown("#### 🔢 Printers Live Scan")
     
-        results = {}
-    
-        for name, ip in PRINTERS.items():
-            try:
-                data = scan_all_printers()  # أو حط scan_printer(ip) لو عندك
-                results[name] = data
-            except Exception as e:
-                results[name] = {"error": str(e)}
-    
+        results = scan_all_printers()
         st.session_state["printer_start"] = results
-    
+
         st.json(results)
     
         st.divider()
