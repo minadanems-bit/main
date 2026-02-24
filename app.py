@@ -563,9 +563,19 @@ else:
             t_open += o_coins
             st.success(f"**Total Opening: {t_open:,.2f} LE**")
         with c_o3:
-            st.markdown("#### 🔢 Initial Counters")
-            ks = st.number_input("Kyocera Start", step=1, key="ks", on_change=sync_draft)
-            xs = st.number_input("Xerox Start", step=1, key="xs", on_change=sync_draft)
+            st.markdown("#### 🔢 Printers Counters")
+            st.divider()
+            if st.button("📡 Scan Printers Now"):
+                scan_result = scan_all_printers()
+                def auto_scan_and_attach_to_shift():
+                    try:
+                        printer_data = scan_all_printers()
+                        return printer_data
+                    except:
+                        return {}
+                st.session_state["printer_scan"] = scan_result
+                st.success("✅ Scan Completed")
+                st.json(scan_result)
             ops = st.number_input("Opay Start Balance", step=0.01, key="ops", on_change=sync_draft)
             u10 = st.number_input("Debit", step=1.0, key="u10_val", on_change=sync_draft)
 
@@ -621,17 +631,6 @@ else:
                 st.session_state["printer_scan"] = scan_result
                 st.success("✅ Scan Completed")
                 st.json(scan_result)
-            st.info("Kyocera")
-            ke = st.number_input("Kyo End", step=1, key="ke")
-            k1s = st.number_input("1-Sided", step=1, key="k1s_v")
-            k2s = st.number_input("2-Sided", step=1, key="k2s_v")
-            kj = st.number_input("⚠️ Paper Jam", step=1, key="kj_v", on_change=sync_draft)
-            
-            st.info("Xerox")
-            xe = st.number_input("Xerox End", step=1, key="xe")
-            x1s = st.number_input("1-Sided", step=1, key="x1s_v")
-            x2s = st.number_input("2-Sided", step=1, key="x2s_v")
-            xj = st.number_input("⚠️ Paper Jam", step=1, key="xj_v", on_change=sync_draft)
             
             st.divider()
             ope = st.number_input("Opay End Balance", step=0.01, key="ope")
