@@ -87,6 +87,35 @@ def scan_all_printers():
         results[name] = data
 
     return results
+    def auto_scan_and_attach_to_shift():
+    """
+    تعمل Scan تلقائي للطابعات
+    وتحفظ القراءة كبداية ونهاية
+    وترجع Snapshot للتخزين في History
+    """
+
+    try:
+        result = scan_all_printers()
+
+        # نحفظها كنهاية شفت
+        st.session_state["printer_end"] = result
+
+        # لو مفيش بداية شفت متسجلة
+        if "printer_start" not in st.session_state:
+            st.session_state["printer_start"] = result
+
+        # نحسب الفرق
+        diff = calculate_printer_difference()
+        st.session_state["printer_diff"] = diff
+
+        return {
+            "start": st.session_state.get("printer_start"),
+            "end": st.session_state.get("printer_end"),
+            "difference": diff
+        }
+
+    except Exception as e:
+        return {"error": str(e)}
 
 # --- 2. Advanced PDF Generation (تقرير شامل) ---
 def create_downloadable_pdf(branch, staff_name, date_str, sales, expenses, exp_note, diff, kyo_data, xerox_data, opay_move, debit_v22):
