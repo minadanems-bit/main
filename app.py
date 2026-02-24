@@ -236,9 +236,8 @@ prn_table.setStyle(TableStyle([
 elements.append(prn_table)
 elements.append(Spacer(1, 20))
     
-
-    doc.build(elements)
-    return buffer.getvalue()
+doc.build(elements)
+return buffer.getvalue()
 
 def calculate_printer_difference():
     """
