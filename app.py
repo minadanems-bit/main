@@ -234,14 +234,6 @@ prn_table.setStyle(TableStyle([
 elements.append(prn_table)
 elements.append(Spacer(1, 20))
     
-    prn_table = Table(prn_data, colWidths=[2*inch, 1.5*inch, 1.5*inch, 2*inch, 2*inch])
-    prn_table.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.darkred),
-        ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
-        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-        ('GRID', (0,0), (-1,-1), 1, colors.black)
-    ]))
-    elements.append(prn_table)
 
     doc.build(elements)
     return buffer.getvalue()
