@@ -235,16 +235,20 @@ prn_table.setStyle(TableStyle([
 
 elements.append(prn_table)
 elements.append(Spacer(1, 20))
-    
+
 doc.build(elements)
 return buffer.getvalue()
+
+
+# ==============================
+# وظيفة مستقلة — مش جوه الفنكشن
+# ==============================
 
 def calculate_printer_difference():
     """
     تحسب الفرق بين عدادات بداية الشفت ونهايته لكل الطابعات
     وترجع الاستخدام الفعلي + الأخطاء + الحشر
     """
-
     start = st.session_state.get("printer_start", {})
     end = st.session_state.get("printer_end", {})
 
