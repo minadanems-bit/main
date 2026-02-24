@@ -234,23 +234,49 @@ def sync_draft():
 
 # --- 4. Login Screen ---
 if not st.session_state['logged_in']:
+
     st.title("🔐 NMS Enterprise Access")
-    c1, c2 = st.columns(2)
-    with c1:
-        if db.get("logo"): st.image(base64.b64decode(db["logo"]), width=350)
-        else: st.info("ℹ️ Upload Company Logo in Admin Panel")
+
+    c1, c2, c3 = st.columns([1,2,1])
+
     with c2:
         st.write("### 🔑 Secure Login")
+
         u = st.selectbox("Select Your Account", list(db["users"].keys()))
         p = st.text_input("Enter Password", type="password")
+
         if st.button("🚀 Login", use_container_width=True):
-            if u in db["users"] and "pass" in db["users"][u] and db["users"][u]["pass"] == p:
-                st.session_state.update({'logged_in': True, 'user': u, 'role': db["users"][u]["role"]})
+            if (
+                u in db["users"]
+                and "pass" in db["users"][u]
+                and db["users"][u]["pass"] == p
+            ):
+                st.session_state.update({
+                    'logged_in': True,
+                    'user': u,
+                    'role': db["users"][u]["role"]
+                })
+
                 if u in db.get("drafts", {}):
-                    for key, val in db["drafts"][u].items(): st.session_state[key] = val
-                db["logs"].append({"user": u, "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "action": "Login"})
-                save_db(db); st.rerun()
-            else: st.error("❌ Access Denied")
+                    for key, val in db["drafts"][u].items():
+                        st.session_state[key] = val
+
+                db["logs"].append({
+                    "user": u,
+                    "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "action": "Login"
+                })
+
+                save_db(db)
+                st.rerun()
+            else:
+                st.error("❌ Access Denied")
+
+    st.stop()   # 🔥 هنا بس تحطه
+
+# =========================
+# من هنا يبدأ النظام بعد تسجيل الدخول
+# =========================
 
 else:
     # --- 5. Sidebar System ---
