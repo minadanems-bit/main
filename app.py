@@ -1,4 +1,5 @@
 import streamlit as st
+from snmp_engine import get_kyocera_3010i_counters
 import pandas as pd
 from datetime import datetime, date
 import json
@@ -853,9 +854,6 @@ with tab1:
         st.markdown("#### 🔢 Printers Counters")
 
         # ✅ العرض مرة واحدة فقط هنا
-    from snmp_engine import get_kyocera_3010i_counters
-        
-        st.markdown("#### 🔢 Printers Counters")
         
         printer_ip = "192.168.1.120"  # أو خليه من قائمة طابعات
         
