@@ -78,16 +78,19 @@ def scan_all_printers():
         # ===============================
         data["Scanner Count"] = snmp_get(ip, "1.3.6.1.4.1.1347.42.2.1.1.1")
 
-        # ===============================
-        # Errors & Jams
-        # ===============================
         data["Jam Count"] = snmp_get(ip, "1.3.6.1.2.1.43.18.1.1.8.1")
         data["Error Count"] = snmp_get(ip, "1.3.6.1.2.1.25.3.5.1.2.1")
 
         results[name] = data
 
     return results
-    def auto_scan_and_attach_to_shift():
+
+
+# ==========================================
+# ✅ الدالة دي لازم تكون برا الدالة اللي فوق
+# ==========================================
+
+def auto_scan_and_attach_to_shift():
     """
     تعمل Scan تلقائي للطابعات
     وتحفظ القراءة كبداية ونهاية
@@ -97,14 +100,11 @@ def scan_all_printers():
     try:
         result = scan_all_printers()
 
-        # نحفظها كنهاية شفت
         st.session_state["printer_end"] = result
 
-        # لو مفيش بداية شفت متسجلة
         if "printer_start" not in st.session_state:
             st.session_state["printer_start"] = result
 
-        # نحسب الفرق
         diff = calculate_printer_difference()
         st.session_state["printer_diff"] = diff
 
@@ -116,7 +116,6 @@ def scan_all_printers():
 
     except Exception as e:
         return {"error": str(e)}
-
 # --- 2. Advanced PDF Generation (تقرير شامل) ---
 def create_downloadable_pdf(branch, staff_name, date_str, sales, expenses, exp_note, diff, kyo_data, xerox_data, opay_move, debit_v22):
     buffer = io.BytesIO()
