@@ -52,12 +52,37 @@ def scan_all_printers():
     results = {}
 
     for name, ip in PRINTERS.items():
+
         data = {}
 
-        # أهم عدادات
+        # ===============================
+        # Counters
+        # ===============================
         data["Total Pages"] = snmp_get(ip, "1.3.6.1.2.1.43.10.2.1.4.1.1")
-        data["Toner Level"] = snmp_get(ip, "1.3.6.1.2.1.43.11.1.1.9.1.1")
-        data["Status"] = snmp_get(ip, "1.3.6.1.2.1.25.3.2.1.5.1")
+
+        # ===============================
+        # Paper Sizes (حسب دعم الموديل)
+        # ===============================
+        data["A4 Pages"] = snmp_get(ip, "1.3.6.1.2.1.43.10.2.1.4.1.2")
+        data["A3 Pages"] = snmp_get(ip, "1.3.6.1.2.1.43.10.2.1.4.1.3")
+        data["A5 Pages"] = snmp_get(ip, "1.3.6.1.2.1.43.10.2.1.4.1.4")
+
+        # ===============================
+        # Duplex
+        # ===============================
+        data["One Sided"] = snmp_get(ip, "1.3.6.1.2.1.43.10.2.1.4.1.5")
+        data["Two Sided"] = snmp_get(ip, "1.3.6.1.2.1.43.10.2.1.4.1.6")
+
+        # ===============================
+        # Scanner
+        # ===============================
+        data["Scanner Count"] = snmp_get(ip, "1.3.6.1.4.1.1347.42.2.1.1.1")
+
+        # ===============================
+        # Errors & Jams
+        # ===============================
+        data["Jam Count"] = snmp_get(ip, "1.3.6.1.2.1.43.18.1.1.8.1")
+        data["Error Count"] = snmp_get(ip, "1.3.6.1.2.1.25.3.5.1.2.1")
 
         results[name] = data
 
@@ -139,6 +164,7 @@ def create_downloadable_pdf(branch, staff_name, date_str, sales, expenses, exp_n
     doc.build(elements)
     return buffer.getvalue()
 
+def calculate_printer_difference():
 # --- 3. Session Setup ---
 st.set_page_config(page_title="NMS ERP Platinum", layout="wide", page_icon="🚀")
 
@@ -546,98 +572,177 @@ else:
 
     tab1, tab2, tab3 = st.tabs(["🟢 OPENING", "🔴 CLOSING", "📱 SOCIAL"])
 
-    # --- TAB 1: OPENING ---
-    with tab1:
-        st.subheader("🌅 Opening Procedures")
-        c_o1, c_o2, c_o3 = st.columns([1, 1.5, 1.5])
-        with c_o1:
-            st.markdown("#### ✅ Opening Tasks")
-            for t in db["tasks"]["opening"]: st.checkbox(t, key=f"s_{t}", on_change=sync_draft)
-        with c_o2:
-            st.markdown("#### 💵 Cash Denominations (Opening)")
-            t_open = 0.0
-            for d in [200, 100, 50, 20, 10, 5]:
-                v = st.number_input(f"{d} LE", min_value=0, step=1, key=f"o_{d}", on_change=sync_draft)
-                t_open += (v * d)
-            o_coins = st.number_input("Coins", step=0.5, key="o_coins", on_change=sync_draft)
-            t_open += o_coins
-            st.success(f"**Total Opening: {t_open:,.2f} LE**")
-        with c_o3:
-            st.markdown("#### 🔢 Printers Counters")
-            st.divider()
-            if st.button("📡 Scan Printers Now"):
-                scan_result = scan_all_printers()
-                def auto_scan_and_attach_to_shift():
-                    try:
-                        printer_data = scan_all_printers()
-                        return printer_data
-                    except:
-                        return {}
-                st.session_state["printer_scan"] = scan_result
-                st.success("✅ Scan Completed")
-                st.json(scan_result)
-            ops = st.number_input("Opay Start Balance", step=0.01, key="ops", on_change=sync_draft)
-            u10 = st.number_input("Debit", step=1.0, key="u10_val", on_change=sync_draft)
+# --- TAB 1: OPENING ---
+with tab1:
 
-    # --- TAB 2: CLOSING ---
-    with tab2:
-        st.subheader("🌇 Closing Procedures")
-        c_c1, c_c2, c_c3 = st.columns([1, 1.5, 1.5])
-        with c_c1:
-            st.markdown("#### ✅ Closing Tasks")
-            for t in db["tasks"]["closing"]: st.checkbox(t, key=f"e_{t}", on_change=sync_draft)
-            st.divider()
-            st.markdown("#### 💳 System & Payments")
-            sys_sales = st.number_input("💻 System Sales", step=1.0, key="c_sys_sales", on_change=sync_draft)
-            insta = st.number_input("📱 Instapay", step=1.0, key="c_insta", on_change=sync_draft)
-            wall = st.number_input("👛 Wallet (VF/Etisalat)", step=1.0, key="c_wall", on_change=sync_draft)
-            visa = st.number_input("💳 Visa", step=1.0, key="c_visa", on_change=sync_draft)
-            v22 = st.number_input("📉 Debit", step=1.0, key="v22_val", on_change=sync_draft)
-            t_digital = insta + wall + visa
-        with c_c2:
-            st.markdown("#### 💵 Cash Denominations (Closing)")
-            t_close = 0.0
-            for d in [200, 100, 50, 20, 10, 5]:
-                v = st.number_input(f"{d} LE ", min_value=0, step=1, key=f"c_{d}", on_change=sync_draft)
-                t_close += (v * d)
-            c_coins = st.number_input("Closing Coins ", step=0.5, key="c_coins", on_change=sync_draft)
-            t_close += c_coins
-            
-            st.divider()
-            st.markdown("#### 💸 Expenses Detail")
-            ex_cat = st.selectbox("Category", db["expense_categories"], key="ex_cat")
-            ex_val = st.number_input("Amount", step=1.0, key="ex_val")
-            ex_note = st.text_input("Details / Reason", key="ex_note")
-            
-            # CORE MATH
-            expected = t_open + sys_sales + u10 - ex_val - v22 - t_digital
-            diff = t_close - expected
-            st.metric("Expected Drawer", f"{expected:,.2f} LE")
-            if abs(diff) < 0.1: st.success("✨ Perfect Match!")
-            elif diff > 0: st.warning(f"➕ Surplus: {diff:,.2f}")
-            else: st.error(f"➖ Shortage: {diff:,.2f}")
+    st.subheader("🌅 Opening Procedures")
 
-        with c_c3:
-            st.markdown("#### 🖨️ Printers Detail")
-            st.divider()
-            if st.button("📡 Scan Printers Now"):
-                scan_result = scan_all_printers()
-                def auto_scan_and_attach_to_shift():
-                    try:
-                        printer_data = scan_all_printers()
-                        return printer_data
-                    except:
-                        return {}
-                st.session_state["printer_scan"] = scan_result
-                st.success("✅ Scan Completed")
-                st.json(scan_result)
-            
-            st.divider()
-            ope = st.number_input("Opay End Balance", step=0.01, key="ope")
-            st.write(f"📉 Opay Used: {ops - ope:,.2f}")
-            
-            st.text_area("📝 Draft Notes / Handover", key="dn_notes", on_change=sync_draft)
+    # ✅ Scan Button
+    if st.button("📡 Scan Printers Now - OPENING", key="scan_open"):
+        try:
+            result = scan_all_printers()
+            st.session_state["printer_start"] = result
+            st.success("✅ Printers Scanned Successfully")
+            st.json(result)
+        except Exception as e:
+            st.error(f"Scan Failed: {e}")
 
+    c_o1, c_o2, c_o3 = st.columns([1, 1.5, 1.5])
+
+    with c_o1:
+        st.markdown("#### ✅ Opening Tasks")
+        for t in db["tasks"]["opening"]:
+            st.checkbox(t, key=f"s_{t}", on_change=sync_draft)
+
+    with c_o2:
+        st.markdown("#### 💵 Cash Denominations (Opening)")
+        t_open = 0.0
+        for d in [200, 100, 50, 20, 10, 5]:
+            v = st.number_input(f"{d} LE", min_value=0, step=1,
+                                key=f"o_{d}", on_change=sync_draft)
+            t_open += (v * d)
+
+        o_coins = st.number_input("Coins", step=0.5,
+                                  key="o_coins", on_change=sync_draft)
+        t_open += o_coins
+
+        st.success(f"**Total Opening: {t_open:,.2f} LE**")
+
+    with c_o3:
+        st.markdown("#### 🔢 Printers Counters")
+
+        if "printer_start" in st.session_state:
+            st.json(st.session_state["printer_start"])
+        else:
+            st.info("No Scan Data Yet")
+
+        ops = st.number_input("Opay Start Balance",
+                              step=0.01,
+                              key="ops",
+                              on_change=sync_draft)
+
+        u10 = st.number_input("Debit",
+                              step=1.0,
+                              key="u10_val",
+                              on_change=sync_draft)
+
+
+# --- TAB 2: CLOSING ---
+with tab2:
+
+    st.subheader("🌇 Closing Procedures")
+
+    # ✅ Scan Button داخل التاب
+    if st.button("📡 Scan Printers Now - CLOSING", key="scan_close"):
+        try:
+            result = scan_all_printers()
+            st.session_state["printer_end"] = result
+            st.success("✅ Printers Scanned Successfully")
+            st.json(result)
+        except Exception as e:
+            st.error(f"Scan Failed: {e}")
+
+    c_c1, c_c2, c_c3 = st.columns([1, 1.5, 1.5])
+
+    with c_c1:
+        st.markdown("#### ✅ Closing Tasks")
+        for t in db["tasks"]["closing"]:
+            st.checkbox(t, key=f"e_{t}", on_change=sync_draft)
+
+        st.divider()
+
+        st.markdown("#### 💳 System & Payments")
+        sys_sales = st.number_input("💻 System Sales",
+                                   step=1.0,
+                                   key="c_sys_sales",
+                                   on_change=sync_draft)
+
+        insta = st.number_input("📱 Instapay",
+                                step=1.0,
+                                key="c_insta",
+                                on_change=sync_draft)
+
+        wall = st.number_input("👛 Wallet",
+                               step=1.0,
+                               key="c_wall",
+                               on_change=sync_draft)
+
+        visa = st.number_input("💳 Visa",
+                               step=1.0,
+                               key="c_visa",
+                               on_change=sync_draft)
+
+        v22 = st.number_input("📉 Debit",
+                              step=1.0,
+                              key="v22_val",
+                              on_change=sync_draft)
+
+        t_digital = insta + wall + visa
+
+    with c_c2:
+
+        st.markdown("#### 💵 Cash Denominations (Closing)")
+        t_close = 0.0
+
+        for d in [200, 100, 50, 20, 10, 5]:
+            v = st.number_input(f"{d} LE ",
+                                min_value=0,
+                                step=1,
+                                key=f"c_{d}",
+                                on_change=sync_draft)
+            t_close += (v * d)
+
+        c_coins = st.number_input("Closing Coins",
+                                  step=0.5,
+                                  key="c_coins",
+                                  on_change=sync_draft)
+
+        t_close += c_coins
+
+        st.divider()
+
+        st.markdown("#### 💸 Expenses Detail")
+        ex_cat = st.selectbox("Category",
+                              db["expense_categories"],
+                              key="ex_cat")
+
+        ex_val = st.number_input("Amount",
+                                 step=1.0,
+                                 key="ex_val")
+
+        ex_note = st.text_input("Details / Reason",
+                                key="ex_note")
+
+        expected = t_open + sys_sales + u10 - ex_val - v22 - t_digital
+        diff = t_close - expected
+
+        st.metric("Expected Drawer", f"{expected:,.2f} LE")
+
+        if abs(diff) < 0.1:
+            st.success("✨ Perfect Match!")
+        elif diff > 0:
+            st.warning(f"➕ Surplus: {diff:,.2f}")
+        else:
+            st.error(f"➖ Shortage: {diff:,.2f}")
+
+    with c_c3:
+
+        st.markdown("#### 🖨️ Printers Detail")
+
+        if "printer_end" in st.session_state:
+            st.json(st.session_state["printer_end"])
+        else:
+            st.info("Scan in Closing to see data")
+
+        ope = st.number_input("Opay End Balance",
+                              step=0.01,
+                              key="ope")
+
+        st.write(f"📉 Opay Used: {ops - ope:,.2f}")
+
+        st.text_area("📝 Draft Notes / Handover",
+                     key="dn_notes",
+                     on_change=sync_draft)
     # --- TAB 3: SOCIAL ---
     with tab3:
         st.subheader("📱 Marketing & Finalization")
