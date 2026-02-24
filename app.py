@@ -178,7 +178,9 @@ def create_downloadable_pdf(branch, staff_name, date_str, sales, expenses, exp_n
 # ==============================
 
 elements.append(Paragraph("🖨️ Printers Analysis", styles['Heading2']))
-
+kyo3010 = st.session_state.get("printer_diff", {}).get("Kyocera 3010i", {})
+xerox7835 = st.session_state.get("printer_diff", {}).get("Xerox 7835", {})
+p5031 = st.session_state.get("printer_diff", {}).get("Kyocera P5031DN", {})
 # --------- KYOCERA 3010i ----------
 k1 = kyo3010.get("1s", 0)
 k2 = kyo3010.get("2s", 0)
