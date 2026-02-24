@@ -165,6 +165,58 @@ def create_downloadable_pdf(branch, staff_name, date_str, sales, expenses, exp_n
     return buffer.getvalue()
 
 def calculate_printer_difference():
+    """
+    تحسب الفرق بين عدادات بداية الشفت ونهايته لكل الطابعات
+    وترجع الاستخدام الفعلي + الأخطاء + الحشر
+    """
+
+    start = st.session_state.get("printer_start", {})
+    end = st.session_state.get("printer_end", {})
+
+    if not start or not end:
+        return {}
+
+    result = {}
+
+    for printer_ip in start:
+
+        try:
+            start_data = start.get(printer_ip, {})
+            end_data = end.get(printer_ip, {})
+
+            # تجنب الكراش لو مفيش بيانات
+            start_total = start_data.get("total_pages", 0)
+            end_total = end_data.get("total_pages", 0)
+
+            start_a4 = start_data.get("a4", 0)
+            end_a4 = end_data.get("a4", 0)
+
+            start_a3 = start_data.get("a3", 0)
+            end_a3 = end_data.get("a3", 0)
+
+            start_a5 = start_data.get("a5", 0)
+            end_a5 = end_data.get("a5", 0)
+
+            start_scanner = start_data.get("scanner", 0)
+            end_scanner = end_data.get("scanner", 0)
+
+            start_jam = start_data.get("jam", 0)
+            end_jam = end_data.get("jam", 0)
+
+            result[printer_ip] = {
+                "total_used": end_total - start_total,
+                "a4_used": end_a4 - start_a4,
+                "a3_used": end_a3 - start_a3,
+                "a5_used": end_a5 - start_a5,
+                "scanner_used": end_scanner - start_scanner,
+                "jam_diff": end_jam - start_jam
+            }
+
+        except Exception as e:
+            result[printer_ip] = {"error": str(e)}
+
+    return result
+    
 # --- 3. Session Setup ---
 st.set_page_config(page_title="NMS ERP Platinum", layout="wide", page_icon="🚀")
 
@@ -639,6 +691,12 @@ with tab2:
             st.session_state["printer_end"] = result
             st.success("✅ Printers Scanned Successfully")
             st.json(result)
+                # ✅ بعد ما تعمل سكان - احسب الفرق تلقائي
+            printer_diff = calculate_printer_difference()
+            st.session_state["printer_diff"] = printer_diff
+        
+            st.markdown("### 📊 Printer Difference (Auto Calculated)")
+            st.json(printer_diff)
         except Exception as e:
             st.error(f"Scan Failed: {e}")
 
