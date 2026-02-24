@@ -233,11 +233,11 @@ prn_table.setStyle(TableStyle([
     ('GRID', (0,0), (-1,-1), 1, colors.black)
 ]))
 
-elements.append(prn_table)
-elements.append(Spacer(1, 20))
-
-doc.build(elements)
-return buffer.getvalue()
+    elements.append(prn_table)
+    elements.append(Spacer(1, 20))
+    
+    doc.build(elements)
+    return buffer.getvalue()
 
 
 # ==============================
