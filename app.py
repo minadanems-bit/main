@@ -1,5 +1,4 @@
 import streamlit as st
-from snmp_engine import get_kyocera_3010i_counters
 import pandas as pd
 from datetime import datetime, date
 import json
@@ -180,9 +179,11 @@ def create_downloadable_pdf(branch, staff_name, date_str, sales, expenses, exp_n
     # ==============================
     
     elements.append(Paragraph("🖨️ Printers Analysis", styles['Heading2']))
-    kyo3010 = st.session_state.get("printer_diff", {}).get("Kyocera 3010i", {})
-    xerox7835 = st.session_state.get("printer_diff", {}).get("Xerox 7835", {})
-    p5031 = st.session_state.get("printer_diff", {}).get("Kyocera P5031DN", {})
+    printer_diff = st.session_state.get("printer_diff", {})
+    
+    kyo3010 = printer_diff.get("Kyocera 3010i", {})
+    xerox7835 = printer_diff.get("Xerox 7835", {})
+    p5031 = printer_diff.get("Kyocera P5031DN", {})
     # --------- KYOCERA 3010i ----------
     k1 = kyo3010.get("1s", 0)
     k2 = kyo3010.get("2s", 0)
@@ -855,24 +856,22 @@ with tab1:
 
         # ✅ العرض مرة واحدة فقط هنا
         
-        printer_ip = "192.168.1.120"  # أو خليه من قائمة طابعات
+       st.markdown("#### 🔢 Printers Live Scan")
+
+        results = {}
         
-        try:
-            data = get_kyocera_3010i_counters(printer_ip)
+        for name, ip in PRINTERS.items():
+            try:
+                data = scan_printer(ip)  # ✅ لازم تكون عندك دالة عامة
+                results[name] = data
+            except Exception as e:
+                results[name] = {"error": str(e)}
         
-            if data:
-                st.success("✅ Printer Connected")
-                st.json(data)
+        # حفظ بداية الشفت
+        st.session_state["printer_start"] = results
         
-                # 🔥 تخزنهم في session علشان تستخدمهم في الحسابات
-                st.session_state["printer_start"] = data
-            else:
-                st.error("❌ Failed to fetch printer data")
-        
-        except Exception as e:
-            st.error(f"SNMP Error: {e}")
-        else:
-            st.info("No Scan Data Yet")
+        # عرض النتيجة
+        st.json(results)
 
         ops = st.number_input("Opay Start Balance",
                               step=0.01,
@@ -1182,9 +1181,19 @@ with tab3:
     # ARCHIVE BUTTON
     # =====================================================
     if st.button("💾 ARCHIVE SHIFT & DATA", use_container_width=True):
-
-        printer_snapshot = auto_scan_and_attach_to_shift()
-
+    
+        # 🔥 اعمل scan جديد قبل الحفظ
+        result = scan_all_printers()
+    
+        st.session_state["printer_end"] = result
+        st.session_state["printer_diff"] = calculate_printer_difference()
+    
+        printer_snapshot = {
+            "start": st.session_state.get("printer_start"),
+            "end": st.session_state.get("printer_end"),
+            "difference": st.session_state.get("printer_diff")
+        }
+    
         db["history"].append({
             "date": str(date.today()),
             "branch": branch,
@@ -1193,15 +1202,9 @@ with tab3:
             "diff": diff,
             "expenses": ex_val,
             "exp_note": f"{ex_cat}: {ex_note}",
-            "kyo_used": kyo_used,
-            "xerox_used": xerox_used,
-            "hp_used": hp_used,
             "printer_snapshot": printer_snapshot
         })
-
-        if st.session_state.get("user") in db.get("drafts", {}):
-            del db["drafts"][st.session_state.get("user")]
-
+    
         save_db(db)
         st.success("✅ Shift Archived Successfully!")
 
