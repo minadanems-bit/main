@@ -1066,22 +1066,22 @@ with tab3:
 
     with crep1:
         if st.button("📄 GENERATE PRO PDF", use_container_width=True):
-        pdf_bytes = create_downloadable_pdf(
-            branch,
-            st.session_state.get("user"),
-            str(date.today()),
-            sys_sales,
-            ex_val,
-            f"{ex_cat}: {ex_note}",
-            diff,
-            st.session_state.get("printer_diff", {}),
-            st.session_state.get("printer_diff", {}),
-            st.session_state.get("ops", 0) - st.session_state.get("ope", 0),
-            st.session_state.get("v22_val", 0)
-        )
-    with crep2:
-        url = f"https://wa.me/{MANAGER_PHONE}?text={urllib.parse.quote(wa_text)}"
-        st.markdown(
+            pdf_bytes = create_downloadable_pdf(
+                branch,
+                st.session_state.get("user"),
+                str(date.today()),
+                sys_sales,
+                ex_val,
+                f"{ex_cat}: {ex_note}",
+                diff,
+                st.session_state.get("printer_diff", {}),
+                st.session_state.get("printer_diff", {}),
+                st.session_state.get("ops", 0) - st.session_state.get("ope", 0),
+                st.session_state.get("v22_val", 0)
+            )
+        with crep2:
+            url = f"https://wa.me/{MANAGER_PHONE}?text={urllib.parse.quote(wa_text)}"
+            st.markdown(
             f'<a href="{url}" target="_blank">'
             f'<button style="width:100%; background-color:#25D366; color:white; '
             f'border:none; padding:15px; border-radius:10px; cursor:pointer; '
