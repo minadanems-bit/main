@@ -1064,27 +1064,28 @@ with tab3:
     # =====================================================
     crep1, crep2 = st.columns(2)
 
-        with crep1:
-            if st.button("📄 GENERATE PRO PDF", use_container_width=True):
-                pdf_bytes = create_downloadable_pdf(
-                    branch,
-                    st.session_state.get("user"),
-                    str(date.today()),
-                    sys_sales,
-                    ex_val,
-                    f"{ex_cat}: {ex_note}",
-                    diff,
-                    st.session_state.get("printer_diff", {}).get("Kyocera", {}),
-                    st.session_state.get("printer_diff", {}).get("Xerox", {}),
-                    st.session_state.get("ops", 0) - st.session_state.get("ope", 0),
-                    st.session_state.get("v22_val", 0)
-                )
-        
-                st.download_button(
-                    "📥 Download PDF",
-                    pdf_bytes,
-                    file_name=f"NMS_{date.today()}.pdf"
-                )
+with crep1:
+    if st.button("📄 GENERATE PRO PDF", use_container_width=True):
+        pdf_bytes = create_downloadable_pdf(
+            branch,
+            st.session_state.get("user"),
+            str(date.today()),
+            sys_sales,
+            ex_val,
+            f"{ex_cat}: {ex_note}",
+            diff,
+            st.session_state.get("printer_diff", {}).get("Kyocera", {}),
+            st.session_state.get("printer_diff", {}).get("Xerox", {}),
+            st.session_state.get("ops", 0) - st.session_state.get("ope", 0),
+            st.session_state.get("v22_val", 0)
+        )
+
+        st.download_button(
+            "📥 Download PDF",
+            pdf_bytes,
+            file_name=f"NMS_{date.today()}.pdf",
+            key="pdf_download"
+        )
         with crep2:
             url = f"https://wa.me/{MANAGER_PHONE}?text={urllib.parse.quote(wa_text)}"
             st.markdown(
