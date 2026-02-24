@@ -852,37 +852,37 @@ with tab1:
         st.session_state["t_open"] = t_open
 
     with c_o3:
-        st.markdown("#### 🔢 Printers Counters")
-
-        # ✅ العرض مرة واحدة فقط هنا
-        
-       st.markdown("#### 🔢 Printers Live Scan")
-
+    
+        st.markdown("#### 🔢 Printers Live Scan")
+    
         results = {}
-        
+    
         for name, ip in PRINTERS.items():
             try:
-                data = scan_printer(ip)  # ✅ لازم تكون عندك دالة عامة
+                data = scan_all_printers()  # أو حط scan_printer(ip) لو عندك
                 results[name] = data
             except Exception as e:
                 results[name] = {"error": str(e)}
-        
-        # حفظ بداية الشفت
+    
         st.session_state["printer_start"] = results
-        
-        # عرض النتيجة
+    
         st.json(results)
-
-        ops = st.number_input("Opay Start Balance",
-                              step=0.01,
-                              key="ops",
-                              on_change=sync_draft)
-
-        u10 = st.number_input("Debit",
-                              step=1.0,
-                              key="u10_val",
-                              on_change=sync_draft)
-
+    
+        st.divider()
+    
+        ops = st.number_input(
+            "Opay Start Balance",
+            step=0.01,
+            key="ops",
+            on_change=sync_draft
+        )
+    
+        u10 = st.number_input(
+            "Debit",
+            step=1.0,
+            key="u10_val",
+            on_change=sync_draft
+        )
 
 
 # --- TAB 2: CLOSING ---
