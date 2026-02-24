@@ -43,11 +43,15 @@ def snmp_get(ip, oid):
             return None
 
         for varBind in varBinds:
-            print("SNMP VALUE:", varBind[1])
-            return varBind[1]
-    except:
+            value = varBind[1]
+            print("SNMP RAW VALUE:", value)
+        
+            try:
+                return int(value)   # لو رقم يحوله لرقم
+            except:
+                return str(value)   # لو مش رقم يرجعه كنص
+        
         return None
-
 
 def scan_all_printers():
     results = {}
