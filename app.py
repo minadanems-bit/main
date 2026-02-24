@@ -402,7 +402,8 @@ else:
                 "👥 Manage Employees (HR)", 
                 "💰 Payroll & Money", 
                 "📝 Tasks & Checklists", 
-                "🏢 Branches & Expenses", 
+                "🏢 Branches & Expenses",
+                "🖨 Printer Management",
                 "📂 Archive & History",
                 "🎓 Employee Training"
             ])            
