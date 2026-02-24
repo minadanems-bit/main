@@ -623,18 +623,18 @@ else:
     with m4: st.info(f"👤 {st.session_state['user']}")
 
 tab1, tab2, tab3 = st.tabs(["🟢 OPENING", "🔴 CLOSING", "📱 SOCIAL"])
+
 # --- TAB 1: OPENING ---
 with tab1:
 
     st.subheader("🌅 Opening Procedures")
 
-    # ✅ Scan Button
+    # ✅ Scan Button (بدون عرض مباشر)
     if st.button("📡 Scan Printers Now - OPENING", key="scan_open"):
         try:
             result = scan_all_printers()
             st.session_state["printer_start"] = result
             st.success("✅ Printers Scanned Successfully")
-            st.json(result)
         except Exception as e:
             st.error(f"Scan Failed: {e}")
 
@@ -662,6 +662,7 @@ with tab1:
     with c_o3:
         st.markdown("#### 🔢 Printers Counters")
 
+        # ✅ العرض مرة واحدة فقط هنا
         if "printer_start" in st.session_state:
             st.json(st.session_state["printer_start"])
         else:
@@ -678,24 +679,24 @@ with tab1:
                               on_change=sync_draft)
 
 
+
 # --- TAB 2: CLOSING ---
 with tab2:
 
     st.subheader("🌇 Closing Procedures")
 
-    # ✅ Scan Button داخل التاب
+    # ✅ Scan Button (بدون عرض الفرق)
     if st.button("📡 Scan Printers Now - CLOSING", key="scan_close"):
         try:
             result = scan_all_printers()
             st.session_state["printer_end"] = result
-            st.success("✅ Printers Scanned Successfully")
-            st.json(result)
-                # ✅ بعد ما تعمل سكان - احسب الفرق تلقائي
+
+            # ✅ نحسب الفرق لكن من غير ما نظهره
             printer_diff = calculate_printer_difference()
             st.session_state["printer_diff"] = printer_diff
-        
-            st.markdown("### 📊 Printer Difference (Auto Calculated)")
-            st.json(printer_diff)
+
+            st.success("✅ Printers Scanned Successfully")
+
         except Exception as e:
             st.error(f"Scan Failed: {e}")
 
@@ -786,6 +787,7 @@ with tab2:
 
         st.markdown("#### 🖨️ Printers Detail")
 
+        # ✅ العرض مرة واحدة فقط هنا
         if "printer_end" in st.session_state:
             st.json(st.session_state["printer_end"])
         else:
@@ -800,6 +802,7 @@ with tab2:
         st.text_area("📝 Draft Notes / Handover",
                      key="dn_notes",
                      on_change=sync_draft)
+        
     # --- TAB 3: SOCIAL ---
     with tab3:
         st.subheader("📱 Marketing & Finalization")
