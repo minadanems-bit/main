@@ -853,7 +853,7 @@ with tab1:
         st.markdown("#### 🔢 Printers Counters")
 
         # ✅ العرض مرة واحدة فقط هنا
-        from snmp_engine import get_kyocera_3010i_counters
+    from snmp_engine import get_kyocera_3010i_counters
         
         st.markdown("#### 🔢 Printers Counters")
         
