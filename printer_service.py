@@ -5,65 +5,11 @@
 import streamlit as st
 from database import load_db, save_db
 
-# تحميل قاعدة البيانات
+# ===============================
+# DATABASE INITIALIZATION
+# ===============================
+
 db = load_db()
-
-def printer_management_ui(db):
-    from database import save_db
-    import streamlit as st
-
-    st.subheader("🖨 Manage Printers")
-
-    PRINTERS = db.get("printers", {})
-
-    for name, ip in list(PRINTERS.items()):
-
-        col1, col2, col3 = st.columns([2,2,1])
-
-        with col1:
-            new_name = st.text_input("Printer Name", value=name, key=f"name_{name}")
-
-        with col2:
-            new_ip = st.text_input("IP Address", value=ip, key=f"ip_{name}")
-
-        with col3:
-            if st.button("❌ Delete", key=f"del_{name}"):
-                PRINTERS.pop(name)
-                db["printers"] = PRINTERS
-                save_db(db)
-                st.rerun()
-
-        if st.button("💾 Update", key=f"update_{name}"):
-
-            PRINTERS.pop(name, None)
-            PRINTERS[new_name] = new_ip
-
-            db["printers"] = PRINTERS
-            save_db(db)
-
-            st.success("Updated!")
-            st.rerun()
-
-    st.divider()
-
-    # ➕ Add New Printer
-    st.subheader("➕ Add New Printer")
-
-    p_name = st.text_input("Printer Name", key="new_printer_name")
-    p_ip = st.text_input("Printer IP", key="new_printer_ip")
-
-    if st.button("Add Printer"):
-
-        if p_name and p_ip:
-            PRINTERS[p_name] = p_ip
-            db["printers"] = PRINTERS
-            save_db(db)
-
-            st.success("Printer Added!")
-            st.rerun()
-# ===============================
-# PRINTER CONFIG
-# ===============================
 
 if "printers" not in db:
     db["printers"] = {
@@ -74,7 +20,6 @@ if "printers" not in db:
     save_db(db)
 
 PRINTERS = db.get("printers", {})
-
 
 # =====================================================
 # CALCULATE PRINTER DIFFERENCE
@@ -110,19 +55,16 @@ def calculate_printer_difference(start_data, end_data):
 
 
 # =====================================================
-# 🖨 PRINTER MANAGEMENT UI
+# 🖨 PRINTER MANAGEMENT UI (ADMIN PANEL)
 # =====================================================
 
-def printer_management_ui():
+def printer_management_ui(db):
 
-    st.subheader("🖨 Manage Printers")
+    st.subheader("🖨 Printer Management")
 
-    global PRINTERS
-    db_local = load_db()
-    PRINTERS = db_local.get("printers", {})
+    printers = db.get("printers", {})
 
-    # عرض الطابعات الحالية
-    for name, ip in list(PRINTERS.items()):
+    for name, ip in list(printers.items()):
 
         st.markdown(f"### 📠 {name}")
 
@@ -145,24 +87,18 @@ def printer_management_ui():
         with col3:
             if st.button("❌ Delete", key=f"del_{name}"):
 
-                PRINTERS.pop(name, None)
-                db_local["printers"] = PRINTERS
-                save_db(db_local)
-
-                st.warning("Printer Deleted")
+                printers.pop(name, None)
+                db["printers"] = printers
+                save_db(db)
                 st.rerun()
 
-        if st.button("💾 Update Printer", key=f"update_{name}"):
+        if st.button("💾 Update", key=f"update_{name}"):
 
-            # حذف القديم
-            if name in PRINTERS:
-                PRINTERS.pop(name)
+            printers.pop(name, None)
+            printers[new_name] = new_ip
 
-            # إضافة الجديد
-            PRINTERS[new_name] = new_ip
-
-            db_local["printers"] = PRINTERS
-            save_db(db_local)
+            db["printers"] = printers
+            save_db(db)
 
             st.success("✅ Printer Updated!")
             st.rerun()
@@ -170,7 +106,7 @@ def printer_management_ui():
         st.divider()
 
     # ===============================
-    # ➕ إضافة طابعة جديدة
+    # ➕ Add New Printer
     # ===============================
 
     st.subheader("➕ Add New Printer")
@@ -182,9 +118,104 @@ def printer_management_ui():
 
         if p_name and p_ip:
 
-            PRINTERS[p_name] = p_ip
-            db_local["printers"] = PRINTERS
-            save_db(db_local)
+            printers[p_name] = p_ip
+            db["printers"] = printers
+            save_db(db)
 
             st.success("✅ Printer Added!")
             st.rerun()
+
+
+# =====================================================
+# 🖨 SHIFT COUNTER MODULE (TAB 1 & TAB 2)
+# =====================================================
+
+def printer_shift_tab(title, key_prefix):
+
+    st.markdown(f"## {title}")
+
+    printer_data = {}
+
+    for printer in PRINTERS:
+
+        st.markdown(f"### 📠 {printer}")
+
+        col1, col2 = st.columns(2)
+        col3, col4 = st.columns(2)
+        col5 = st.columns(1)
+
+        with col1:
+            total = st.number_input(
+                "Total",
+                min_value=0,
+                key=f"{key_prefix}_{printer}_total"
+            )
+
+        with col2:
+            one_side = st.number_input(
+                "1 Side",
+                min_value=0,
+                key=f"{key_prefix}_{printer}_one"
+            )
+
+        with col3:
+            two_side = st.number_input(
+                "2 Side",
+                min_value=0,
+                key=f"{key_prefix}_{printer}_two"
+            )
+
+        with col4:
+            errors = st.number_input(
+                "Errors",
+                min_value=0,
+                key=f"{key_prefix}_{printer}_errors"
+            )
+
+        with col5:
+            jam = st.number_input(
+                "Jam",
+                min_value=0,
+                key=f"{key_prefix}_{printer}_jam"
+            )
+
+        printer_data[printer] = {
+            "Total": total,
+            "One Side": one_side,
+            "Two Side": two_side,
+            "Errors": errors,
+            "Jam": jam
+        }
+
+        st.divider()
+
+    return printer_data
+
+
+# =====================================================
+# 🟢 MAIN SHIFT COMPARISON (TAB 1 + TAB 2 DIFFERENCE)
+# =====================================================
+
+def printer_shift_comparison():
+
+    st.subheader("📊 Printer Shift Comparison")
+
+    st.write("### 🔵 Start Shift")
+
+    start_data = printer_shift_tab("Start Counters", "start")
+
+    st.write("### 🔴 End Shift")
+
+    end_data = printer_shift_tab("End Counters", "end")
+
+    if st.button("📈 Calculate Difference"):
+
+        diff = calculate_printer_difference(start_data, end_data)
+
+        st.success("✅ Difference Calculated")
+
+        st.json(diff)
+
+        st.session_state["printer_start"] = start_data
+        st.session_state["printer_end"] = end_data
+        st.session_state["printer_diff"] = diff
