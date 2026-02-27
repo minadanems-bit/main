@@ -1136,7 +1136,6 @@ with tab3:
     # ARCHIVE + PDF SECTION
     # =====================================================
     
-    crep1, crep2 = st.columns(2)
     
     with crep1:
     
@@ -1188,13 +1187,13 @@ with tab3:
                 file_name=f"NMS_{date.today()}.pdf",
                 key="pdf_download"
             )
-            with crep2:
-                url = f"https://wa.me/{MANAGER_PHONE}?text={urllib.parse.quote(wa_text)}"
-                st.markdown(
-                f'<a href="{url}" target="_blank">'
-                f'<button style="width:100%; background-color:#25D366; color:white; '
-                f'border:none; padding:15px; border-radius:10px; cursor:pointer; '
-                f'font-weight:bold; font-size:16px;">'
-                f'📱 SEND TO WHATSAPP</button></a>',
-                unsafe_allow_html=True
-            )
+    with crep2:
+        url = f"https://wa.me/{MANAGER_PHONE}?text={urllib.parse.quote(wa_text)}"
+        st.markdown(
+            f'<a href="{url}" target="_blank">'
+            f'<button style="width:100%; background-color:#25D366; color:white; '
+            f'border:none; padding:15px; border-radius:10px; cursor:pointer; '
+            f'font-weight:bold; font-size:16px;">'
+            f'📱 SEND TO WHATSAPP</button></a>',
+            unsafe_allow_html=True
+        )
