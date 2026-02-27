@@ -15,6 +15,7 @@ from printer_service import calculate_printer_difference, get_printers
 from database import save_db
 from database import load_db
 db = load_db()
+st.write(db)
 
 
 def sync_draft():
