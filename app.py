@@ -391,99 +391,181 @@ else:
                                 st.rerun()  
                                 
             elif admin_choice == "🎓 Employee Training":
+            
+                st.markdown(
                     """
-                    دالة عرض مركز التدريب والتأهيل الاحترافي لمركز NMS Enterprise
-                    مصممة لتكون تفاعلية وشاملة لكل جوانب العمل.
-                    """
-                    st.markdown("""
-                        <style>
-                        .main-title { font-size: 40px; font-weight: bold; color: #1E3A8A; text-align: center; margin-bottom: 20px; }
-                        .section-header { background-color: #F1F5F9; padding: 10px; border-radius: 5px; border-left: 5px solid #1E3A8A; margin-top: 20px; }
-                        .card { background-color: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 15px; }
-                        </style>
-                    """, unsafe_allow_html=True)
-                
-                    st.markdown('<div class="main-title">🎓 الأكاديمية التدريبية لـ NMS Enterprise</div>', unsafe_allow_html=True)
-                    
-                    # تبويبات التدريب
-                    tabs = st.tabs(["📋 ميثاق العمل", "⚙️ الدليل الفني", "🤝 خدمة العملاء", "💻 التحول الرقمي"])
-                
-                    # 1. ميثاق العمل (السياسات والالتزام)
-                    with tabs[0]:
-                        st.markdown('<div class="section-header">⚖️ القواعد الذهبية للالتزام</div>', unsafe_allow_html=True)
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            st.markdown("""
-                            ### 🕒 الحضور والانصراف
-                            - **التبكير:** الحضور قبل الشفت بـ 15 دقيقة لتسليم وتسلم العهدة.
-                            - **البصمة:** تسجيل الحضور والانصراف فوراً (Fingerprint).
-                            - **الزي:** الالتزام بقميص المركز النظيف والـ ID.
-                            """)
-                        with col2:
-                            st.markdown("""
-                            ### 💰 الأمانة المالية
-                            - **الفاتورة:** لا يخرج ورق مطبوع بدون تسجيله على السيستم.
-                            - **العربون:** قاعدة ثابتة (لا عمل بدون دفع مسبق أو عربون 50%).
-                            - **العهدة:** الموظف مسؤول عن أي عجز في درج الكاش خلال شفته.
-                            """)
-                
-                    # 2. الدليل الفني (التعامل مع المعدات)
-                    with tabs[1]:
-                        st.markdown('<div class="section-header">🛠️ تشغيل وصيانة المعدات</div>', unsafe_allow_html=True)
-                        with st.expander("🖨️ ماكينات التصوير (Xerox & Kyocera)"):
-                            st.write("""
-                            1. **التشغيل الصحيح:** التأكد من استقرار الجهد الكهربائي قبل التشغيل.
-                            2. **حشر الورق:** التعامل بهدوء مع الحشر، سحب الورقة في اتجاه خروجها وليس العكس.
-                            3. **الألوان:** مراجعة جودة الألوان كل 100 نسخة لضمان عدم وجود بهتان.
-                            """)
-                        with st.expander("✂️ أدوات التجهيز (Finishers)"):
-                            st.write("""
-                            - **التغليف الحراري:** انتظر وصول الماكينة للدرجة المطلوبة (اللمبة الخضراء).
-                            - **المقص الكهربائي:** الالتزام التام بقواعد السلامة، يمنع وضع اليد قريباً من السكينة.
-                            - **التكعيب:** تأكد من عدد الورق المناسب لحجم السلك (الحلزوني).
-                            """)
-
-
-                    # 3. خدمة العملاء (الجانب السلوكي)
-                    with tabs[2]:
-                        st.markdown('<div class="section-header">🌟 فن التعامل مع الجمهور</div>', unsafe_allow_html=True)
-                        st.success("العميل ليس دائماً على حق، لكنه دائماً عميلنا ويجب احترامه.")
-                        st.info("""
-                        - **الاستقبال:** ابتسامة وكلمة ترحيب "أهلاً بك في NMS، كيف نساعدك؟".
-                        - **الاعتراض:** عند وجود شكوى، استمع كاملاً دون مقاطعة، ثم قدم حلاً.
-                        - **التسليم:** تأكد من أن العميل راجع شغله (العدد والجودة) قبل مغادرة المركز.
+                    <style>
+                    .training-title {
+                        font-size: 36px;
+                        font-weight: bold;
+                        text-align: center;
+                        color: #0F172A;
+                        margin-bottom: 20px;
+                    }
+            
+                    .training-card {
+                        padding: 20px;
+                        border-radius: 15px;
+                        background: #F8FAFC;
+                        box-shadow: 0px 4px 12px rgba(0,0,0,0.05);
+                        margin-bottom: 20px;
+                    }
+            
+                    .section-header {
+                        font-size: 20px;
+                        font-weight: bold;
+                        color: #1E3A8A;
+                        border-left: 6px solid #1E3A8A;
+                        padding-left: 10px;
+                        margin-bottom: 10px;
+                    }
+            
+                    .highlight-box {
+                        padding: 15px;
+                        background: #EFF6FF;
+                        border-radius: 10px;
+                        font-weight: 500;
+                    }
+                    </style>
+                    """,
+                    unsafe_allow_html=True
+                )
+            
+                st.markdown("🚀")
+                st.markdown("<div class='training-title'>NMS Enterprise | Professional Training Center</div>", unsafe_allow_html=True)
+            
+                tabs = st.tabs([
+                    "📜 Professional Standards",
+                    "⚙ Technical Operations",
+                    "🤝 Customer Excellence",
+                    "💻 Digital Transformation"
+                ])
+            
+                # ==============================
+                # TAB 1 – Professional Standards
+                # ==============================
+                with tabs[0]:
+            
+                    st.markdown("<div class='training-card'>", unsafe_allow_html=True)
+                    st.markdown("<div class='section-header'>🎯 Workplace Commitment</div>", unsafe_allow_html=True)
+            
+                    col1, col2 = st.columns(2)
+            
+                    with col1:
+                        st.markdown("""
+                        🔵 **Attendance**
+                        - Arrive 15 minutes early
+                        - Proper handover before shift
+                        - Biometric logging mandatory
                         """)
-                
-                    # 4. التحول الرقمي (البرامج والذكاء الاصطناعي)
-                    with tabs[3]:
-                        st.markdown('<div class="section-header">🚀 أدوات العصر الحديث</div>', unsafe_allow_html=True)
-                        c1, c2, c3 = st.columns(3)
-                        with c1:
-                            st.image("https://img.icons8.com/color/96/canva.png", width=60)
-                            st.markdown("**Canva**\n\nللتصميمات السريعة والسوشيال ميديا.")
-                        with c2:
-                            st.image("https://img.icons8.com/color/96/chatgpt.png", width=60)
-                            st.markdown("**AI Tools**\n\nاستخدام الذكاء الاصطناعي لتحسين النصوص.")
-                        with c3:
-                            st.image("https://img.icons8.com/color/96/microsoft-excel-2019.png", width=60)
-                            st.markdown("**Office**\n\nاحتراف التنسيق والطباعة من Word و Excel.")
-                
-                    st.divider()
-                    
-                    # جزء تفاعلي لإقرار الموظف
-                    st.markdown("### 📝 إقرار إتمام التدريب")
-                    agree = st.checkbox("أقر أنا الموظف المسجل دخوله حالياً، أنني قرأت كافة التعليمات أعلاه وألتزم بتطبيقها حرفياً.")
-                    if st.button("اعتماد إتمام التدريب"):
-                        if agree:
-                            st.balloons()
-                            st.success(f"تم تسجيل اعتمادك للدليل التدريبي يا {st.session_state.get('user', 'موظفنا العزيز')}.")
-                            # هنا يمكنك إضافة كود لحفظ هذا الاعتماد في قاعدة البيانات إذا أردت
-                        else:
-                            st.warning("يرجى التأشير على الإقرار أولاً.")
-                
-                # لاستدعاء الدالة في القائمة الجانبية أو كصفحة مستقلة:
-                # if st.session_state['page'] == 'training':
-                #     show_training_page()
+            
+                    with col2:
+                        st.markdown("""
+                        🔵 **Financial Responsibility**
+                        - No printing without system record
+                        - 50% minimum deposit policy
+                        - Employee responsible for cash shortage
+                        """)
+            
+                    st.markdown("</div>", unsafe_allow_html=True)
+            
+                # ==============================
+                # TAB 2 – Technical Operations
+                # ==============================
+                with tabs[1]:
+            
+                    st.markdown("<div class='training-card'>", unsafe_allow_html=True)
+                    st.markdown("<div class='section-header'>🖨 Equipment Handling</div>", unsafe_allow_html=True)
+            
+                    with st.expander("📠 Printer Operation"):
+                        st.markdown("""
+                        ✅ Check voltage before power-on  
+                        ✅ Clear paper jam carefully  
+                        ✅ Monitor print quality every 100 pages  
+                        """)
+            
+                    with st.expander("✂ Finishing Equipment"):
+                        st.markdown("""
+                        ✅ Thermal binding – wait for green light  
+                        ✅ Paper cutting – follow safety rules  
+                        ✅ Spiral binding – choose correct size  
+                        """)
+            
+                    st.markdown("</div>", unsafe_allow_html=True)
+            
+                # ==============================
+                # TAB 3 – Customer Excellence
+                # ==============================
+                with tabs[2]:
+            
+                    st.markdown("<div class='training-card'>", unsafe_allow_html=True)
+                    st.markdown("<div class='section-header'>🌟 Service Excellence Model</div>", unsafe_allow_html=True)
+            
+                    st.markdown("""
+                    🟢 Greet with professionalism  
+                    🟢 Listen without interruption  
+                    🟢 Confirm before final delivery  
+                    🟢 Resolve complaints calmly  
+                    """)
+            
+                    st.markdown("<div class='highlight-box'>💡 Remember: Customer trust = Business growth</div>",
+                                unsafe_allow_html=True)
+            
+                    st.markdown("</div>", unsafe_allow_html=True)
+            
+                # ==============================
+                # TAB 4 – Digital Transformation
+                # ==============================
+                with tabs[3]:
+            
+                    st.markdown("<div class='training-card'>", unsafe_allow_html=True)
+                    st.markdown("<div class='section-header'>🚀 Modern Tools</div>", unsafe_allow_html=True)
+            
+                    c1, c2, c3 = st.columns(3)
+            
+                    with c1:
+                        st.image("https://img.icons8.com/color/96/canva.png", width=60)
+                        st.markdown("**Canva**\nDesign & Social Media Content")
+            
+                    with c2:
+                        st.image("https://img.icons8.com/color/96/chatgpt.png", width=60)
+                        st.markdown("**AI Tools**\nSmart Automation & Text Optimization")
+            
+                    with c3:
+                        st.image("https://img.icons8.com/color/96/microsoft-excel-2019.png", width=60)
+                        st.markdown("**Office Tools**\nData & Reporting Mastery")
+            
+                    st.markdown("</div>", unsafe_allow_html=True)
+            
+                # ==============================
+                # TRAINING ACKNOWLEDGEMENT
+                # ==============================
+            
+                st.divider()
+            
+                st.markdown("### 📝 Training Acknowledgement")
+            
+                agree = st.checkbox(
+                    "I confirm that I have completed the training and understood all policies."
+                )
+            
+                if st.button("✅ Confirm Completion", use_container_width=True):
+            
+                    if agree:
+                        st.success(f"Training Completed ✔ Recorded for {st.session_state.get('user')}")
+                        st.balloons()
+            
+                        # يمكنك هنا تسجيل الموافقة في قاعدة البيانات
+                        db["training_records"] = db.get("training_records", {})
+                        db["training_records"][st.session_state.get("user")] = {
+                            "date": str(date.today()),
+                            "status": "completed"
+                        }
+            
+                        save_db(db)
+            
+                    else:
+                        st.warning("Please confirm the checkbox first.")
             elif admin_choice == "🖨 Printer Management":
                 from printer_service import printer_management_ui
                 printer_management_ui(db, PRINTERS)
