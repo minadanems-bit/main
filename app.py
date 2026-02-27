@@ -883,69 +883,66 @@ with tab2:
 
     with c_c3:
         st.markdown("#### 🖨 Closing Printer Counters")
-        
+    
         printer_end = {}
-        
+    
         for printer in PRINTERS:
+    
             st.markdown(f"##### {printer}")
-        
+    
             col1, col2 = st.columns(2)
             col3, col4, col5 = st.columns(3)
-
-    with col1:
-        total = st.number_input(
-            f"{printer} Total",
-            min_value=0,
-            key=f"{printer}_end_total"
-        )
-
-    with col2:
-        one_side = st.number_input(
-            f"{printer} 1 Side",
-            min_value=0,
-            key=f"{printer}_end_one"
-        )
-
-    with col3:
-        two_side = st.number_input(
-            f"{printer} 2 Side",
-            min_value=0,
-            key=f"{printer}_end_two"
-        )
-
-    with col4:
-        errors = st.number_input(
-            f"{printer} Errors",
-            min_value=0,
-            key=f"{printer}_end_errors"
-        )
-
-    with col5:
-        jam = st.number_input(
-            f"{printer} Jam",
-            min_value=0,
-            key=f"{printer}_end_jam"
-        )
-
-    printer_end[printer] = {
-        "Total": total,
-        "One Side": one_side,
-        "Two Side": two_side,
-        "Errors": errors,
-        "Jam": jam
-    }
-
-    st.session_state["printer_end"] = printer_end
     
-    if st.button("📊 Calculate Printer Usage"):
+            with col1:
+                total = st.number_input(
+                    f"{printer} Total",
+                    min_value=0,
+                    key=f"{printer}_end_total"
+                )
     
-        start = st.session_state.get("printer_start", {})
-        end = st.session_state.get("printer_end", {})
+            with col2:
+                one_side = st.number_input(
+                    f"{printer} 1 Side",
+                    min_value=0,
+                    key=f"{printer}_end_one"
+                )
     
-        if not start or not end:
-            st.warning("⚠️ Missing printer start or end data")
-        else:
-            printer_diff = calculate_printer_difference(start, end)
+            with col3:
+                two_side = st.number_input(
+                    f"{printer} 2 Side",
+                    min_value=0,
+                    key=f"{printer}_end_two"
+                )
+    
+            with col4:
+                errors = st.number_input(
+                    f"{printer} Errors",
+                    min_value=0,
+                    key=f"{printer}_end_errors"
+                )
+    
+            with col5:
+                jam = st.number_input(
+                    f"{printer} Jam",
+                    min_value=0,
+                    key=f"{printer}_end_jam"
+                )
+    
+            printer_end[printer] = {
+                "Total": total,
+                "One Side": one_side,
+                "Two Side": two_side,
+                "Errors": errors,
+                "Jam": jam
+            }
+    
+        st.session_state["printer_end"] = printer_end
+    
+        if st.button("📊 Calculate Printer Usage"):
+            printer_diff = calculate_printer_difference(
+                st.session_state.get("printer_start", {}),
+                st.session_state.get("printer_end", {})
+            )
     
             st.session_state["printer_diff"] = printer_diff
     
