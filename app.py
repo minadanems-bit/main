@@ -25,104 +25,8 @@ PRINTERS = {
     "Kyocera P5031DN": "192.168.1.126"
 }
 
-from pysnmp.hlapi import *
-
-def snmp_get(ip, oid):
-    try:
-        iterator = getCmd(
-            SnmpEngine(),
-            CommunityData('public', mpModel=0),
-            UdpTransportTarget((ip, 161), timeout=3, retries=1),
-            ContextData(),
-            ObjectType(ObjectIdentity(oid))
-        )
-
-        errorIndication, errorStatus, errorIndex, varBinds = next(iterator)
-
-        if errorIndication or errorStatus:
-            return None
-
-        for varBind in varBinds:
-            value = varBind[1]
-            print("SNMP RAW VALUE:", value)
-
-            try:
-                return int(value)
-            except:
-                return str(value)
-
-    except Exception as e:
-        print("SNMP ERROR:", e)
-        return None
-
-def scan_all_printers():
-    results = {}
-
-    for name, ip in PRINTERS.items():
-
-        data = {}
-
-        # ===============================
-        # Counters
-        # ===============================
-        data["Total Pages"] = snmp_get(ip, "1.3.6.1.2.1.43.10.2.1.4.1.1")
-
-        # ===============================
-        # Paper Sizes (حسب دعم الموديل)
-        # ===============================
-        data["A4 Pages"] = snmp_get(ip, "1.3.6.1.2.1.43.10.2.1.4.1.2")
-        data["A3 Pages"] = snmp_get(ip, "1.3.6.1.2.1.43.10.2.1.4.1.3")
-        data["A5 Pages"] = snmp_get(ip, "1.3.6.1.2.1.43.10.2.1.4.1.4")
-
-        # ===============================
-        # Duplex
-        # ===============================
-        data["One Sided"] = snmp_get(ip, "1.3.6.1.2.1.43.10.2.1.4.1.5")
-        data["Two Sided"] = snmp_get(ip, "1.3.6.1.2.1.43.10.2.1.4.1.6")
-
-        # ===============================
-        # Scanner
-        # ===============================
-        data["Scanner Count"] = snmp_get(ip, "1.3.6.1.4.1.1347.42.2.1.1.1")
-
-        data["Jam Count"] = snmp_get(ip, "1.3.6.1.2.1.43.18.1.1.8.1")
-        data["Error Count"] = snmp_get(ip, "1.3.6.1.2.1.25.3.5.1.2.1")
-
-        results[name] = data
-
-    return results
 
 
-# ==========================================
-# ✅ الدالة دي لازم تكون برا الدالة اللي فوق
-# ==========================================
-
-def auto_scan_and_attach_to_shift():
-    """
-    تعمل Scan تلقائي للطابعات
-    وتحفظ القراءة كبداية ونهاية
-    وترجع Snapshot للتخزين في History
-    """
-
-    try:
-        result = scan_all_printers()
-
-        st.session_state["printer_end"] = result
-
-        if "printer_start" not in st.session_state:
-            st.session_state["printer_start"] = result
-
-        diff = calculate_printer_difference()
-        st.session_state["printer_diff"] = diff
-
-        return {
-            "start": st.session_state.get("printer_start"),
-            "end": st.session_state.get("printer_end"),
-            "difference": diff
-        }
-
-    except Exception as e:
-        return {"error": str(e)}
 # --- 2. Advanced PDF Generation (تقرير شامل) ---
 def create_downloadable_pdf(branch, staff_name, date_str, sales, expenses, exp_note, diff, kyo_data, xerox_data, opay_move, debit_v22):
     buffer = io.BytesIO()
@@ -249,24 +153,24 @@ def create_downloadable_pdf(branch, staff_name, date_str, sales, expenses, exp_n
     return buffer.getvalue()
 
 
-# ==============================
-# وظيفة مستقلة — مش جوه الفنكشن
-# ==============================
+def calculate_printer_difference(start_data, end_data):
+    diff = {}
 
-def calculate_printer_difference():
-    """
-    تحسب الفرق بين عدادات بداية الشفت ونهايته لكل الطابعات
-    وترجع الاستخدام الفعلي + الأخطاء + الحشر
-    """
-    start = st.session_state.get("printer_start", {})
-    end = st.session_state.get("printer_end", {})
+    for printer in start_data:
+        diff[printer] = {}
 
-    if not start or not end:
-        return {}
+        fields = ["Total", "One Side", "Two Side", "Errors", "Jam"]
 
-    result = {}
+        for field in fields:
+            try:
+                start_value = int(start_data[printer].get(field, 0) or 0)
+                end_value = int(end_data[printer].get(field, 0) or 0)
 
-    for printer_ip in start:
+                diff[printer][field] = end_value - start_value
+            except:
+                diff[printer][field] = 0
+
+    return diff   # 🔥 هنا بس النهاية
 
         try:
             start_data = start.get(printer_ip, {})
@@ -826,15 +730,6 @@ with tab1:
 
     st.subheader("🌅 Opening Procedures")
 
-    # ✅ Scan Button (بدون عرض مباشر)
-    if st.button("📡 Scan Printers Now - OPENING", key="scan_open"):
-        try:
-            result = scan_all_printers()
-            st.session_state["printer_start"] = result
-            st.success("✅ Printers Scanned Successfully")
-        except Exception as e:
-            st.error(f"Scan Failed: {e}")
-
     c_o1, c_o2, c_o3 = st.columns([1, 1.5, 1.5])
 
     with c_o1:
@@ -857,51 +752,85 @@ with tab1:
         st.success(f"**Total Opening: {t_open:,.2f} LE**")
         st.session_state["t_open"] = t_open
 
-    with c_o3:
-    
-        st.markdown("#### 🔢 Printers Live Scan")
-    
-        results = scan_all_printers()
-        st.session_state["printer_start"] = results
+with c_o3:
 
-        st.json(results)
-    
-        st.divider()
-    
-        ops = st.number_input(
-            "Opay Start Balance",
-            step=0.01,
-            key="ops",
-            on_change=sync_draft
-        )
-    
-        u10 = st.number_input(
-            "Debit",
-            step=1.0,
-            key="u10_val",
-            on_change=sync_draft
-        )
+    st.markdown("#### 🖨 Opening Printer Counters")
 
+    printer_start = {}
+
+    for printer in PRINTERS:
+        st.markdown(f"##### {printer}")
+
+        col1, col2 = st.columns(2)
+        col3, col4, col5 = st.columns(3)
+
+        with col1:
+            total = st.number_input(
+                f"{printer} Total",
+                min_value=0,
+                key=f"{printer}_start_total"
+            )
+
+        with col2:
+            one_side = st.number_input(
+                f"{printer} 1 Side",
+                min_value=0,
+                key=f"{printer}_start_one"
+            )
+
+        with col3:
+            two_side = st.number_input(
+                f"{printer} 2 Side",
+                min_value=0,
+                key=f"{printer}_start_two"
+            )
+
+        with col4:
+            errors = st.number_input(
+                f"{printer} Errors",
+                min_value=0,
+                key=f"{printer}_start_errors"
+            )
+
+        with col5:
+            jam = st.number_input(
+                f"{printer} Jam",
+                min_value=0,
+                key=f"{printer}_start_jam"
+            )
+
+        printer_start[printer] = {
+            "Total": total,
+            "One Side": one_side,
+            "Two Side": two_side,
+            "Errors": errors,
+            "Jam": jam
+        }
+
+    st.session_state["printer_start"] = printer_start
+
+    st.divider()
+
+    ops = st.number_input(
+        "Opay Start Balance",
+        step=0.01,
+        key="ops",
+        on_change=sync_draft
+    )
+
+    u10 = st.number_input(
+        "Debit",
+        step=1.0,
+        key="u10_val",
+        on_change=sync_draft
+    )
+    
 
 # --- TAB 2: CLOSING ---
 with tab2:
 
     st.subheader("🌇 Closing Procedures")
 
-    # ✅ Scan Button (بدون عرض الفرق)
-    if st.button("📡 Scan Printers Now - CLOSING", key="scan_close"):
-        try:
-            result = scan_all_printers()
-            st.session_state["printer_end"] = result
-
-            # ✅ نحسب الفرق لكن من غير ما نظهره
-            printer_diff = calculate_printer_difference()
-            st.session_state["printer_diff"] = printer_diff
-
-            st.success("✅ Printers Scanned Successfully")
-
-        except Exception as e:
-            st.error(f"Scan Failed: {e}")
 
     c_c1, c_c2, c_c3 = st.columns([1, 1.5, 1.5])
 
@@ -989,14 +918,75 @@ with tab2:
             st.error(f"➖ Shortage: {diff:,.2f}")
 
     with c_c3:
+        st.markdown("#### 🖨 Closing Printer Counters")
+        
+        printer_end = {}
+        
+        for printer in PRINTERS:
+            st.markdown(f"##### {printer}")
+        
+            col1, col2 = st.columns(2)
+            col3, col4, col5 = st.columns(3)
 
-        st.markdown("#### 🖨️ Printers Detail")
+    with col1:
+        total = st.number_input(
+            f"{printer} Total",
+            min_value=0,
+            key=f"{printer}_end_total"
+        )
 
-        # ✅ العرض مرة واحدة فقط هنا
-        if "printer_end" in st.session_state:
-            st.json(st.session_state["printer_end"])
-        else:
-            st.info("Scan in Closing to see data")
+    with col2:
+        one_side = st.number_input(
+            f"{printer} 1 Side",
+            min_value=0,
+            key=f"{printer}_end_one"
+        )
+
+    with col3:
+        two_side = st.number_input(
+            f"{printer} 2 Side",
+            min_value=0,
+            key=f"{printer}_end_two"
+        )
+
+    with col4:
+        errors = st.number_input(
+            f"{printer} Errors",
+            min_value=0,
+            key=f"{printer}_end_errors"
+        )
+
+    with col5:
+        jam = st.number_input(
+            f"{printer} Jam",
+            min_value=0,
+            key=f"{printer}_end_jam"
+        )
+
+    printer_end[printer] = {
+        "Total": total,
+        "One Side": one_side,
+        "Two Side": two_side,
+        "Errors": errors,
+        "Jam": jam
+    }
+
+st.session_state["printer_end"] = printer_end
+
+if st.button("📊 Calculate Printer Usage"):
+
+    start = st.session_state.get("printer_start", {})
+    end = st.session_state.get("printer_end", {})
+
+    if not start or not end:
+        st.warning("⚠️ Missing printer start or end data")
+    else:
+        printer_diff = calculate_printer_difference(start, end)
+
+        st.session_state["printer_diff"] = printer_diff
+
+        st.success("✅ Printer Usage Calculated")
+        st.json(printer_diff)
 
         ope = st.number_input("Opay End Balance",
                               step=0.01,
@@ -1137,7 +1127,10 @@ with tab3:
     # =====================================================
     # WHATSAPP MESSAGE
     # =====================================================
-    wa_text = f"""*🚀 NMS ERP - SHIFT REPORT*
+branch = st.session_state.get("branch", "-")
+shift = st.session_state.get("shift", "-")
+
+wa_text = f"""*🚀 NMS ERP - SHIFT REPORT*
 ━━━━━━━━━━━━━━━━
 📅 Date: {date.today()}
 👤 Staff: {st.session_state.get('user')}
@@ -1180,11 +1173,7 @@ with tab3:
     # =====================================================
     if st.button("💾 ARCHIVE SHIFT & DATA", use_container_width=True):
     
-        # 🔥 اعمل scan جديد قبل الحفظ
-        result = scan_all_printers()
-    
-        st.session_state["printer_end"] = result
-        st.session_state["printer_diff"] = calculate_printer_difference()
+
     
         printer_snapshot = {
             "start": st.session_state.get("printer_start"),
