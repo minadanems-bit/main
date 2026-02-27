@@ -186,24 +186,26 @@ else:
             st.session_state['logged_in'] = False; st.rerun()
         
         # --- صلاحيات المدير المطلقة (Master Control) ---
-        if st.session_state['role'] == 'admin':
+        if st.session_state.get('role') == 'admin':
             st.divider()
             st.subheader("⚙️ Admin Authority")
-            admin_choice = st.selectbox("Select Management Module:", [
-                "👥 Manage Employees (HR)", 
-                "💰 Payroll & Money", 
-                "📝 Tasks & Checklists", 
-                "🏢 Branches & Expenses",
-                "🖨 Printer Management",
-                "📂 Archive & History",
-                "🎓 Employee Training"
-            ])            
-            
-            elif admin_choice == "👥 Manage Employees (HR)":
+        
+            admin_choice = st.selectbox(
+                "Select Management Module:",
+                [
+                    "👥 Manage Employees (HR)", 
+                    "💰 Payroll & Money", 
+                    "📝 Tasks & Checklists", 
+                    "🏢 Branches & Expenses",
+                    "🖨 Printer Management",
+                    "📂 Archive & History",
+                    "🎓 Employee Training"
+                ]
+            )
+        
+            if admin_choice == "👥 Manage Employees (HR)":
                 from hr_service import hr_management_ui
                 hr_management_ui(db)
-                    
-
             # 2. الرواتب والماليات
             elif admin_choice == "💰 Payroll & Money":
                 st.info("Manage Salaries, Bonuses & Deductions")
