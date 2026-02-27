@@ -28,8 +28,7 @@ if "printers" not in db:
         "Kyocera P5031DN": "192.168.1.126"
     }
 
-PRINTERS = db["printers"]
-
+PRINTERS = db.get("printers", {}).copy()
 
 
 # --- 2. Advanced PDF Generation (تقرير شامل) ---
