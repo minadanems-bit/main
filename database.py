@@ -1,19 +1,22 @@
 # =====================================================
-# DATABASE LAYER (CLOUD SAFE VERSION - STABLE)
+# DATABASE LAYER (SQLITE - STREAMLIT CLOUD SAFE)
 # =====================================================
 
 import sqlite3
 import json
-import os
 
-# =====================================================
-# ✅ Safe Path for Streamlit Cloud
-# =====================================================
-
-# /tmp أفضل مكان للكتابة على Cloud
-DB_FILE = os.path.join("/tmp", "nms_system.db")
+# ✅ على Streamlit Cloud الأفضل نخزن داخل /tmp
+DB_FILE = "/tmp/nms_system.db"
 
 print("📂 DATABASE FILE:", DB_FILE)
+
+
+# =====================================================
+# SAFE CONNECTION
+# =====================================================
+
+def get_connection():
+    return sqlite3.connect(DB_FILE, check_same_thread=False)
 
 
 # =====================================================
@@ -21,12 +24,8 @@ print("📂 DATABASE FILE:", DB_FILE)
 # =====================================================
 
 def init_db():
-    """
-    Create database + table + default row if not exists.
-    Won't overwrite existing data.
-    """
 
-    conn = sqlite3.connect(DB_FILE)
+    conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("""
@@ -36,16 +35,16 @@ def init_db():
         )
     """)
 
-    # Check if system row exists
     cursor.execute("SELECT data FROM app_data WHERE id = 1")
     row = cursor.fetchone()
 
     if not row:
-        print("🚀 Creating Fresh Database With Default Data")
+
+        print("🚀 Creating Fresh Database")
 
         default_data = {
             "logo": None,
-            "manager_phone": "971522045638",
+            "manager_phone": "+971522045638",  # ✅ الرقم الجديد
 
             "branches": [],
             "expense_categories": [],
@@ -91,10 +90,7 @@ def init_db():
     conn.close()
 
 
-# =====================================================
-# RUN ONCE
-# =====================================================
-
+# ✅ Run once
 init_db()
 
 
@@ -103,9 +99,8 @@ init_db()
 # =====================================================
 
 def load_db():
-    """Load full JSON safely"""
 
-    conn = sqlite3.connect(DB_FILE)
+    conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("SELECT data FROM app_data WHERE id = 1")
@@ -127,9 +122,8 @@ def load_db():
 # =====================================================
 
 def save_db(data):
-    """Save full system state safely"""
 
-    conn = sqlite3.connect(DB_FILE)
+    conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute(
@@ -146,5 +140,7 @@ def save_db(data):
 # =====================================================
 
 def get_manager_phone():
+
     db = load_db()
-    return db.get("manager_phone", "971522045638")
+
+    return db.get("manager_phone", "+971522045638")
