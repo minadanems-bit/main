@@ -10,11 +10,21 @@ DB_FILE = "nms_system.db"
 
 
 # =====================================================
+# UTIL: SHOW DB PATH (DEBUG ONLY)
+# =====================================================
+
+print("📂 DATABASE PATH:", os.path.abspath(DB_FILE))
+
+
+# =====================================================
 # INIT DATABASE
 # =====================================================
 
 def init_db():
-    """Create database + default row if not exists"""
+    """
+    Create database + default row if not exists.
+    Safe initialization with full system structure.
+    """
 
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
@@ -26,11 +36,12 @@ def init_db():
         )
     """)
 
-    # Check if row with id=1 exists
-    cursor.execute("SELECT data FROM app_data WHERE id = 1")
-    row = cursor.fetchone()
+    # Check if row exists
+    cursor.execute("SELECT COUNT(*) FROM app_data WHERE id = 1")
+    exists = cursor.fetchone()[0]
 
-    if not row:
+    if exists == 0:
+
         default_data = {
             "logo": None,
             "manager_phone": "201234567890",
@@ -70,11 +81,12 @@ def init_db():
         }
 
         cursor.execute(
-            "INSERT INTO app_data (id, data) VALUES (1, ?)",
-            (json.dumps(default_data),)
+            "INSERT INTO app_data (id, data) VALUES (?, ?)",
+            (1, json.dumps(default_data))
         )
 
-    conn.commit()
+        conn.commit()
+
     conn.close()
 
 
@@ -87,6 +99,10 @@ init_db()
 # =====================================================
 
 def load_db():
+    """
+    Load full JSON structure from SQLite.
+    """
+
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
 
@@ -98,7 +114,8 @@ def load_db():
     if row and row[0]:
         try:
             return json.loads(row[0])
-        except:
+        except json.JSONDecodeError:
+            print("❌ JSON CORRUPTED — Resetting Database")
             return {}
 
     return {}
@@ -109,12 +126,16 @@ def load_db():
 # =====================================================
 
 def save_db(data):
+    """
+    Save full JSON structure safely.
+    """
+
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
 
     cursor.execute(
         "UPDATE app_data SET data = ? WHERE id = 1",
-        (json.dumps(data),)
+        (json.dumps(data, ensure_ascii=False),)
     )
 
     conn.commit()
