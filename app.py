@@ -1091,110 +1091,110 @@ with tab3:
     # =====================================================
     # WHATSAPP MESSAGE
     # =====================================================
-branch = st.session_state.get("branch", "-")
-shift = st.session_state.get("shift", "-")
-
-wa_text = f"""*🚀 NMS ERP - SHIFT REPORT*
-━━━━━━━━━━━━━━━━
-📅 Date: {date.today()}
-👤 Staff: {st.session_state.get('user')}
-📍 Branch: {branch}
-🕒 Shift: {shift}
-
-*💰 FINANCIAL SUMMARY*
-━━━━━━━━━━━━━━━━
-💵 Opening Cash: {t_open:,.2f}
-💻 System Sales: {sys_sales:,.2f}
-💸 Expenses: {ex_val:,.2f} ({ex_cat}: {ex_note})
-💳 Digital Total: {t_digital:,.2f}
-💰 Closing Drawer: {t_close:,.2f}
-⚖️ Net Difference: {diff:,.2f}
-
-*🖨️ PRINTER SUMMARY*
-━━━━━━━━━━━━━━━━
-📠 Kyocera 3010i: {kyo_used}
-📠 Xerox 7835: {xerox_used}
-📠 Kyocera P5031DN: {hp_used}
-📱 Opay Used: {st.session_state.get('ops',0) - st.session_state.get('ope',0):,.2f}
-
-*✅ TASK STATUS*
-━━━━━━━━━━━━━━━━
-🌅 Opening: {op_done}/{op_tot}
-🌇 Closing: {cl_done}/{cl_tot}
-📱 Social: {soc_done}/{soc_tot}
-🤝 Interaction: {int_done}/{int_tot}
-
-*📝 DISCREPANCIES & NOTES*
-━━━━━━━━━━━━━━━━
-{notes_section}
-
-📌 Shift Notes:
-{st.session_state.get('dn_notes', '-')}
-"""
-
-# =====================================================
-# ARCHIVE + PDF SECTION
-# =====================================================
-
-crep1, crep2 = st.columns(2)
-
-with crep1:
-
-    if st.button("💾 ARCHIVE SHIFT & DATA", use_container_width=True):
-
-        printer_snapshot = {
-            "start": st.session_state.get("printer_start"),
-            "end": st.session_state.get("printer_end"),
-            "difference": st.session_state.get("printer_diff")
-        }
-
-        db["history"].append({
-            "date": str(date.today()),
-            "branch": branch,
-            "staff": st.session_state.get("user"),
-            "sales": sys_sales,
-            "diff": diff,
-            "expenses": ex_val,
-            "exp_note": f"{ex_cat}: {ex_note}",
-            "printer_snapshot": printer_snapshot
-        })
-
-        save_db(db)
-        st.success("✅ Shift Archived Successfully!")
+    branch = st.session_state.get("branch", "-")
+    shift = st.session_state.get("shift", "-")
+    
+    wa_text = f"""*🚀 NMS ERP - SHIFT REPORT*
+    ━━━━━━━━━━━━━━━━
+    📅 Date: {date.today()}
+    👤 Staff: {st.session_state.get('user')}
+    📍 Branch: {branch}
+    🕒 Shift: {shift}
+    
+    *💰 FINANCIAL SUMMARY*
+    ━━━━━━━━━━━━━━━━
+    💵 Opening Cash: {t_open:,.2f}
+    💻 System Sales: {sys_sales:,.2f}
+    💸 Expenses: {ex_val:,.2f} ({ex_cat}: {ex_note})
+    💳 Digital Total: {t_digital:,.2f}
+    💰 Closing Drawer: {t_close:,.2f}
+    ⚖️ Net Difference: {diff:,.2f}
+    
+    *🖨️ PRINTER SUMMARY*
+    ━━━━━━━━━━━━━━━━
+    📠 Kyocera 3010i: {kyo_used}
+    📠 Xerox 7835: {xerox_used}
+    📠 Kyocera P5031DN: {hp_used}
+    📱 Opay Used: {st.session_state.get('ops',0) - st.session_state.get('ope',0):,.2f}
+    
+    *✅ TASK STATUS*
+    ━━━━━━━━━━━━━━━━
+    🌅 Opening: {op_done}/{op_tot}
+    🌇 Closing: {cl_done}/{cl_tot}
+    📱 Social: {soc_done}/{soc_tot}
+    🤝 Interaction: {int_done}/{int_tot}
+    
+    *📝 DISCREPANCIES & NOTES*
+    ━━━━━━━━━━━━━━━━
+    {notes_section}
+    
+    📌 Shift Notes:
+    {st.session_state.get('dn_notes', '-')}
+    """
+    
     # =====================================================
-    # PDF + WHATSAPP
+    # ARCHIVE + PDF SECTION
     # =====================================================
+    
     crep1, crep2 = st.columns(2)
-
-with crep1:
-    if st.button("📄 GENERATE PRO PDF", use_container_width=True):
-        pdf_bytes = create_downloadable_pdf(
-            branch,
-            st.session_state.get("user"),
-            str(date.today()),
-            sys_sales,
-            ex_val,
-            f"{ex_cat}: {ex_note}",
-            diff,
-            st.session_state.get("printer_diff", {}).get("Kyocera", {}),
-            st.session_state.get("printer_diff", {}).get("Xerox", {}),
-            st.session_state.get("ops", 0) - st.session_state.get("ope", 0),
-            st.session_state.get("v22_val", 0)
-        )
-
-        st.download_button(
-            "📥 Download PDF",
-            pdf_bytes,
-            file_name=f"NMS_{date.today()}.pdf",
-            key="pdf_download"
-        )
-        with crep2:
-            url = f"https://wa.me/{MANAGER_PHONE}?text={urllib.parse.quote(wa_text)}"
-            st.markdown(
-            f'<a href="{url}" target="_blank">'
-            f'<button style="width:100%; background-color:#25D366; color:white; '
-            f'border:none; padding:15px; border-radius:10px; cursor:pointer; '
-            f'font-weight:bold; font-size:16px;">'
-            f'📱 SEND TO WHATSAPP</button></a>',
-            unsafe_allow_html=True
-        )
+    
+    with crep1:
+    
+        if st.button("💾 ARCHIVE SHIFT & DATA", use_container_width=True):
+    
+            printer_snapshot = {
+                "start": st.session_state.get("printer_start"),
+                "end": st.session_state.get("printer_end"),
+                "difference": st.session_state.get("printer_diff")
+            }
+    
+            db["history"].append({
+                "date": str(date.today()),
+                "branch": branch,
+                "staff": st.session_state.get("user"),
+                "sales": sys_sales,
+                "diff": diff,
+                "expenses": ex_val,
+                "exp_note": f"{ex_cat}: {ex_note}",
+                "printer_snapshot": printer_snapshot
+            })
+    
+            save_db(db)
+            st.success("✅ Shift Archived Successfully!")
+        # =====================================================
+        # PDF + WHATSAPP
+        # =====================================================
+        crep1, crep2 = st.columns(2)
+    
+    with crep1:
+        if st.button("📄 GENERATE PRO PDF", use_container_width=True):
+            pdf_bytes = create_downloadable_pdf(
+                branch,
+                st.session_state.get("user"),
+                str(date.today()),
+                sys_sales,
+                ex_val,
+                f"{ex_cat}: {ex_note}",
+                diff,
+                st.session_state.get("printer_diff", {}).get("Kyocera", {}),
+                st.session_state.get("printer_diff", {}).get("Xerox", {}),
+                st.session_state.get("ops", 0) - st.session_state.get("ope", 0),
+                st.session_state.get("v22_val", 0)
+            )
+    
+            st.download_button(
+                "📥 Download PDF",
+                pdf_bytes,
+                file_name=f"NMS_{date.today()}.pdf",
+                key="pdf_download"
+            )
+            with crep2:
+                url = f"https://wa.me/{MANAGER_PHONE}?text={urllib.parse.quote(wa_text)}"
+                st.markdown(
+                f'<a href="{url}" target="_blank">'
+                f'<button style="width:100%; background-color:#25D366; color:white; '
+                f'border:none; padding:15px; border-radius:10px; cursor:pointer; '
+                f'font-weight:bold; font-size:16px;">'
+                f'📱 SEND TO WHATSAPP</button></a>',
+                unsafe_allow_html=True
+            )
