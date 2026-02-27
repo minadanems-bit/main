@@ -1,12 +1,11 @@
 # =====================================================
-# DATABASE LAYER (SQLITE VERSION - PRODUCTION SAFE)
+# DATABASE LAYER (SQLITE - JSON STORAGE MODE)
 # =====================================================
 
 import sqlite3
 import json
-import os
 
-DB_FILE = "nms_database.db"
+DB_FILE = "nms_system.db"   # 👈 اسم ملف قاعدة البيانات الجديد
 
 
 # =====================================================
@@ -14,11 +13,9 @@ DB_FILE = "nms_database.db"
 # =====================================================
 
 def init_db():
-
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
 
-    # إنشاء الجدول لو مش موجود
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS app_data (
             id INTEGER PRIMARY KEY,
@@ -26,35 +23,16 @@ def init_db():
         )
     """)
 
-    # التحقق هل في row بالفعل
     cursor.execute("SELECT COUNT(*) FROM app_data")
     count = cursor.fetchone()[0]
 
     if count == 0:
-
         default_data = {
             "logo": None,
             "manager_phone": "201234567890",
-            "branches": ["Main Branch"],
-            "expense_categories": [
-                "Electricity",
-                "Water",
-                "Rent"
-            ],
-            "users": {
-                "admin": {
-                    "pass": "admin123",
-                    "role": "admin",
-                    "full_name": "Manager",
-                    "phone": "",
-                    "salary": 0,
-                    "bonus": [],
-                    "deductions": [],
-                    "overtime": [],
-                    "extra_leaves": [],
-                    "photo": None
-                }
-            },
+            "branches": [],
+            "expense_categories": [],
+            "users": {},
             "tasks": {
                 "opening": [],
                 "closing": [],
@@ -67,15 +45,14 @@ def init_db():
         }
 
         cursor.execute(
-            "INSERT INTO app_data (id, data) VALUES (?, ?)",
-            (1, json.dumps(default_data))
+            "INSERT INTO app_data (id, data) VALUES (1, ?)",
+            (json.dumps(default_data),)
         )
 
     conn.commit()
     conn.close()
 
 
-# Run once safely
 init_db()
 
 
@@ -84,7 +61,6 @@ init_db()
 # =====================================================
 
 def load_db():
-
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
 
@@ -94,10 +70,7 @@ def load_db():
     conn.close()
 
     if row and row[0]:
-        try:
-            return json.loads(row[0])
-        except:
-            return {}
+        return json.loads(row[0])
 
     return {}
 
@@ -107,7 +80,6 @@ def load_db():
 # =====================================================
 
 def save_db(data):
-
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
 
@@ -125,6 +97,5 @@ def save_db(data):
 # =====================================================
 
 def get_manager_phone():
-
     db = load_db()
     return db.get("manager_phone", "201234567890")
