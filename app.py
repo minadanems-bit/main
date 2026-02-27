@@ -484,9 +484,9 @@ else:
                 # لاستدعاء الدالة في القائمة الجانبية أو كصفحة مستقلة:
                 # if st.session_state['page'] == 'training':
                 #     show_training_page()
-        elif admin_choice == "🖨 Printer Management":
-            from printer_service import printer_management_ui
-            printer_management_ui(db, PRINTERS)
+                        elif admin_choice == "🖨 Printer Management":
+                            from printer_service import printer_management_ui
+                            printer_management_ui(db, PRINTERS)
 
     
 if st.session_state.get("role") == "admin":
