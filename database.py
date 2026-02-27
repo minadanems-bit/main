@@ -1,24 +1,33 @@
 # =====================================================
-# DATABASE LAYER (SQLITE - STREAMLIT SAFE VERSION)
+# DATABASE LAYER (SQLITE - PRODUCTION SAFE VERSION)
 # =====================================================
 
 import sqlite3
 import json
 import os
 
+
 # =====================================================
-# SAFE STORAGE PATH
+# SAFE DATABASE LOCATION
 # =====================================================
 
 """
 Streamlit Cloud يسمح بالكتابة داخل المشروع فقط.
-لذلك نخلي DB داخل نفس المجلد بدون إنشاء فولدر خارجي.
+نخلي قاعدة البيانات داخل نفس المجلد.
 """
 
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_FILE = os.path.join(PROJECT_DIR, "nms_system.db")
 
-print("📂 DATABASE FILE:", DB_FILE)
+
+# =====================================================
+# SAFE CONNECTION FUNCTION
+# =====================================================
+
+def get_connection():
+    """Return safe sqlite connection"""
+    conn = sqlite3.connect(DB_FILE, check_same_thread=False)
+    return conn
 
 
 # =====================================================
@@ -28,9 +37,10 @@ print("📂 DATABASE FILE:", DB_FILE)
 def init_db():
     """
     Create database + default row if not exists.
+    Safe for Cloud + Local.
     """
 
-    conn = sqlite3.connect(DB_FILE)
+    conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("""
@@ -40,10 +50,10 @@ def init_db():
         )
     """)
 
-    cursor.execute("SELECT COUNT(*) FROM app_data WHERE id = 1")
-    exists = cursor.fetchone()[0]
+    cursor.execute("SELECT data FROM app_data WHERE id = 1")
+    row = cursor.fetchone()
 
-    if exists == 0:
+    if not row:
 
         default_data = {
             "logo": None,
@@ -93,7 +103,7 @@ def init_db():
     conn.close()
 
 
-# ✅ Run once
+# ✅ Run once at import
 init_db()
 
 
@@ -102,8 +112,9 @@ init_db()
 # =====================================================
 
 def load_db():
+    """Load full JSON from SQLite"""
 
-    conn = sqlite3.connect(DB_FILE)
+    conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("SELECT data FROM app_data WHERE id = 1")
@@ -113,8 +124,8 @@ def load_db():
     if row and row[0]:
         try:
             return json.loads(row[0])
-        except json.JSONDecodeError:
-            print("❌ DB JSON CORRUPTED")
+        except Exception as e:
+            print("❌ JSON ERROR:", e)
             return {}
 
     return {}
@@ -125,8 +136,9 @@ def load_db():
 # =====================================================
 
 def save_db(data):
+    """Save full JSON safely"""
 
-    conn = sqlite3.connect(DB_FILE)
+    conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute(
