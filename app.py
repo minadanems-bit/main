@@ -199,51 +199,10 @@ else:
                 "🎓 Employee Training"
             ])            
             
-            # 1. إدارة الموظفين (HR)
-            if admin_choice == "👥 Manage Employees (HR)":
-                st.info("Edit, Delete, or Add Employees")
-                target = st.selectbox("Select Employee to Edit", list(db["users"].keys()))
-                u_prof = db["users"][target]
-                
-                with st.expander("📸 Update Photo", expanded=False):
-                    new_pic = st.file_uploader("Upload Photo", type=['png','jpg'])
-                    if st.button("Save Photo"):
-                        if new_pic:
-                            db["users"][target]["photo"] = base64.b64encode(new_pic.getvalue()).decode()
-                            save_db(db); st.success("Photo Updated!"); st.rerun()
-
-                with st.expander("📝 Edit Personal Details", expanded=True):
-                    up_full = st.text_input("Full Name", value=u_prof.get('full_name', ''))
-                    up_pass = st.text_input("Password", value=u_prof.get('pass', ''))
-                    up_phone = st.text_input("Phone Number", value=u_prof.get('phone', ''))
-                    up_email = st.text_input("E-Mail", value=u_prof.get('email', ''))                    
-                    up_nid = st.text_input("National ID", value=u_prof.get('national_id', ''))
-                    up_addr = st.text_area("Address", value=u_prof.get('address', ''))
-                    up_qual = st.text_input("Qualification", value=u_prof.get('qualification', ''))
-                    if st.button("💾 Save Changes"):
-                        db["users"][target].update({
-                            "full_name": up_full, "pass": up_pass, "phone": up_phone,
-                            "national_id": up_nid, "address": up_addr, "qualification": up_qual
-                        })
-                        save_db(db); st.success("Saved")
-                
-                # زر حذف الموظف
-                if target != 'admin':
-                    if st.button("🗑️ Delete This Employee", type="primary"):
-                        del db["users"][target]
-                        save_db(db); st.warning(f"User {target} Deleted!"); st.rerun()
-                
-                st.write("---")
-                st.write("#### ➕ Add New Employee")
-                new_u = st.text_input("New Username")
-                if st.button("Create Account"):
-                    if new_u and new_u not in db["users"]:
-                        db["users"][new_u] = {
-                            "pass": "123", "role": "user", "full_name": new_u,
-                            "salary": 0.0, "bonus": [], "deductions": [], "overtime": [], "extra_leaves": [], "photo": None, "hiring_date": str(date.today()),
-                            "phone": "", "national_id": "", "address": "", "qualification": ""
-                        }
-                        save_db(db); st.success("Created"); st.rerun()
+            elif admin_choice == "👥 Manage Employees (HR)":
+                from hr_service import hr_management_ui
+                hr_management_ui(db)
+                    
 
             # 2. الرواتب والماليات
             elif admin_choice == "💰 Payroll & Money":
