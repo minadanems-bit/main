@@ -80,7 +80,7 @@ def create_downloadable_pdf(branch, staff_name, date_str, sales, expenses, exp_n
 
  
 # --- 4. Login Screen ---
-if not st.session_state['logged_in']:
+if not st.session_state.get("logged_in", False):
 
     st.title("🔐 NMS Enterprise Access")
 
