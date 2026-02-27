@@ -25,7 +25,10 @@ def daily_operations_ui(db):
     # =====================================================
 
     if "branch" not in st.session_state:
-        st.session_state["branch"] = db["branches"][0]
+        if db.get("branches"):
+            st.session_state["branch"] = db["branches"][0]
+        else:
+            st.session_state["branch"] = "No Branch"
 
     if "shift" not in st.session_state:
         st.session_state["shift"] = "Morning"
