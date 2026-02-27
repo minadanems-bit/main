@@ -1136,6 +1136,7 @@ with tab3:
     # ARCHIVE + PDF SECTION
     # =====================================================
     
+    crep1, crep2 = st.columns(2)
     
     with crep1:
     
@@ -1163,7 +1164,6 @@ with tab3:
         # =====================================================
         # PDF + WHATSAPP
         # =====================================================
-        crep1, crep2 = st.columns(2)
     
     with crep1:
         if st.button("📄 GENERATE PRO PDF", use_container_width=True):
