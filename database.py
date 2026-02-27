@@ -1,5 +1,5 @@
 # =====================================================
-# DATABASE LAYER (SQLITE - STREAMLIT CLOUD SAFE)
+# DATABASE LAYER (SQLITE - STREAMLIT SAFE VERSION)
 # =====================================================
 
 import sqlite3
@@ -7,18 +7,16 @@ import json
 import os
 
 # =====================================================
-# SAFE STORAGE PATH (Works on Local + Streamlit Cloud)
+# SAFE STORAGE PATH
 # =====================================================
 
-if os.path.exists("/mount"):
-    BASE_DIR = "/mount/data"
-else:
-    BASE_DIR = os.path.join(os.getcwd(), "data")
+"""
+Streamlit Cloud يسمح بالكتابة داخل المشروع فقط.
+لذلك نخلي DB داخل نفس المجلد بدون إنشاء فولدر خارجي.
+"""
 
-# ✅ تأكد إن الفولدر موجود
-os.makedirs(BASE_DIR, exist_ok=True)
-
-DB_FILE = os.path.join(BASE_DIR, "nms_system.db")
+PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_FILE = os.path.join(PROJECT_DIR, "nms_system.db")
 
 print("📂 DATABASE FILE:", DB_FILE)
 
@@ -30,7 +28,6 @@ print("📂 DATABASE FILE:", DB_FILE)
 def init_db():
     """
     Create database + default row if not exists.
-    Safe for Cloud + Local.
     """
 
     conn = sqlite3.connect(DB_FILE)
@@ -96,7 +93,7 @@ def init_db():
     conn.close()
 
 
-# ✅ Initialize once
+# ✅ Run once
 init_db()
 
 
@@ -117,7 +114,7 @@ def load_db():
         try:
             return json.loads(row[0])
         except json.JSONDecodeError:
-            print("❌ JSON CORRUPTED — Reset Needed")
+            print("❌ DB JSON CORRUPTED")
             return {}
 
     return {}
