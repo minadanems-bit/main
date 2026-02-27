@@ -19,8 +19,9 @@ if "printers" not in db:
     }
     save_db(db)
 
-PRINTERS = db.get("printers", {})
-
+def get_printers():
+    db_local = load_db()
+    return db_local.get("printers", {})
 # =====================================================
 # CALCULATE DIFFERENCE
 # =====================================================
@@ -62,7 +63,7 @@ def printer_shift_tab(title, key_prefix):
 
     printer_data = {}
 
-    for printer in PRINTERS:
+    for printer in get_printers():
 
         st.markdown(f"### 📠 {printer}")
 
