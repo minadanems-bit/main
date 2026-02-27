@@ -21,7 +21,6 @@ if "printers" not in db:
 
 PRINTERS = db.get("printers", {})
 
-
 # =====================================================
 # CALCULATE PRINTER DIFFERENCE
 # =====================================================
@@ -142,7 +141,7 @@ def printer_shift_tab(title, key_prefix):
         col3, col4 = st.columns(2)
         col5 = st.columns(1)
 
-        safe_prefix = f"{key_prefix}_{title}_{printer}"
+        safe_prefix = f"{key_prefix}_{printer}"
 
         with col1:
             total = st.number_input(
