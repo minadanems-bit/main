@@ -345,6 +345,10 @@ def daily_operations_ui(db):
                 "sales": sys_sales,
                 "cash_diff": st.session_state.get("cash_diff", 0),
                 "printer_diff": st.session_state.get("printer_diff", {})
+                "opay_open": st.session_state.get("opay_open", 0),
+                "opay_close": opay_close,
+                "debit_open": st.session_state.get("debit_open", 0),
+                "debit_close": debit_close,
             })
 
             save_db(db)
