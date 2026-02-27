@@ -446,18 +446,7 @@ else:
         elif admin_choice == "🖨 Printer Management":
             from printer_service import printer_management_ui
             printer_management_ui(db, PRINTERS)
-                # ➕ إضافة برنتر جديدة
-                st.subheader("➕ Add New Printer")
-            
-                p_name = st.text_input("Printer Name")
-                p_ip = st.text_input("Printer IP")
-            
-                if st.button("Add Printer"):
-                    if p_name and p_ip:
-                        PRINTERS[p_name] = p_ip
-                        save_db(db)
-                        st.success("Printer Added!")
-                        st.rerun()
+
                     # 3. خدمة العملاء (الجانب السلوكي)
                     with tabs[2]:
                         st.markdown('<div class="section-header">🌟 فن التعامل مع الجمهور</div>', unsafe_allow_html=True)
