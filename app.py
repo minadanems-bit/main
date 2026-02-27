@@ -18,12 +18,14 @@ db = load_db()
 # ===============================
 # PRINTER CONFIG
 # ===============================
+if "printers" not in db:
+    db["printers"] = {
+        "Kyocera 3010i": "192.168.1.120",
+        "Xerox 7835": "192.168.1.65",
+        "Kyocera P5031DN": "192.168.1.126"
+    }
 
-PRINTERS = {
-    "Kyocera 3010i": "192.168.1.120",
-    "Xerox 7835": "192.168.1.65",
-    "Kyocera P5031DN": "192.168.1.126"
-}
+PRINTERS = db["printers"]
 
 
 
@@ -547,13 +549,14 @@ else:
                     with col3:
                         if st.button("❌ Delete", key=f"del_{name}"):
                             PRINTERS.pop(name)
+                            db["printers"] = PRINTERS
                             save_db(db)
                             st.rerun()
             
                     # زر تعديل
                     if st.button("💾 Update Printer", key=f"update_{name}"):
                         PRINTERS.pop(name)
-                        PRINTERS[new_name] = new_ip
+                        db["printers"] = PRINTERS
                         save_db(db)
                         st.success("Updated!")
                         st.rerun()
