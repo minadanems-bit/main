@@ -443,51 +443,9 @@ else:
                             - **التكعيب:** تأكد من عدد الورق المناسب لحجم السلك (الحلزوني).
                             """)
 
-            elif admin_choice == "🖨 Printer Management":
-            
-                st.subheader("🖨 Manage Printers")
-            
-                # عرض الطابعات الحالية
-                for name, ip in PRINTERS.items():
-            
-                    col1, col2, col3 = st.columns([2,2,1])
-            
-                    with col1:
-                        new_name = st.text_input("Printer Name", value=name, key=f"name_{name}")
-            
-                    with col2:
-                        new_ip = st.text_input("IP Address", value=ip, key=f"ip_{name}")
-            
-                    with col3:
-                        if st.button("❌ Delete", key=f"del_{name}"):
-                            PRINTERS.pop(name)
-                            db["printers"] = PRINTERS
-                            save_db(db)
-                            st.rerun()
-            
-                    # زر تعديل
-                    if st.button("💾 Update Printer", key=f"update_{name}"):
-
-                        # لو الاسم اتغير
-                        updated_name = new_name
-                        updated_ip = new_ip
-                    
-                        # امسح القديم
-                        if name in PRINTERS:
-                            PRINTERS.pop(name)
-                    
-                        # أضف الجديد
-                        PRINTERS[updated_name] = updated_ip
-                    
-                        # احفظ في DB
-                        db["printers"] = PRINTERS
-                        save_db(db)
-                    
-                        st.success("✅ Printer Updated!")
-                        st.rerun()
-            
-                st.divider()
-            
+        elif admin_choice == "🖨 Printer Management":
+            from printer_service import printer_management_ui
+            printer_management_ui(db, PRINTERS)
                 # ➕ إضافة برنتر جديدة
                 st.subheader("➕ Add New Printer")
             
