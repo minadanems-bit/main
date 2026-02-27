@@ -9,6 +9,7 @@ import os
 DB_FILE = "nms_system.db"
 
 
+print("DB EXISTS:", os.path.exists(DB_FILE))
 # =====================================================
 # UTIL: SHOW DB PATH (DEBUG ONLY)
 # =====================================================
