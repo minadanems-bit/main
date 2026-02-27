@@ -1,20 +1,20 @@
 # =====================================================
-# DATABASE LAYER (SQLITE - JSON STORAGE MODE)
+# DATABASE LAYER (SQLITE - STREAMLIT CLOUD SAFE)
 # =====================================================
 
 import sqlite3
 import json
 import os
 
-DB_FILE = "nms_system.db"
+# ✅ مهم جدًا في Streamlit Cloud
+BASE_DIR = "/mount/data" if os.path.exists("/mount") else os.getcwd()
 
+DB_FILE = os.path.join(BASE_DIR, "nms_system.db")
 
-print("DB EXISTS:", os.path.exists(DB_FILE))
-# =====================================================
-# UTIL: SHOW DB PATH (DEBUG ONLY)
-# =====================================================
+# تأكد إن الفولدر موجود
+os.makedirs(BASE_DIR, exist_ok=True)
 
-print("📂 DATABASE PATH:", os.path.abspath(DB_FILE))
+print("📂 DATABASE PATH:", DB_FILE)
 
 
 # =====================================================
@@ -24,7 +24,7 @@ print("📂 DATABASE PATH:", os.path.abspath(DB_FILE))
 def init_db():
     """
     Create database + default row if not exists.
-    Safe initialization with full system structure.
+    Safe for Streamlit Cloud.
     """
 
     conn = sqlite3.connect(DB_FILE)
@@ -37,7 +37,6 @@ def init_db():
         )
     """)
 
-    # Check if row exists
     cursor.execute("SELECT COUNT(*) FROM app_data WHERE id = 1")
     exists = cursor.fetchone()[0]
 
@@ -91,7 +90,7 @@ def init_db():
     conn.close()
 
 
-# Run once at import
+# ✅ Run once
 init_db()
 
 
@@ -100,23 +99,18 @@ init_db()
 # =====================================================
 
 def load_db():
-    """
-    Load full JSON structure from SQLite.
-    """
 
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
 
     cursor.execute("SELECT data FROM app_data WHERE id = 1")
     row = cursor.fetchone()
-
     conn.close()
 
     if row and row[0]:
         try:
             return json.loads(row[0])
-        except json.JSONDecodeError:
-            print("❌ JSON CORRUPTED — Resetting Database")
+        except:
             return {}
 
     return {}
@@ -127,9 +121,6 @@ def load_db():
 # =====================================================
 
 def save_db(data):
-    """
-    Save full JSON structure safely.
-    """
 
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
