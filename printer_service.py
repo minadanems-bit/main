@@ -21,14 +21,12 @@ if "printers" not in db:
 
 PRINTERS = db.get("printers", {})
 
+
 # =====================================================
 # CALCULATE PRINTER DIFFERENCE
 # =====================================================
 
 def calculate_printer_difference(start_data, end_data):
-    """
-    حساب الفرق بين عدادات بداية الشفت ونهايته
-    """
 
     diff = {}
 
@@ -43,7 +41,7 @@ def calculate_printer_difference(start_data, end_data):
 
         for field in fields:
             try:
-                start_value = int(start_data[printer].get(field, 0) or 0)
+                start_value = int(start_data.get(printer, {}).get(field, 0) or 0)
                 end_value = int(end_data.get(printer, {}).get(field, 0) or 0)
 
                 diff[printer][field] = end_value - start_value
@@ -74,7 +72,7 @@ def printer_management_ui(db):
             new_name = st.text_input(
                 "Printer Name",
                 value=name,
-                key=f"name_{name}"
+                key=f"mn_{name}"
             )
 
         with col2:
@@ -92,7 +90,7 @@ def printer_management_ui(db):
                 save_db(db)
                 st.rerun()
 
-        if st.button("💾 Update", key=f"update_{name}"):
+        if st.button("💾 Update", key=f"upd_{name}"):
 
             printers.pop(name, None)
             printers[new_name] = new_ip
@@ -127,7 +125,7 @@ def printer_management_ui(db):
 
 
 # =====================================================
-# 🖨 SHIFT COUNTER MODULE (TAB 1 & TAB 2)
+# 🖨 SHIFT COUNTER MODULE (TAB 1 & TAB 2 FULL DATA)
 # =====================================================
 
 def printer_shift_tab(title, key_prefix):
@@ -144,39 +142,41 @@ def printer_shift_tab(title, key_prefix):
         col3, col4 = st.columns(2)
         col5 = st.columns(1)
 
+        safe_prefix = f"{key_prefix}_{title}_{printer}"
+
         with col1:
             total = st.number_input(
                 "Total",
                 min_value=0,
-                key=f"{key_prefix}_{printer}_total"
+                key=f"{safe_prefix}_total"
             )
 
         with col2:
             one_side = st.number_input(
                 "1 Side",
                 min_value=0,
-                key=f"{key_prefix}_{printer}_one"
+                key=f"{safe_prefix}_one"
             )
 
         with col3:
             two_side = st.number_input(
                 "2 Side",
                 min_value=0,
-                key=f"{key_prefix}_{printer}_two"
+                key=f"{safe_prefix}_two"
             )
 
         with col4:
             errors = st.number_input(
                 "Errors",
                 min_value=0,
-                key=f"{key_prefix}_{printer}_errors"
+                key=f"{safe_prefix}_errors"
             )
 
         with col5:
             jam = st.number_input(
                 "Jam",
                 min_value=0,
-                key=f"{key_prefix}_{printer}_jam"
+                key=f"{safe_prefix}_jam"
             )
 
         printer_data[printer] = {
@@ -200,13 +200,15 @@ def printer_shift_comparison():
 
     st.subheader("📊 Printer Shift Comparison")
 
-    st.write("### 🔵 Start Shift")
+    tab1, tab2 = st.tabs(["🔵 Start Shift", "🔴 End Shift"])
 
-    start_data = printer_shift_tab("Start Counters", "start")
+    with tab1:
+        start_data = printer_shift_tab("Start Counters", "start")
 
-    st.write("### 🔴 End Shift")
+    with tab2:
+        end_data = printer_shift_tab("End Counters", "end")
 
-    end_data = printer_shift_tab("End Counters", "end")
+    st.divider()
 
     if st.button("📈 Calculate Difference"):
 
@@ -216,6 +218,21 @@ def printer_shift_comparison():
 
         st.json(diff)
 
+        # حفظ في session
         st.session_state["printer_start"] = start_data
         st.session_state["printer_end"] = end_data
         st.session_state["printer_diff"] = diff
+
+        # عرض ملخص سريع
+        st.markdown("### 📊 Quick Summary")
+
+        for printer, values in diff.items():
+
+            total_diff = values.get("Total", 0)
+
+            if total_diff > 0:
+                st.success(f"{printer} ➜ Increased by {total_diff}")
+            elif total_diff < 0:
+                st.error(f"{printer} ➜ Decreased by {total_diff}")
+            else:
+                st.info(f"{printer} ➜ No Change")
