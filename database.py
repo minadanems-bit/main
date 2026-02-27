@@ -4,8 +4,9 @@
 
 import sqlite3
 import json
+import os
 
-DB_FILE = "nms_system.db"   # 👈 اسم ملف قاعدة البيانات الجديد
+DB_FILE = "nms_system.db"
 
 
 # =====================================================
@@ -13,6 +14,8 @@ DB_FILE = "nms_system.db"   # 👈 اسم ملف قاعدة البيانات ا�
 # =====================================================
 
 def init_db():
+    """Create database + default row if not exists"""
+
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
 
@@ -23,25 +26,47 @@ def init_db():
         )
     """)
 
-    cursor.execute("SELECT COUNT(*) FROM app_data")
-    count = cursor.fetchone()[0]
+    # Check if row with id=1 exists
+    cursor.execute("SELECT data FROM app_data WHERE id = 1")
+    row = cursor.fetchone()
 
-    if count == 0:
+    if not row:
         default_data = {
             "logo": None,
             "manager_phone": "201234567890",
+
             "branches": [],
             "expense_categories": [],
-            "users": {},
+
+            "users": {
+                "admin": {
+                    "pass": "admin123",
+                    "role": "admin",
+                    "full_name": "Manager",
+                    "photo": None,
+                    "salary": 0,
+                    "bonus": [],
+                    "deductions": [],
+                    "overtime": [],
+                    "extra_leaves": []
+                }
+            },
+
             "tasks": {
                 "opening": [],
                 "closing": [],
                 "social": [],
                 "interaction": []
             },
+
             "history": [],
             "drafts": {},
-            "logs": []
+            "logs": [],
+            "printers": {
+                "Kyocera 3010i": "192.168.1.120",
+                "Xerox 7835": "192.168.1.65",
+                "Kyocera P5031DN": "192.168.1.126"
+            }
         }
 
         cursor.execute(
@@ -53,6 +78,7 @@ def init_db():
     conn.close()
 
 
+# Run once at import
 init_db()
 
 
@@ -70,7 +96,10 @@ def load_db():
     conn.close()
 
     if row and row[0]:
-        return json.loads(row[0])
+        try:
+            return json.loads(row[0])
+        except:
+            return {}
 
     return {}
 
@@ -90,6 +119,7 @@ def save_db(data):
 
     conn.commit()
     conn.close()
+
 
 # =====================================================
 # GET MANAGER PHONE
