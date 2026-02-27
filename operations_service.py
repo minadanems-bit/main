@@ -98,6 +98,15 @@ def daily_operations_ui(db):
 
         coins = st.number_input("Coins", step=0.5, key="open_coins")
         t_open += coins
+        # ========================
+        # Opay & Debit Opening
+        # ========================
+        
+        opay_open = st.number_input("💳 Opay Opening", step=1.0, key="opay_open")
+        debit_open = st.number_input("💳 Debit Opening", step=1.0, key="debit_open")
+        
+        st.session_state["opay_open"] = opay_open
+        st.session_state["debit_open"] = debit_open
 
         st.success(f"Total Opening: {t_open:,.2f} LE")
         st.session_state["t_open"] = t_open
@@ -178,6 +187,12 @@ def daily_operations_ui(db):
         insta = st.number_input("Instapay", step=1.0, key="c_insta")
         wallet = st.number_input("Wallet", step=1.0, key="c_wallet")
         visa = st.number_input("Visa", step=1.0, key="c_visa")
+        # ========================
+        # Opay & Debit Closing
+        # ========================
+        
+        opay_close = st.number_input("💳 Opay Closing", step=1.0, key="opay_close")
+        debit_close = st.number_input("💳 Debit Closing", step=1.0, key="debit_close")
 
         t_digital = insta + wallet + visa
         t_open = st.session_state.get("t_open", 0)
