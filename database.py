@@ -1,33 +1,29 @@
 # =====================================================
-# DATABASE LAYER (SQLITE - PRODUCTION SAFE VERSION)
+# DATABASE LAYER (SQLITE - PRODUCTION SAFE VERSION V2)
 # =====================================================
 
 import sqlite3
 import json
 import os
-
+import threading
 
 # =====================================================
 # SAFE DATABASE LOCATION
 # =====================================================
 
-"""
-Streamlit Cloud يسمح بالكتابة داخل المشروع فقط.
-نخلي قاعدة البيانات داخل نفس المجلد.
-"""
-
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_FILE = os.path.join(PROJECT_DIR, "nms_system.db")
 
+# Lock لحماية الكتابة من التداخل
+db_lock = threading.Lock()
+
 
 # =====================================================
-# SAFE CONNECTION FUNCTION
+# CONNECTION
 # =====================================================
 
 def get_connection():
-    """Return safe sqlite connection"""
-    conn = sqlite3.connect(DB_FILE, check_same_thread=False)
-    return conn
+    return sqlite3.connect(DB_FILE, check_same_thread=False)
 
 
 # =====================================================
@@ -35,119 +31,123 @@ def get_connection():
 # =====================================================
 
 def init_db():
-    """
-    Create database + default row if not exists.
-    Safe for Cloud + Local.
-    """
 
-    conn = get_connection()
-    cursor = conn.cursor()
+    with db_lock:
+        conn = get_connection()
+        cursor = conn.cursor()
 
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS app_data (
-            id INTEGER PRIMARY KEY,
-            data TEXT
-        )
-    """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS app_data (
+                id INTEGER PRIMARY KEY,
+                data TEXT
+            )
+        """)
 
-    cursor.execute("SELECT data FROM app_data WHERE id = 1")
-    row = cursor.fetchone()
+        cursor.execute("SELECT data FROM app_data WHERE id = 1")
+        row = cursor.fetchone()
 
-    if not row:
+        if not row:
 
-        default_data = {
-            "logo": None,
-            "manager_phone": "201234567890",
+            default_data = {
+                "logo": None,
+                "manager_phone": "201234567890",
 
-            "branches": [],
-            "expense_categories": [],
+                "branches": [],
+                "expense_categories": [],
 
-            "users": {
-                "admin": {
-                    "pass": "admin123",
-                    "role": "admin",
-                    "full_name": "Manager",
-                    "photo": None,
-                    "salary": 0,
-                    "bonus": [],
-                    "deductions": [],
-                    "overtime": [],
-                    "extra_leaves": []
+                "users": {
+                    "admin": {
+                        "pass": "admin123",
+                        "role": "admin",
+                        "full_name": "Manager",
+                        "photo": None,
+                        "salary": 0,
+                        "bonus": [],
+                        "deductions": [],
+                        "overtime": [],
+                        "extra_leaves": []
+                    }
+                },
+
+                "tasks": {
+                    "opening": [],
+                    "closing": [],
+                    "social": [],
+                    "interaction": []
+                },
+
+                "history": [],
+                "drafts": {},
+                "logs": [],
+                "printers": {
+                    "Kyocera 3010i": "192.168.1.120",
+                    "Xerox 7835": "192.168.1.65",
+                    "Kyocera P5031DN": "192.168.1.126"
                 }
-            },
-
-            "tasks": {
-                "opening": [],
-                "closing": [],
-                "social": [],
-                "interaction": []
-            },
-
-            "history": [],
-            "drafts": {},
-            "logs": [],
-            "printers": {
-                "Kyocera 3010i": "192.168.1.120",
-                "Xerox 7835": "192.168.1.65",
-                "Kyocera P5031DN": "192.168.1.126"
             }
-        }
 
-        cursor.execute(
-            "INSERT INTO app_data (id, data) VALUES (?, ?)",
-            (1, json.dumps(default_data, ensure_ascii=False))
-        )
+            cursor.execute(
+                "INSERT INTO app_data (id, data) VALUES (?, ?)",
+                (1, json.dumps(default_data, ensure_ascii=False))
+            )
 
-        conn.commit()
+            conn.commit()
 
-    conn.close()
+        conn.close()
 
 
-# ✅ Run once at import
+# Run once
 init_db()
 
 
 # =====================================================
-# LOAD DATABASE
+# LOAD DATABASE (SAFE)
 # =====================================================
 
 def load_db():
-    """Load full JSON from SQLite"""
 
-    conn = get_connection()
-    cursor = conn.cursor()
+    with db_lock:
 
-    cursor.execute("SELECT data FROM app_data WHERE id = 1")
-    row = cursor.fetchone()
-    conn.close()
+        if not os.path.exists(DB_FILE):
+            init_db()
 
-    if row and row[0]:
-        try:
-            return json.loads(row[0])
-        except Exception as e:
-            print("❌ JSON ERROR:", e)
-            return {}
+        conn = get_connection()
+        cursor = conn.cursor()
 
-    return {}
+        cursor.execute("SELECT data FROM app_data WHERE id = 1")
+        row = cursor.fetchone()
+        conn.close()
+
+        if row and row[0]:
+            try:
+                return json.loads(row[0])
+            except Exception as e:
+                print("❌ DATABASE JSON ERROR:", e)
+                return {}
+
+        return {}
 
 
 # =====================================================
-# SAVE DATABASE
+# SAVE DATABASE (SAFE + ATOMIC STYLE)
 # =====================================================
 
 def save_db(data):
-    """Save full JSON safely"""
 
-    conn = get_connection()
-    cursor = conn.cursor()
+    with db_lock:
 
-    cursor.execute(
-        "UPDATE app_data SET data = ? WHERE id = 1",
-        (json.dumps(data, ensure_ascii=False),)
-    )
+        temp_data = json.dumps(data, ensure_ascii=False)
 
-    conn.commit()
-    conn.close()
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            "UPDATE app_data SET data = ? WHERE id = 1",
+            (temp_data,)
+        )
+
+        conn.commit()
+        conn.close()
 
 
 # =====================================================
