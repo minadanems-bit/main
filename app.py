@@ -771,24 +771,24 @@ with c_o3:
             "Jam": jam
         }
 
-    st.session_state["printer_start"] = printer_start
-
-    st.divider()
-
-    ops = st.number_input(
-        "Opay Start Balance",
-        step=0.01,
-        key="ops",
-        on_change=sync_draft
-    )
-
-    u10 = st.number_input(
-        "Debit",
-        step=1.0,
-        key="u10_val",
-        on_change=sync_draft
-    )
+        st.session_state["printer_start"] = printer_start
     
+        st.divider()
+    
+        ops = st.number_input(
+            "Opay Start Balance",
+            step=0.01,
+            key="ops",
+            on_change=sync_draft
+        )
+    
+        u10 = st.number_input(
+            "Debit",
+            step=1.0,
+            key="u10_val",
+            on_change=sync_draft
+        )
+        
 
 # --- TAB 2: CLOSING ---
 with tab2:
