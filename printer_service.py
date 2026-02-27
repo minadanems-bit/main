@@ -1,12 +1,12 @@
 # =====================================================
-# PRINTER SERVICE (FINAL STABLE VERSION)
+# PRINTER SERVICE (FINAL PRO VERSION)
 # =====================================================
 
 import streamlit as st
 from database import load_db, save_db
 
 # =====================================================
-# DATABASE INIT
+# INITIALIZE DEFAULT PRINTERS
 # =====================================================
 
 def init_printers():
@@ -22,15 +22,13 @@ def init_printers():
 
 init_printers()
 
-
 # =====================================================
-# GET PRINTERS (RETURNS DICT)
+# GET PRINTERS
 # =====================================================
 
 def get_printers():
     db = load_db()
     return db.get("printers", {})
-
 
 # =====================================================
 # CALCULATE DIFFERENCE
@@ -43,11 +41,11 @@ def calculate_printer_difference(start_data, end_data):
     if not start_data or not end_data:
         return diff
 
+    fields = ["Total", "One Side", "Two Side", "Errors", "Jam"]
+
     for printer in start_data:
 
         diff[printer] = {}
-
-        fields = ["Total", "One Side", "Two Side", "Errors", "Jam"]
 
         for field in fields:
             try:
@@ -61,7 +59,7 @@ def calculate_printer_difference(start_data, end_data):
 
 
 # =====================================================
-# PRINTER MANAGEMENT UI  ✅ (THIS WAS MISSING)
+# PRINTER MANAGEMENT UI (ADD / EDIT / DELETE)
 # =====================================================
 
 def printer_management_ui(db):
@@ -71,40 +69,93 @@ def printer_management_ui(db):
     if "printers" not in db:
         db["printers"] = {}
 
+    printers = db["printers"].copy()
+
     st.subheader("📋 Current Printers")
 
-    for name, ip in db["printers"].items():
-        col1, col2 = st.columns([3, 1])
+    if not printers:
+        st.info("No printers added yet.")
 
-        with col1:
-            st.write(f"**{name}** — {ip}")
+    for name, ip in printers.items():
 
-        with col2:
-            if st.button("❌ Delete", key=f"del_{name}"):
-                del db["printers"][name]
-                save_db(db)
-                st.rerun()
+        with st.expander(f"📠 {name}"):
+
+            new_name = st.text_input(
+                "Printer Name",
+                value=name,
+                key=f"name_{name}"
+            )
+
+            new_ip = st.text_input(
+                "Printer IP",
+                value=ip,
+                key=f"ip_{name}"
+            )
+
+            col1, col2 = st.columns(2)
+
+            # ---------------- SAVE ----------------
+            with col1:
+                if st.button("💾 Save Changes", key=f"save_{name}"):
+
+                    if not new_name.strip():
+                        st.warning("Printer name cannot be empty.")
+                        return
+
+                    if new_name != name and new_name in db["printers"]:
+                        st.error("Printer name already exists.")
+                        return
+
+                    # remove old if renamed
+                    if new_name != name:
+                        del db["printers"][name]
+
+                    db["printers"][new_name] = new_ip.strip()
+
+                    save_db(db)
+                    st.success("Updated Successfully ✅")
+                    st.rerun()
+
+            # ---------------- DELETE ----------------
+            with col2:
+                if st.button("❌ Delete Printer", key=f"delete_{name}"):
+
+                    del db["printers"][name]
+                    save_db(db)
+
+                    st.warning("Printer Deleted")
+                    st.rerun()
 
     st.divider()
 
+    # =====================================================
+    # ADD NEW PRINTER
+    # =====================================================
+
     st.subheader("➕ Add New Printer")
 
-    new_name = st.text_input("Printer Name")
-    new_ip = st.text_input("Printer IP")
+    add_name = st.text_input("New Printer Name")
+    add_ip = st.text_input("New Printer IP")
 
     if st.button("Add Printer", use_container_width=True):
 
-        if new_name and new_ip:
-            db["printers"][new_name] = new_ip
-            save_db(db)
-            st.success("Printer Added ✅")
-            st.rerun()
-        else:
-            st.warning("Enter Name and IP")
+        if not add_name.strip():
+            st.warning("Enter printer name.")
+            return
+
+        if add_name in db["printers"]:
+            st.error("Printer already exists.")
+            return
+
+        db["printers"][add_name.strip()] = add_ip.strip()
+
+        save_db(db)
+        st.success("Printer Added ✅")
+        st.rerun()
 
 
 # =====================================================
-# SHIFT INPUT TAB (USED IF NEEDED)
+# SHIFT INPUT TAB
 # =====================================================
 
 def printer_shift_tab(title, key_prefix):
@@ -112,8 +163,11 @@ def printer_shift_tab(title, key_prefix):
     st.markdown(f"## {title}")
 
     printer_data = {}
-
     printers = get_printers()
+
+    if not printers:
+        st.info("No printers configured.")
+        return printer_data
 
     for printer in printers.keys():
 
@@ -141,7 +195,7 @@ def printer_shift_tab(title, key_prefix):
 
 
 # =====================================================
-# OPTIONAL FULL SHIFT COMPARISON PAGE
+# SHIFT COMPARISON PAGE
 # =====================================================
 
 def printer_shift_comparison():
@@ -168,18 +222,20 @@ def printer_shift_comparison():
 
         st.success("Calculated Successfully ✅")
 
+        if not diff:
+            st.info("No data to compare.")
+            return
+
         for printer, values in diff.items():
 
             st.markdown(f"### 📠 {printer}")
 
             col1, col2, col3 = st.columns(3)
-
             col1.metric("Total", values.get("Total", 0))
             col2.metric("1 Side", values.get("One Side", 0))
             col3.metric("2 Side", values.get("Two Side", 0))
 
             col4, col5 = st.columns(2)
-
             col4.metric("Errors", values.get("Errors", 0))
             col5.metric("Jam", values.get("Jam", 0))
 
