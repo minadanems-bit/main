@@ -8,6 +8,59 @@ from database import load_db, save_db
 # تحميل قاعدة البيانات
 db = load_db()
 
+def printer_management_ui(db):
+    from database import save_db
+    import streamlit as st
+
+    st.subheader("🖨 Manage Printers")
+
+    PRINTERS = db.get("printers", {})
+
+    for name, ip in list(PRINTERS.items()):
+
+        col1, col2, col3 = st.columns([2,2,1])
+
+        with col1:
+            new_name = st.text_input("Printer Name", value=name, key=f"name_{name}")
+
+        with col2:
+            new_ip = st.text_input("IP Address", value=ip, key=f"ip_{name}")
+
+        with col3:
+            if st.button("❌ Delete", key=f"del_{name}"):
+                PRINTERS.pop(name)
+                db["printers"] = PRINTERS
+                save_db(db)
+                st.rerun()
+
+        if st.button("💾 Update", key=f"update_{name}"):
+
+            PRINTERS.pop(name, None)
+            PRINTERS[new_name] = new_ip
+
+            db["printers"] = PRINTERS
+            save_db(db)
+
+            st.success("Updated!")
+            st.rerun()
+
+    st.divider()
+
+    # ➕ Add New Printer
+    st.subheader("➕ Add New Printer")
+
+    p_name = st.text_input("Printer Name", key="new_printer_name")
+    p_ip = st.text_input("Printer IP", key="new_printer_ip")
+
+    if st.button("Add Printer"):
+
+        if p_name and p_ip:
+            PRINTERS[p_name] = p_ip
+            db["printers"] = PRINTERS
+            save_db(db)
+
+            st.success("Printer Added!")
+            st.rerun()
 # ===============================
 # PRINTER CONFIG
 # ===============================
