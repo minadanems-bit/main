@@ -1132,19 +1132,22 @@ wa_text = f"""*🚀 NMS ERP - SHIFT REPORT*
 {st.session_state.get('dn_notes', '-')}
 """
 
-    # =====================================================
-    # ARCHIVE BUTTON
-    # =====================================================
-    if st.button("💾 ARCHIVE SHIFT & DATA", use_container_width=True):
-    
+# =====================================================
+# ARCHIVE + PDF SECTION
+# =====================================================
 
-    
+crep1, crep2 = st.columns(2)
+
+with crep1:
+
+    if st.button("💾 ARCHIVE SHIFT & DATA", use_container_width=True):
+
         printer_snapshot = {
             "start": st.session_state.get("printer_start"),
             "end": st.session_state.get("printer_end"),
             "difference": st.session_state.get("printer_diff")
         }
-    
+
         db["history"].append({
             "date": str(date.today()),
             "branch": branch,
@@ -1155,10 +1158,9 @@ wa_text = f"""*🚀 NMS ERP - SHIFT REPORT*
             "exp_note": f"{ex_cat}: {ex_note}",
             "printer_snapshot": printer_snapshot
         })
-    
+
         save_db(db)
         st.success("✅ Shift Archived Successfully!")
-
     # =====================================================
     # PDF + WHATSAPP
     # =====================================================
