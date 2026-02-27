@@ -7,8 +7,7 @@ from datetime import date
 import urllib.parse
 
 from printer_service import calculate_printer_difference, get_printers
-from database import save_db, MANAGER_PHONE
-
+from database import save_db, get_manager_phone
 
 # =====================================================
 # MAIN UI
@@ -324,7 +323,7 @@ Sales: {sys_sales}
 Cash Diff: {st.session_state.get("cash_diff", 0)}
 """
 
-        url = f"https://wa.me/{MANAGER_PHONE}?text={urllib.parse.quote(wa_text)}"
+        url = f"https://wa.me/{get_manager_phone()}?text={urllib.parse.quote(wa_text)}"
 
         st.markdown(
             f'<a href="{url}" target="_blank">'
