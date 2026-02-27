@@ -14,7 +14,10 @@ from reportlab.lib.units import inch
 from printer_service import calculate_printer_difference, get_printers
 from database import save_db
 from database import load_db
-db = load_db()def sync_draft():
+db = load_db()
+
+
+def sync_draft():
     if st.session_state.get("logged_in"):
         user = st.session_state.get("user")
         if not user:
