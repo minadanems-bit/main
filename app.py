@@ -949,15 +949,15 @@ with tab2:
             st.success("✅ Printer Usage Calculated")
             st.json(printer_diff)
     
-            ope = st.number_input("Opay End Balance",
-                                  step=0.01,
-                                  key="ope")
+        ope = st.number_input("Opay End Balance",
+                                step=0.01,
+                                key="ope")
     
-            st.write(f"📉 Opay Used: {ops - ope:,.2f}")
+        st.write(f"📉 Opay Used: {ops - ope:,.2f}")
     
-            st.text_area("📝 Draft Notes / Handover",
-                         key="dn_notes",
-                         on_change=sync_draft)
+        st.text_area("📝 Draft Notes / Handover",
+                        key="dn_notes",
+                        on_change=sync_draft)
         
 # --- TAB 3: SOCIAL ---
 with tab3:
