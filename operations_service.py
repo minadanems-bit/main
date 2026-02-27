@@ -127,9 +127,7 @@ def daily_operations_ui(db):
 
         printer_start = {}
         printers = get_printers() or {}
-
-        for printer in printers:
-
+        for printer in printers.keys():
             st.markdown(f"##### 📠 {printer}")
 
             total = st.number_input(
@@ -327,6 +325,7 @@ def daily_operations_ui(db):
 
     st.divider()
 
+    sys_sales = st.session_state.get("c_sys_sales", 0)
     branch = st.session_state.get("branch")
     shift = st.session_state.get("shift")
 
