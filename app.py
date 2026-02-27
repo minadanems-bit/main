@@ -15,6 +15,29 @@ from printer_service import PRINTERS, calculate_printer_difference
 # --- 1. إعدادات قاعدة البيانات (Database Configuration) ---
 from database import load_db, save_db, MANAGER_PHONE
 db = load_db()
+def sync_draft():
+    if st.session_state.get("logged_in"):
+        user = st.session_state.get("user")
+        if not user:
+            return
+
+        draft_keys = (
+            's_','o_','e_','c_','m_','i_',
+            'ks','xs','op','u10','v22','ex',
+            'kj','xj','dn','k1','k2','x1','x2'
+        )
+
+        draft_data = {
+            k: v
+            for k, v in st.session_state.items()
+            if k.startswith(draft_keys)
+        }
+
+        if "drafts" not in db:
+            db["drafts"] = {}
+
+        db["drafts"][user] = draft_data
+        save_db(db)
 if "users" not in db:
     db["users"] = {}
     save_db(db)
