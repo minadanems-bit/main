@@ -571,3 +571,8 @@ if st.session_state.get("role") == "admin":
         save_db(restored_data)
         st.success("✅ تم استرجاع النسخة بنجاح")
 
+from operations_service import daily_operations_ui
+
+if st.session_state.get("logged_in"):
+    daily_operations_ui(db)
+
