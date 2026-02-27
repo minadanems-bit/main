@@ -1,7 +1,7 @@
 import streamlit as st
 from datetime import date, datetime
 import urllib.parse
-from printer_service import PRINTERS, calculate_printer_difference
+from printer_service import calculate_printer_difference, get_printers
 from database import save_db, MANAGER_PHONE
 
 
@@ -90,7 +90,7 @@ def daily_operations_ui(db):
         # Printer Start
         printer_start = {}
 
-        for printer in PRINTERS:
+        for printer in get_printers():
             st.markdown(f"##### {printer}")
 
             total = st.number_input(f"{printer} Total", min_value=0, key=f"{printer}_start_total")
