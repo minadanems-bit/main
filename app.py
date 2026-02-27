@@ -555,10 +555,23 @@ else:
             
                     # زر تعديل
                     if st.button("💾 Update Printer", key=f"update_{name}"):
-                        PRINTERS.pop(name)
+
+                        # لو الاسم اتغير
+                        updated_name = new_name
+                        updated_ip = new_ip
+                    
+                        # امسح القديم
+                        if name in PRINTERS:
+                            PRINTERS.pop(name)
+                    
+                        # أضف الجديد
+                        PRINTERS[updated_name] = updated_ip
+                    
+                        # احفظ في DB
                         db["printers"] = PRINTERS
                         save_db(db)
-                        st.success("Updated!")
+                    
+                        st.success("✅ Printer Updated!")
                         st.rerun()
             
                 st.divider()
