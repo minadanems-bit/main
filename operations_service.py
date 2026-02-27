@@ -1,5 +1,5 @@
 # =====================================================
-# DAILY OPERATIONS MODULE (FULL VERSION)
+# DAILY OPERATIONS MODULE (FULL SAFE VERSION)
 # =====================================================
 
 import streamlit as st
@@ -8,6 +8,7 @@ import urllib.parse
 
 from printer_service import calculate_printer_difference, get_printers
 from database import save_db, get_manager_phone
+
 
 # =====================================================
 # MAIN UI
@@ -21,40 +22,48 @@ def daily_operations_ui(db):
     st.title("📊 NMS ERP - Daily Operations")
 
     # =====================================================
-    # BRANCH & SHIFT
+    # SAFE BRANCH SELECT
     # =====================================================
 
-    if "branch" not in st.session_state:
-        if db.get("branches"):
-            st.session_state["branch"] = db["branches"][0]
-        else:
-            st.session_state["branch"] = "No Branch"
+    branches = db.get("branches", [])
 
-    if "shift" not in st.session_state:
-        st.session_state["shift"] = "Morning"
+    if not branches:
+        branches = ["No Branch"]
 
-    c1, c2, c3, c4 = st.columns(4)
+    current_branch = st.session_state.get("branch", branches[0])
 
-    with c1:
-        st.session_state["branch"] = st.selectbox(
-            "📍 Branch",
-            db["branches"],
-            index=db["branches"].index(st.session_state["branch"])
-        )
+    if current_branch not in branches:
+        current_branch = branches[0]
 
-    with c2:
-        st.session_state["shift"] = st.selectbox(
-            "🕒 Shift",
-            ["Morning", "Between", "Night"],
-            index=["Morning", "Between", "Night"].index(
-                st.session_state["shift"]
-            )
-        )
+    st.session_state["branch"] = st.selectbox(
+        "📍 Branch",
+        branches,
+        index=branches.index(current_branch)
+    )
 
-    with c3:
+    # =====================================================
+    # SAFE SHIFT SELECT
+    # =====================================================
+
+    shifts = ["Morning", "Between", "Night"]
+
+    current_shift = st.session_state.get("shift", "Morning")
+
+    if current_shift not in shifts:
+        current_shift = "Morning"
+
+    st.session_state["shift"] = st.selectbox(
+        "🕒 Shift",
+        shifts,
+        index=shifts.index(current_shift)
+    )
+
+    col1, col2 = st.columns(2)
+
+    with col1:
         st.info(f"📅 {date.today()}")
 
-    with c4:
+    with col2:
         st.info(f"👤 {st.session_state.get('user')}")
 
     st.divider()
@@ -97,8 +106,9 @@ def daily_operations_ui(db):
         st.subheader("🖨 Printer Start Counters")
 
         printer_start = {}
+        printers = get_printers() or {}
 
-        for printer in get_printers():
+        for printer in printers:
 
             st.markdown(f"##### 📠 {printer}")
 
@@ -181,7 +191,6 @@ def daily_operations_ui(db):
         expected = t_open + sys_sales - expenses - t_digital
 
         st.divider()
-
         st.subheader("🧮 Cash Count")
 
         t_close = 0
@@ -215,8 +224,9 @@ def daily_operations_ui(db):
         st.subheader("🖨 Printer End Counters")
 
         printer_end = {}
+        printers = get_printers() or {}
 
-        for printer in get_printers():
+        for printer in printers:
 
             st.markdown(f"##### 📠 {printer}")
 
@@ -317,6 +327,8 @@ def daily_operations_ui(db):
             st.success("Archived Successfully ✅")
 
     with col2:
+
+        sys_sales = st.session_state.get("c_sys_sales", 0)
 
         wa_text = f"""
 Shift Report
