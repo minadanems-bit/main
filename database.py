@@ -1,65 +1,71 @@
+# =====================================================
+# DATABASE LAYER (SQLITE VERSION)
+# =====================================================
+
+import sqlite3
 import json
 import os
-import shutil
-from datetime import datetime, date
 
-DB_FILE = 'nms_enterprise_pro_db.json'
+DB_FILE = "nms_database.db"
 
-# رقم تليفون المدير لإرسال التقارير على واتساب
-MANAGER_PHONE = "971522045638"
 
-# الهيكل الافتراضي لقاعدة البيانات
-default_structure = {
-    "users": {
-        "admin": {
-            "name": "Administrator",
-            "role": "admin",
-            "photo": ""
-        }
-    },
-    "branches": ["Main"],
-    "tasks": {
-        "opening": ["Turn on Machines", "Check Supplies"],
-        "closing": ["Clean Area", "Shutdown Systems"],
-        "social": ["Post Instagram", "Reply Comments"],
-        "interaction": ["Greet Clients", "Follow Up"]
-    },
-    "expense_categories": ["Maintenance", "Supplies", "Salary"],
-    "drafts": {},
-    "history": [],
-    "logo": ""
-}
+# =====================================================
+# INIT DATABASE
+# =====================================================
+
+def init_db():
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS app_data (
+            id INTEGER PRIMARY KEY,
+            data TEXT
+        )
+    """)
+
+    # ensure single row exists
+    cursor.execute("SELECT COUNT(*) FROM app_data")
+    if cursor.fetchone()[0] == 0:
+        cursor.execute("INSERT INTO app_data (data) VALUES (?)", [json.dumps({})])
+
+    conn.commit()
+    conn.close()
+
+
+init_db()
+
+
+# =====================================================
+# LOAD DATABASE
+# =====================================================
 
 def load_db():
-    if not os.path.exists(DB_FILE) or os.stat(DB_FILE).st_size == 0:
-        return default_structure
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
 
-    with open(DB_FILE, 'r', encoding='utf-8') as f:
-        data = json.load(f)
+    cursor.execute("SELECT data FROM app_data WHERE id = 1")
+    row = cursor.fetchone()
 
-    # تحديث تلقائي للحقول الناقصة في أي نسخة قديمة
-    for key, value in default_structure.items():
-        if key not in data:
-            data[key] = value
-        elif isinstance(value, dict):
-            for subkey, subval in value.items():
-                if subkey not in data[key]:
-                    data[key][subkey] = subval
+    conn.close()
 
-    return data
+    if row:
+        return json.loads(row[0])
+    return {}
+
+
+# =====================================================
+# SAVE DATABASE
+# =====================================================
 
 def save_db(data):
-    # حفظ الملف الأساسي
-    with open(DB_FILE, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
 
-    # إنشاء مجلد النسخ الاحتياطية إن لم يكن موجود
-    backup_folder = "backups"
-    if not os.path.exists(backup_folder):
-        os.makedirs(backup_folder)
+    cursor.execute(
+        "UPDATE app_data SET data = ? WHERE id = 1",
+        [json.dumps(data)]
+    )
 
-    # إنشاء نسخة احتياطية باسم يحتوي على التاريخ والوقت
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    backup_filename = f"backup_{timestamp}.json"
-    backup_path = os.path.join(backup_folder, backup_filename)
-    shutil.copyfile(DB_FILE, backup_path)
+    conn.commit()
+    conn.close()
