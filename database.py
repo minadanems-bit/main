@@ -1,10 +1,9 @@
 # =====================================================
-# DATABASE LAYER (SQLITE VERSION)
+# DATABASE LAYER (SQLITE VERSION - UPDATED)
 # =====================================================
 
 import sqlite3
 import json
-import os
 
 DB_FILE = "nms_database.db"
 
@@ -24,15 +23,33 @@ def init_db():
         )
     """)
 
-    # ensure single row exists
+    # لو الجدول فاضي → نعمل row افتراضية
     cursor.execute("SELECT COUNT(*) FROM app_data")
-    if cursor.fetchone()[0] == 0:
-        cursor.execute("INSERT INTO app_data (data) VALUES (?)", [json.dumps({})])
+    count = cursor.fetchone()[0]
+
+    if count == 0:
+        default_data = {
+            "logo": None,
+            "manager_phone": "201234567890",  # رقم المدير الافتراضي
+            "branches": [],
+            "expense_categories": [],
+            "users": {},
+            "tasks": {},
+            "history": [],
+            "drafts": {},
+            "logs": {}
+        }
+
+        cursor.execute(
+            "INSERT INTO app_data (id, data) VALUES (1, ?)",
+            (json.dumps(default_data),)
+        )
 
     conn.commit()
     conn.close()
 
 
+# Run DB initialization once
 init_db()
 
 
@@ -49,8 +66,9 @@ def load_db():
 
     conn.close()
 
-    if row:
+    if row and row[0]:
         return json.loads(row[0])
+
     return {}
 
 
@@ -64,8 +82,17 @@ def save_db(data):
 
     cursor.execute(
         "UPDATE app_data SET data = ? WHERE id = 1",
-        [json.dumps(data)]
+        (json.dumps(data),)
     )
 
     conn.commit()
     conn.close()
+
+
+# =====================================================
+# GET MANAGER PHONE
+# =====================================================
+
+def get_manager_phone():
+    db = load_db()
+    return db.get("manager_phone", "201234567890")
