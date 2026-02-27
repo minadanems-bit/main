@@ -1,27 +1,30 @@
+# =====================================================
+# DAILY OPERATIONS MODULE (CLEAN VERSION)
+# =====================================================
+
 import streamlit as st
 from datetime import date, datetime
 import urllib.parse
+
 from printer_service import calculate_printer_difference, get_printers
 from database import save_db, MANAGER_PHONE
 
 
 # =====================================================
-# DAILY OPERATIONS MODULE
+# MAIN UI
 # =====================================================
 
 def daily_operations_ui(db):
 
-    # -------------------------
-    # Login Guard
-    # -------------------------
+    # ---------------- LOGIN CHECK ----------------
     if "user" not in st.session_state:
         return
 
     st.title("📊 NMS ERP - Daily Operations")
 
-    # =========================
-    # Branch & Shift Selector
-    # =========================
+    # =====================================================
+    # BRANCH & SHIFT SELECTOR
+    # =====================================================
 
     if "branch" not in st.session_state:
         st.session_state["branch"] = db["branches"][0]
@@ -55,18 +58,19 @@ def daily_operations_ui(db):
 
     st.divider()
 
-    # =========================
-    # Tabs
-    # =========================
+    # =====================================================
+    # TABS
+    # =====================================================
 
     tab1, tab2, tab3 = st.tabs(["🟢 OPENING", "🔴 CLOSING", "📱 SOCIAL"])
 
-    # -------------------------------------------------
+    # =====================================================
     # TAB 1 - OPENING
-    # -------------------------------------------------
+    # =====================================================
 
     with tab1:
-        st.subheader("🌅 Opening")
+
+        st.subheader("🌅 Opening Cash")
 
         t_open = 0.0
 
@@ -87,17 +91,49 @@ def daily_operations_ui(db):
 
         st.divider()
 
-        # Printer Start
+        # =====================================================
+        # PRINTER START (FULL COUNTERS)
+        # =====================================================
+
         printer_start = {}
 
         for printer in get_printers():
-            st.markdown(f"##### {printer}")
 
-            total = st.number_input(f"{printer} Total", min_value=0, key=f"{printer}_start_total")
-            one = st.number_input(f"{printer} 1 Side", min_value=0, key=f"{printer}_start_one")
-            two = st.number_input(f"{printer} 2 Side", min_value=0, key=f"{printer}_start_two")
-            err = st.number_input(f"{printer} Errors", min_value=0, key=f"{printer}_start_err")
-            jam = st.number_input(f"{printer} Jam", min_value=0, key=f"{printer}_start_jam")
+            st.markdown(f"##### 📠 {printer}")
+
+            col1, col2 = st.columns(2)
+            col3, col4 = st.columns(2)
+            col5 = st.columns(1)
+
+            total = st.number_input(
+                f"{printer} ✔ Total",
+                min_value=0,
+                key=f"{printer}_start_total"
+            )
+
+            one = st.number_input(
+                f"{printer} ✔ 1 Side",
+                min_value=0,
+                key=f"{printer}_start_one"
+            )
+
+            two = st.number_input(
+                f"{printer} ✔ 2 Side",
+                min_value=0,
+                key=f"{printer}_start_two"
+            )
+
+            err = st.number_input(
+                f"{printer} ❌ Errors",
+                min_value=0,
+                key=f"{printer}_start_err"
+            )
+
+            jam = st.number_input(
+                f"{printer} ⚠ Jam",
+                min_value=0,
+                key=f"{printer}_start_jam"
+            )
 
             printer_start[printer] = {
                 "Total": total,
@@ -107,16 +143,23 @@ def daily_operations_ui(db):
                 "Jam": jam
             }
 
+            st.divider()
+
         st.session_state["printer_start"] = printer_start
 
-    # -------------------------------------------------
+    # =====================================================
     # TAB 2 - CLOSING
-    # -------------------------------------------------
+    # =====================================================
 
     with tab2:
-        st.subheader("🌇 Closing")
 
-        sys_sales = st.number_input("System Sales", step=1.0, key="c_sys_sales")
+        st.subheader("🌇 Closing Cash")
+
+        sys_sales = st.number_input(
+            "System Sales",
+            step=1.0,
+            key="c_sys_sales"
+        )
 
         insta = st.number_input("Instapay", step=1.0, key="c_insta")
         wallet = st.number_input("Wallet", step=1.0, key="c_wallet")
@@ -125,54 +168,90 @@ def daily_operations_ui(db):
         t_digital = insta + wallet + visa
 
         t_open = st.session_state.get("t_open", 0)
-        ex_val = st.number_input("Expenses", step=1.0, key="ex_val")
+
+        ex_val = st.number_input(
+            "Expenses",
+            step=1.0,
+            key="ex_val"
+        )
 
         expected = t_open + sys_sales - ex_val - t_digital
 
+        # ---------------- CASH COUNT ----------------
+
         t_close = 0
+
         for d in [200, 100, 50, 20, 10, 5]:
-            v = st.number_input(f"{d} LE ", min_value=0, step=1, key=f"close_{d}")
+            v = st.number_input(
+                f"{d} LE ",
+                min_value=0,
+                step=1,
+                key=f"close_{d}"
+            )
             t_close += v * d
 
-        coins = st.number_input("Closing Coins", step=0.5, key="close_coins")
+        coins = st.number_input(
+            "Closing Coins",
+            step=0.5,
+            key="close_coins"
+        )
+
         t_close += coins
 
         diff = t_close - expected
 
-        st.metric("Expected", f"{expected:,.2f}")
+        st.metric("Expected Cash", f"{expected:,.2f}")
         st.metric("Difference", f"{diff:,.2f}")
 
         st.session_state["cash_diff"] = diff
         st.session_state["t_close"] = t_close
 
-        # Printer End
+        # =====================================================
+        # PRINTER END (ONLY TOTAL — لأنك ما تحتاج باقي الحقول في القفل)
+        # =====================================================
+
+        st.divider()
+        st.markdown("### 🖨 Printer End Counters")
+
         printer_end = {}
 
-        for printer in PRINTERS:
-            total = st.number_input(f"{printer} End Total", min_value=0, key=f"{printer}_end_total")
+        for printer in get_printers():
+
+            total_end = st.number_input(
+                f"{printer} ✔ End Total",
+                min_value=0,
+                key=f"{printer}_end_total"
+            )
 
             printer_end[printer] = {
-                "Total": total
+                "Total": total_end,
+                "One Side": 0,
+                "Two Side": 0,
+                "Errors": 0,
+                "Jam": 0
             }
 
         st.session_state["printer_end"] = printer_end
 
         if st.button("📊 Calculate Printer Usage"):
+
             diff_p = calculate_printer_difference(
                 st.session_state.get("printer_start", {}),
                 st.session_state.get("printer_end", {})
             )
 
             st.session_state["printer_diff"] = diff_p
-            st.success("Printer Calculated")
+
+            st.success("✅ Printer Usage Calculated")
             st.json(diff_p)
 
-    # -------------------------------------------------
+    # =====================================================
     # TAB 3 - SOCIAL
-    # -------------------------------------------------
+    # =====================================================
 
     with tab3:
-        st.subheader("📱 Social")
+
+        st.subheader("📱 Social Tasks")
 
         for task in db["tasks"].get("social", []):
             st.checkbox(task)
@@ -189,7 +268,9 @@ def daily_operations_ui(db):
     shift = st.session_state.get("shift", "-")
 
     with col1:
+
         if st.button("💾 Archive Shift", use_container_width=True):
+
             db["history"] = db.get("history", [])
 
             db["history"].append({
@@ -198,17 +279,20 @@ def daily_operations_ui(db):
                 "staff": st.session_state.get("user"),
                 "sales": sys_sales,
                 "diff": st.session_state.get("cash_diff", 0),
+                "printer_diff": st.session_state.get("printer_diff", {})
             })
 
             save_db(db)
+
             st.success("Archived ✅")
 
     with col2:
+
         wa_text = f"""
-        Shift Report
-        Branch: {branch}
-        Shift: {shift}
-        """
+Shift Report
+Branch: {branch}
+Shift: {shift}
+"""
 
         url = f"https://wa.me/{MANAGER_PHONE}?text={urllib.parse.quote(wa_text)}"
 
