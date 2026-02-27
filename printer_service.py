@@ -1,12 +1,12 @@
 # ===============================
-# PRINTER SERVICE
+# PRINTER SERVICE (UPDATED VERSION)
 # ===============================
 
 import streamlit as st
 from database import load_db, save_db
 
 # ===============================
-# DATABASE INITIALIZATION
+# DATABASE INIT
 # ===============================
 
 db = load_db()
@@ -22,7 +22,7 @@ if "printers" not in db:
 PRINTERS = db.get("printers", {})
 
 # =====================================================
-# CALCULATE PRINTER DIFFERENCE
+# CALCULATE DIFFERENCE
 # =====================================================
 
 def calculate_printer_difference(start_data, end_data):
@@ -39,11 +39,12 @@ def calculate_printer_difference(start_data, end_data):
         fields = ["Total", "One Side", "Two Side", "Errors", "Jam"]
 
         for field in fields:
-            try:
-                start_value = int(start_data.get(printer, {}).get(field, 0) or 0)
-                end_value = int(end_data.get(printer, {}).get(field, 0) or 0)
 
-                diff[printer][field] = end_value - start_value
+            try:
+                start_val = int(start_data.get(printer, {}).get(field, 0) or 0)
+                end_val = int(end_data.get(printer, {}).get(field, 0) or 0)
+
+                diff[printer][field] = end_val - start_val
 
             except:
                 diff[printer][field] = 0
@@ -52,79 +53,7 @@ def calculate_printer_difference(start_data, end_data):
 
 
 # =====================================================
-# 🖨 PRINTER MANAGEMENT UI (ADMIN PANEL)
-# =====================================================
-
-def printer_management_ui(db):
-
-    st.subheader("🖨 Printer Management")
-
-    printers = db.get("printers", {})
-
-    for name, ip in list(printers.items()):
-
-        st.markdown(f"### 📠 {name}")
-
-        col1, col2, col3 = st.columns([2, 2, 1])
-
-        with col1:
-            new_name = st.text_input(
-                "Printer Name",
-                value=name,
-                key=f"mn_{name}"
-            )
-
-        with col2:
-            new_ip = st.text_input(
-                "IP Address",
-                value=ip,
-                key=f"ip_{name}"
-            )
-
-        with col3:
-            if st.button("❌ Delete", key=f"del_{name}"):
-
-                printers.pop(name, None)
-                db["printers"] = printers
-                save_db(db)
-                st.rerun()
-
-        if st.button("💾 Update", key=f"upd_{name}"):
-
-            printers.pop(name, None)
-            printers[new_name] = new_ip
-
-            db["printers"] = printers
-            save_db(db)
-
-            st.success("✅ Printer Updated!")
-            st.rerun()
-
-        st.divider()
-
-    # ===============================
-    # ➕ Add New Printer
-    # ===============================
-
-    st.subheader("➕ Add New Printer")
-
-    p_name = st.text_input("Printer Name", key="add_printer_name")
-    p_ip = st.text_input("Printer IP", key="add_printer_ip")
-
-    if st.button("Add Printer"):
-
-        if p_name and p_ip:
-
-            printers[p_name] = p_ip
-            db["printers"] = printers
-            save_db(db)
-
-            st.success("✅ Printer Added!")
-            st.rerun()
-
-
-# =====================================================
-# 🖨 SHIFT COUNTER MODULE (TAB 1 & TAB 2 FULL DATA)
+# SHIFT INPUT TAB (FULL DATA — USED IN OPENING & CLOSING)
 # =====================================================
 
 def printer_shift_tab(title, key_prefix):
@@ -141,41 +70,41 @@ def printer_shift_tab(title, key_prefix):
         col3, col4 = st.columns(2)
         col5 = st.columns(1)
 
-        safe_prefix = f"{key_prefix}_{printer}"
+        base_key = f"{key_prefix}_{printer}"
 
         with col1:
             total = st.number_input(
-                "Total",
+                "✔ Total",
                 min_value=0,
-                key=f"{safe_prefix}_total"
+                key=f"{base_key}_total"
             )
 
         with col2:
             one_side = st.number_input(
-                "1 Side",
+                "✔ 1 Side",
                 min_value=0,
-                key=f"{safe_prefix}_one"
+                key=f"{base_key}_one"
             )
 
         with col3:
             two_side = st.number_input(
-                "2 Side",
+                "✔ 2 Side",
                 min_value=0,
-                key=f"{safe_prefix}_two"
+                key=f"{base_key}_two"
             )
 
         with col4:
             errors = st.number_input(
-                "Errors",
+                "❌ Errors",
                 min_value=0,
-                key=f"{safe_prefix}_errors"
+                key=f"{base_key}_errors"
             )
 
         with col5:
             jam = st.number_input(
-                "Jam",
+                "⚠ Jam",
                 min_value=0,
-                key=f"{safe_prefix}_jam"
+                key=f"{base_key}_jam"
             )
 
         printer_data[printer] = {
@@ -192,46 +121,64 @@ def printer_shift_tab(title, key_prefix):
 
 
 # =====================================================
-# 🟢 MAIN SHIFT COMPARISON (TAB 1 + TAB 2 DIFFERENCE)
+# SHIFT COMPARISON (TAB 1 & TAB 2 WITH DIFFERENCE)
 # =====================================================
 
 def printer_shift_comparison():
 
-    st.subheader("📊 Printer Shift Comparison")
+    st.subheader("📊 Printer Shift Control")
 
     tab1, tab2 = st.tabs(["🔵 Start Shift", "🔴 End Shift"])
 
+    # -------- TAB 1 --------
     with tab1:
-        start_data = printer_shift_tab("Start Counters", "start")
+        st.markdown("### 📥 Start Counters")
+        start_data = printer_shift_tab("Start Data", "start")
 
+    # -------- TAB 2 --------
     with tab2:
-        end_data = printer_shift_tab("End Counters", "end")
+        st.markdown("### 📤 End Counters")
+        end_data = printer_shift_tab("End Data", "end")
 
     st.divider()
 
-    if st.button("📈 Calculate Difference"):
+    # -------- CALCULATE --------
+
+    if st.button("📈 Calculate Printer Difference", use_container_width=True):
 
         diff = calculate_printer_difference(start_data, end_data)
 
-        st.success("✅ Difference Calculated")
+        st.success("✅ Calculated Successfully")
 
-        st.json(diff)
-
-        # حفظ في session
         st.session_state["printer_start"] = start_data
         st.session_state["printer_end"] = end_data
         st.session_state["printer_diff"] = diff
 
-        # عرض ملخص سريع
-        st.markdown("### 📊 Quick Summary")
+        # ---------------- SHOW TABLE ----------------
+
+        st.markdown("## 📊 Difference Summary")
 
         for printer, values in diff.items():
 
-            total_diff = values.get("Total", 0)
+            st.markdown(f"### 📠 {printer}")
 
-            if total_diff > 0:
-                st.success(f"{printer} ➜ Increased by {total_diff}")
-            elif total_diff < 0:
-                st.error(f"{printer} ➜ Decreased by {total_diff}")
-            else:
-                st.info(f"{printer} ➜ No Change")
+            col1, col2, col3 = st.columns(3)
+
+            with col1:
+                st.metric("Total Diff", values.get("Total", 0))
+
+            with col2:
+                st.metric("1 Side Diff", values.get("One Side", 0))
+
+            with col3:
+                st.metric("2 Side Diff", values.get("Two Side", 0))
+
+            col4, col5 = st.columns(2)
+
+            with col4:
+                st.metric("Errors Diff", values.get("Errors", 0))
+
+            with col5:
+                st.metric("Jam Diff", values.get("Jam", 0))
+
+            st.divider()
