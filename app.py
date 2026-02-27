@@ -11,7 +11,7 @@ from reportlab.lib.pagesizes import letter, landscape
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
-from printer_service import PRINTERS, calculate_printer_difference
+from printer_service import calculate_printer_difference, get_printers
 # --- 1. إعدادات قاعدة البيانات (Database Configuration) ---
 from database import load_db, save_db, MANAGER_PHONE
 db = load_db()
@@ -529,7 +529,7 @@ else:
                         st.warning("Please confirm the checkbox first.")
             elif admin_choice == "🖨 Printer Management":
                 from printer_service import printer_management_ui
-                printer_management_ui(db, PRINTERS)
+                printer_management_ui(db)
 
     
 if st.session_state.get("role") == "admin":
