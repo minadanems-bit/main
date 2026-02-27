@@ -91,7 +91,7 @@ def save_db(data):
     conn.commit()
     conn.close()
 
-
+print("DATABASE INITIALIZED")
 # =====================================================
 # GET MANAGER PHONE
 # =====================================================
