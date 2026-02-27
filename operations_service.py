@@ -102,8 +102,19 @@ def daily_operations_ui(db):
         # Opay & Debit Opening
         # ========================
         
-        opay_open = st.number_input("💳 Opay Opening", step=1.0, key="opay_open")
-        debit_open = st.number_input("💳 Debit Opening", step=1.0, key="debit_open")
+        opay_open = st.number_input(
+            "💳 Opay Opening",
+            step=1.0,
+            value=st.session_state.get("opay_open", 0),
+            key="opay_open_input"
+        )
+        
+        debit_open = st.number_input(
+            "💳 Debit Opening",
+            step=1.0,
+            value=st.session_state.get("debit_open", 0),
+            key="debit_open_input"
+        )
         
         st.session_state["opay_open"] = opay_open
         st.session_state["debit_open"] = debit_open
