@@ -6,15 +6,21 @@ import sqlite3
 import json
 import os
 
-# ✅ مهم جدًا في Streamlit Cloud
-BASE_DIR = "/mount/data" if os.path.exists("/mount") else os.getcwd()
+# =====================================================
+# SAFE STORAGE PATH (Works on Local + Streamlit Cloud)
+# =====================================================
+
+if os.path.exists("/mount"):
+    BASE_DIR = "/mount/data"
+else:
+    BASE_DIR = os.path.join(os.getcwd(), "data")
+
+# ✅ تأكد إن الفولدر موجود
+os.makedirs(BASE_DIR, exist_ok=True)
 
 DB_FILE = os.path.join(BASE_DIR, "nms_system.db")
 
-# تأكد إن الفولدر موجود
-os.makedirs(BASE_DIR, exist_ok=True)
-
-print("📂 DATABASE PATH:", DB_FILE)
+print("📂 DATABASE FILE:", DB_FILE)
 
 
 # =====================================================
@@ -24,7 +30,7 @@ print("📂 DATABASE PATH:", DB_FILE)
 def init_db():
     """
     Create database + default row if not exists.
-    Safe for Streamlit Cloud.
+    Safe for Cloud + Local.
     """
 
     conn = sqlite3.connect(DB_FILE)
@@ -82,7 +88,7 @@ def init_db():
 
         cursor.execute(
             "INSERT INTO app_data (id, data) VALUES (?, ?)",
-            (1, json.dumps(default_data))
+            (1, json.dumps(default_data, ensure_ascii=False))
         )
 
         conn.commit()
@@ -90,7 +96,7 @@ def init_db():
     conn.close()
 
 
-# ✅ Run once
+# ✅ Initialize once
 init_db()
 
 
@@ -110,7 +116,8 @@ def load_db():
     if row and row[0]:
         try:
             return json.loads(row[0])
-        except:
+        except json.JSONDecodeError:
+            print("❌ JSON CORRUPTED — Reset Needed")
             return {}
 
     return {}
