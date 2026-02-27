@@ -172,43 +172,7 @@ def calculate_printer_difference(start_data, end_data):
 
     return diff   # 🔥 هنا بس النهاية
 
-        try:
-            start_data = start.get(printer_ip, {})
-            end_data = end.get(printer_ip, {})
 
-            # تجنب الكراش لو مفيش بيانات
-            start_total = start_data.get("Total Pages", 0)
-            end_total = end_data.get("total_pages", 0)
-
-            start_a4 = start_data.get("A4 Pages", 0)
-            end_a4 = end_data.get("a4", 0)
-
-            start_a3 = start_data.get("A3 Pages", 0)
-            end_a3 = end_data.get("a3", 0)
-
-            start_a5 = start_data.get("A5 Pages", 0)
-            end_a5 = end_data.get("a5", 0)
-
-            start_scanner = start_data.get("Scanner Count", 0)
-            end_scanner = end_data.get("scanner", 0)
-
-            start_jam = start_data.get("Jam Count", 0)
-            end_jam = end_data.get("jam", 0)
-
-            result[printer_ip] = {
-                "total_used": end_total - start_total,
-                "a4_used": end_a4 - start_a4,
-                "a3_used": end_a3 - start_a3,
-                "a5_used": end_a5 - start_a5,
-                "scanner_used": end_scanner - start_scanner,
-                "jam_diff": end_jam - start_jam
-            }
-
-        except Exception as e:
-            result[printer_ip] = {"error": str(e)}
-
-    return result
-    
 # --- 3. Session Setup ---
 st.set_page_config(page_title="NMS ERP Platinum", layout="wide", page_icon="🚀")
 
