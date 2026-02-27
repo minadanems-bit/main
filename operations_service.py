@@ -102,25 +102,30 @@ def daily_operations_ui(db):
         # Opay & Debit Opening
         # ========================
         
+        if "opay_open" not in st.session_state:
+            st.session_state["opay_open"] = 0.0
+        
+        if "debit_open" not in st.session_state:
+            st.session_state["debit_open"] = 0.0
+        
         opay_open = st.number_input(
             "💳 Opay Opening",
+            min_value=0.0,
             step=1.0,
-            value=st.session_state.get("opay_open", 0),
+            value=float(st.session_state["opay_open"]),
             key="opay_open_input"
         )
         
         debit_open = st.number_input(
             "💳 Debit Opening",
+            min_value=0.0,
             step=1.0,
-            value=st.session_state.get("debit_open", 0),
+            value=float(st.session_state["debit_open"]),
             key="debit_open_input"
         )
         
-        st.session_state["opay_open"] = opay_open
-        st.session_state["debit_open"] = debit_open
-
-        st.success(f"Total Opening: {t_open:,.2f} LE")
-        st.session_state["t_open"] = t_open
+        st.session_state["opay_open"] = float(opay_open)
+        st.session_state["debit_open"] = float(debit_open)
 
         st.divider()
         st.subheader("🖨 Printer Start Counters")
@@ -200,8 +205,30 @@ def daily_operations_ui(db):
         # Opay & Debit Closing
         # ========================
         
-        opay_close = st.number_input("💳 Opay Closing", step=1.0, key="opay_close")
-        debit_close = st.number_input("💳 Debit Closing", step=1.0, key="debit_close")
+        if "opay_close" not in st.session_state:
+            st.session_state["opay_close"] = 0.0
+        
+        if "debit_close" not in st.session_state:
+            st.session_state["debit_close"] = 0.0
+        
+        opay_close = st.number_input(
+            "💳 Opay Closing",
+            min_value=0.0,
+            step=1.0,
+            value=float(st.session_state["opay_close"]),
+            key="opay_close_input"
+        )
+        
+        debit_close = st.number_input(
+            "💳 Debit Closing",
+            min_value=0.0,
+            step=1.0,
+            value=float(st.session_state["debit_close"]),
+            key="debit_close_input"
+        )
+        
+        st.session_state["opay_close"] = float(opay_close)
+        st.session_state["debit_close"] = float(debit_close)
 
         t_digital = insta + wallet + visa
         t_open = st.session_state.get("t_open", 0)
