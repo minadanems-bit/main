@@ -15,6 +15,9 @@ from reportlab.lib.units import inch
 # --- 1. إعدادات قاعدة البيانات (Database Configuration) ---
 from database import load_db, save_db, MANAGER_PHONE
 db = load_db()
+if "users" not in db:
+    db["users"] = {}
+    save_db(db)
 # ===============================
 # PRINTER CONFIG
 # ===============================
