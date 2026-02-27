@@ -13,13 +13,11 @@ import threading
 
 import os
 
-# ✅ Cloud Safe Storage
-if os.path.exists("/mount"):
-    BASE_DIR = "/mount/data"
+# ✅ Streamlit Cloud Safe Path
+if "STREAMLIT_SHARING_MODE" in os.environ:
+    BASE_DIR = "/tmp"
 else:
-    BASE_DIR = os.path.join(os.getcwd(), "data")
-
-os.makedirs(BASE_DIR, exist_ok=True)
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 DB_FILE = os.path.join(BASE_DIR, "nms_system.db")
 
