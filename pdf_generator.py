@@ -1,17 +1,31 @@
 import io
 import base64
 from datetime import date
+
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter, landscape
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Table,
+    TableStyle,
+    Paragraph,
+    Spacer,
+    Image,
+    PageBreak
+)
 from reportlab.platypus.flowables import KeepTogether
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
+
 import streamlit as st
 from database import load_db
 
 db = load_db()
 
+
+# =====================================================
+# CREATE SHIFT PDF
+# =====================================================
 
 def create_downloadable_pdf(
         branch,
@@ -26,12 +40,14 @@ def create_downloadable_pdf(
         debit_v22
 ):
     """
-    ✅ SAFE DYNAMIC PDF
-    ✅ Supports unlimited printers
-    ✅ Prevents KeyError
+    ✅ SAFE VERSION
+    ✅ Prevent LayoutError
+    ✅ Auto page breaks
+    ✅ Safe printer loop
     """
 
     buffer = io.BytesIO()
+
     doc = SimpleDocTemplate(
         buffer,
         pagesize=landscape(letter),
@@ -43,7 +59,7 @@ def create_downloadable_pdf(
     styles = getSampleStyleSheet()
 
     # =====================================================
-    # Styles
+    # STYLES
     # =====================================================
 
     title_style = ParagraphStyle(
@@ -64,7 +80,7 @@ def create_downloadable_pdf(
     )
 
     # =====================================================
-    # HEADER (Logo + Staff Photo)
+    # HEADER
     # =====================================================
 
     logo_img = ""
@@ -73,7 +89,11 @@ def create_downloadable_pdf(
     if db.get("logo"):
         try:
             logo_bytes = base64.b64decode(db["logo"])
-            logo_img = Image(io.BytesIO(logo_bytes), width=1.2 * inch, height=1.2 * inch)
+            logo_img = Image(
+                io.BytesIO(logo_bytes),
+                width=1.2 * inch,
+                height=1.2 * inch
+            )
         except:
             logo_img = ""
 
@@ -82,7 +102,11 @@ def create_downloadable_pdf(
     if staff_data.get("photo"):
         try:
             staff_bytes = base64.b64decode(staff_data["photo"])
-            staff_img = Image(io.BytesIO(staff_bytes), width=1.0 * inch, height=1.0 * inch)
+            staff_img = Image(
+                io.BytesIO(staff_bytes),
+                width=1.0 * inch,
+                height=1.0 * inch
+            )
         except:
             staff_img = ""
 
@@ -93,18 +117,23 @@ def create_downloadable_pdf(
 
     header_table.setStyle(TableStyle([
         ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE")
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
     ]))
 
     elements.append(header_table)
     elements.append(Spacer(1, 10))
-    elements.append(Paragraph(f"Date: {date_str} | Staff: {staff_name}", sub_style))
+    elements.append(
+        Paragraph(f"Date: {date_str} | Staff: {staff_name}", sub_style)
+    )
+
+    elements.append(PageBreak())  # 🔥 فصل الهيدر عن المحتوى
 
     # =====================================================
     # FINANCIAL TABLE
     # =====================================================
 
     elements.append(Paragraph("💰 Financial Summary", styles["Heading2"]))
+    elements.append(Spacer(1, 10))
 
     fin_table_data = [
         ["Item", "Value", "Notes"],
@@ -115,7 +144,8 @@ def create_downloadable_pdf(
         ["NET Difference", f"{diff:,.2f}", "Final Result"]
     ]
 
-    fin_table = Table(fin_table_data, colWidths=[3 * inch, 3 * inch, 4 * inch])
+    fin_table = Table(fin_table_data,
+                      colWidths=[3 * inch, 3 * inch, 4 * inch])
 
     fin_table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), colors.darkblue),
@@ -127,19 +157,20 @@ def create_downloadable_pdf(
     ]))
 
     elements.append(fin_table)
-    elements.append(Spacer(1, 20))
+
+    elements.append(PageBreak())  # 🔥 فصل الجدول المالي
 
     # =====================================================
-    # PRINTER TABLE (DYNAMIC - NO HARD CODE)
+    # PRINTER TABLE (SAFE + DYNAMIC)
     # =====================================================
 
     elements.append(Paragraph("🖨 Printer Analysis", styles["Heading2"]))
+    elements.append(Spacer(1, 10))
 
     printer_table_data = [
         ["Printer", "Used", "Jam", "1-Side", "2-Side"]
     ]
 
-    # 🔥 Safe loop — no KeyError
     for printer_name, values in (printer_diff or {}).items():
 
         used = values.get("used", 0)
@@ -157,7 +188,13 @@ def create_downloadable_pdf(
 
     printer_table = Table(
         printer_table_data,
-        colWidths=[2.5 * inch, 1.5 * inch, 1.5 * inch, 1.5 * inch, 1.5 * inch]
+        colWidths=[
+            2.5 * inch,
+            1.5 * inch,
+            1.5 * inch,
+            1.5 * inch,
+            1.5 * inch
+        ]
     )
 
     printer_table.setStyle(TableStyle([
@@ -170,9 +207,19 @@ def create_downloadable_pdf(
     elements.append(printer_table)
 
     # =====================================================
+    # SAFETY: Prevent Layout Explosion
+    # =====================================================
+
+    elements.append(Spacer(1, 30))
+    elements.append(PageBreak())  # 🔥 يمنع تكدس المحتوى
+
+    # =====================================================
     # BUILD PDF
     # =====================================================
 
-    doc.build(elements)
+    try:
+        doc.build(elements)
+    except Exception as e:
+        st.error(f"PDF Build Error: {e}")
 
     return buffer.getvalue()
