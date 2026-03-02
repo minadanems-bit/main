@@ -131,36 +131,9 @@ def daily_operations_ui(db):
                 key=f"{printer}_start_total"
             )
 
-            one = st.number_input(
-                f"{printer} ✔ 1 Side",
-                min_value=0,
-                key=f"{printer}_start_one"
-            )
-
-            two = st.number_input(
-                f"{printer} ✔ 2 Side",
-                min_value=0,
-                key=f"{printer}_start_two"
-            )
-
-            err = st.number_input(
-                f"{printer} ❌ Errors",
-                min_value=0,
-                key=f"{printer}_start_err"
-            )
-
-            jam = st.number_input(
-                f"{printer} ⚠ Jam",
-                min_value=0,
-                key=f"{printer}_start_jam"
-            )
 
             printer_start[printer] = {
-                "Total": total,
-                "One Side": one,
-                "Two Side": two,
-                "Errors": err,
-                "Jam": jam
+                "Total": total
             }
 
             st.divider()
