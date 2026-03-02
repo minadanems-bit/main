@@ -357,240 +357,240 @@ def daily_operations_ui(db):
         for task in db["tasks"].get("social", []):
             st.checkbox(task, key=f"social_{task}")
 
-    # =====================================================
-    # ARCHIVE + WHATSAPP
-    # =====================================================
-
-    st.divider()
-
-    sys_sales = st.session_state.get("c_sys_sales", 0)
-    branch = st.session_state.get("branch")
-    shift = st.session_state.get("shift")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        
-         if st.button("💾 Archive Shift"):
-        
-                db["history"].append({
-                    "date": str(date.today()),
-                    "branch": st.session_state["branch"],
-                    "shift": st.session_state["shift"],
-                    "staff": st.session_state["user"],
-                    "sales": sys_sales,
-                    "expenses": st.session_state["shift_expenses"],
-                    "opay_open": st.session_state["opay_open"],
-                    "opay_close": st.session_state["opay_close"],
-                    "debit_open": st.session_state["debit_open"],
-                    "debit_close": st.session_state["debit_close"],
-                    "nbe_open": st.session_state["nbe_open"],
-                    "nbe_close": st.session_state["nbe_close"],
-                })
-        
-                save_db(db)
-                st.success("Archived Successfully ✅")
-
-    with col2:
-
+        # =====================================================
+        # ARCHIVE + WHATSAPP
+        # =====================================================
+    
+        st.divider()
+    
         sys_sales = st.session_state.get("c_sys_sales", 0)
-
-        # =====================================================
-        # FULL SHIFT REPORT (PDF + WHATSAPP)
-        # =====================================================
-        
         branch = st.session_state.get("branch")
-        user = st.session_state.get("user")
         shift = st.session_state.get("shift")
-        
-        opay_open = st.session_state.get("opay_open", 0)
-        opay_close = st.session_state.get("opay_close", 0)
-        debit_open = st.session_state.get("debit_open", 0)
-        debit_close = st.session_state.get("debit_close", 0)
-        nbe_open = st.session_state.get("nbe_open", 0)
-        nbe_close = st.session_state.get("nbe_close", 0)
-        
-        opay_diff = opay_close - opay_open
-        debit_diff = debit_close - debit_open
-        nbe_diff = nbe_close - nbe_open
-        
-        
-        cash_diff = st.session_state.get("ops", 0) - st.session_state.get("ope", 0)
-        
-        # =====================================================
-        # FULL SHIFT REPORT (SAFE VERSION)
-        # =====================================================
-        
-        branch = st.session_state.get("branch", "-")
-        user = st.session_state.get("user", "-")
-        shift = st.session_state.get("shift", "-")
-        
-        sys_sales = st.session_state.get("c_sys_sales", 0.0)
-        total_expenses = sum(
-            e.get("amount", 0)
-            for e in st.session_state.get("shift_expenses", [])
-        )
-        
-        opay_open = st.session_state.get("opay_open", 0.0)
-        opay_close = st.session_state.get("opay_close", 0.0)
-        debit_open = st.session_state.get("debit_open", 0.0)
-        debit_close = st.session_state.get("debit_close", 0.0)
-        nbe_open = st.session_state.get("nbe_open", 0.0)
-        nbe_close = st.session_state.get("nbe_close", 0.0)
-        
-        opay_diff = opay_close - opay_open
-        debit_diff = debit_close - debit_open
-        nbe_diff = nbe_close - nbe_open
-        
-        
-        cash_diff = st.session_state.get("cash_diff", 0.0)
-        
-        # ============================
-        # BUILD WHATSAPP TEXT
-        # ============================
-        
-        # =====================================================
-        # FORMAT EXPENSES CLEAN TEXT
-        # =====================================================
-        
-        shift_expenses = st.session_state.get("shift_expenses", [])
-        
-        expense_lines = "\n".join(
-            f"• {e.get('type','Unknown')} : {e.get('amount',0):,.2f}"
-            for e in shift_expenses
-        )
-        
-        if not expense_lines:
-            expense_lines = "No Expenses Recorded"
-        
-        
-        total_expenses = sum(
-            e.get("amount", 0)
-            for e in shift_expenses
-        )
-        
-        
-        # =====================================================
-        # FORMAT PRINTER SECTION CLEAN
-        # =====================================================
-        
-        def format_printer_section(data):
-            if not data:
-                return "No Printer Data"
-        
-            lines = []
-            for name, values in data.items():
-                lines.append(
-                    f"📠 {name}\n"
-                    f"Used: {values.get('used',0)} | "
-                    f"Jam: {values.get('jam',0)} | "
-                    f"1Side: {values.get('1s',0)} | "
-                    f"2Side: {values.get('2s',0)}"
-                )
-            return "\n\n".join(lines)
-        
-        
-        printer_diff = st.session_state.get("printer_diff", {})
-        kyocera_text = format_printer_section(
-            {k:v for k,v in printer_diff.items() if "Kyocera" in k}
-        )
-        xerox_text = format_printer_section(
-            {k:v for k,v in printer_diff.items() if "Xerox" in k}
-        )
-        
-        # =====================================================
-        # DIGITAL VALUES
-        # =====================================================
-        
-        opay_open = st.session_state.get("opay_open", 0)
-        opay_close = st.session_state.get("opay_close", 0)
-        debit_open = st.session_state.get("debit_open", 0)
-        debit_close = st.session_state.get("debit_close", 0)
-        nbe_open = st.session_state.get("nbe_open", 0)
-        nbe_close = st.session_state.get("nbe_close", 0)
-        
-        opay_diff = opay_close - opay_open
-        debit_diff = debit_close - debit_open
-        nbe_diff = nbe_close - nbe_open
-        
-        cash_diff = st.session_state.get("cash_diff", 0)
-        sys_sales = st.session_state.get("c_sys_sales", 0)
-        
-        branch = st.session_state.get("branch", "-")
-        shift = st.session_state.get("shift", "-")
-        user = st.session_state.get("user", "-")
-
-
-        printer_diff = st.session_state.get("printer_diff", {})
-        
-        printer_lines = ""
-        
-        if not printer_diff:
-            printer_lines = "No Printer Data\n"
-        else:
-            for printer_name, values in printer_diff.items():
-                printer_lines += (
-                    f"📠 {printer_name}\n"
-                    f"Used: {values.get('used',0)}\n"
-                    f"Jam: {values.get('jam',0)}\n"
-                    f"1-Side: {values.get('1s',0)}\n"
-                    f"2-Side: {values.get('2s',0)}\n"
-                    "------------------------\n\n"
-                )
-        # =====================================================
-        # BUILD CLEAN REPORT
-        # =====================================================
-        
-        wa_text = f"""
-        ■ NMS FULL SHIFT REPORT
-        ■■■■■■■■■■■■■■■■■■■■■■
-        
-        📅 Date: {date.today()}
-        🏢 Branch: {branch}
-        🕒 Shift: {shift}
-        👤 Staff: {user}
-        
-        ■■■■■■■■■■■■■■■■■■■■■■
-        💰 SALES
-        Total System Sales: {sys_sales:,.2f}
-        
-        ■■■■■■■■■■■■■■■■■■■■■■
-        💳 DIGITAL PAYMENTS
-        
-        🟢 OPAY
-        Open: {opay_open:,.2f}
-        Close: {opay_close:,.2f}
-        Diff: {opay_diff:,.2f}
-        
-        🔵 DEBIT
-        Open: {debit_open:,.2f}
-        Close: {debit_close:,.2f}
-        Diff: {debit_diff:,.2f}
-        
-        🟡 NBE
-        Open: {nbe_open:,.2f}
-        Close: {nbe_close:,.2f}
-        Diff: {nbe_diff:,.2f}
-        
-        ■■■■■■■■■■■■■■■■■■■■■■
-        💸 EXPENSES
-        Total Expenses: {total_expenses:,.2f}
-        
-        {expense_lines}
-        
-        ■■■■■■■■■■■■■■■■■■■■■■
-        🖨 PRINTER DIFFERENCES
-        
-        {printer_lines}
-        
-        ■■■■■■■■■■■■■■■■■■■■■■
-        💵 CASH DIFFERENCE
-        {cash_diff:,.2f}
-        
-        
-        ■■■■■■■■■■■■■■■■■■■■■■
-        Generated by NMS System
-        """
+    
+        col1, col2 = st.columns(2)
+    
+        with col1:
+            
+             if st.button("💾 Archive Shift"):
+            
+                    db["history"].append({
+                        "date": str(date.today()),
+                        "branch": st.session_state["branch"],
+                        "shift": st.session_state["shift"],
+                        "staff": st.session_state["user"],
+                        "sales": sys_sales,
+                        "expenses": st.session_state["shift_expenses"],
+                        "opay_open": st.session_state["opay_open"],
+                        "opay_close": st.session_state["opay_close"],
+                        "debit_open": st.session_state["debit_open"],
+                        "debit_close": st.session_state["debit_close"],
+                        "nbe_open": st.session_state["nbe_open"],
+                        "nbe_close": st.session_state["nbe_close"],
+                    })
+            
+                    save_db(db)
+                    st.success("Archived Successfully ✅")
+    
+        with col2:
+    
+            sys_sales = st.session_state.get("c_sys_sales", 0)
+    
+            # =====================================================
+            # FULL SHIFT REPORT (PDF + WHATSAPP)
+            # =====================================================
+            
+            branch = st.session_state.get("branch")
+            user = st.session_state.get("user")
+            shift = st.session_state.get("shift")
+            
+            opay_open = st.session_state.get("opay_open", 0)
+            opay_close = st.session_state.get("opay_close", 0)
+            debit_open = st.session_state.get("debit_open", 0)
+            debit_close = st.session_state.get("debit_close", 0)
+            nbe_open = st.session_state.get("nbe_open", 0)
+            nbe_close = st.session_state.get("nbe_close", 0)
+            
+            opay_diff = opay_close - opay_open
+            debit_diff = debit_close - debit_open
+            nbe_diff = nbe_close - nbe_open
+            
+            
+            cash_diff = st.session_state.get("ops", 0) - st.session_state.get("ope", 0)
+            
+            # =====================================================
+            # FULL SHIFT REPORT (SAFE VERSION)
+            # =====================================================
+            
+            branch = st.session_state.get("branch", "-")
+            user = st.session_state.get("user", "-")
+            shift = st.session_state.get("shift", "-")
+            
+            sys_sales = st.session_state.get("c_sys_sales", 0.0)
+            total_expenses = sum(
+                e.get("amount", 0)
+                for e in st.session_state.get("shift_expenses", [])
+            )
+            
+            opay_open = st.session_state.get("opay_open", 0.0)
+            opay_close = st.session_state.get("opay_close", 0.0)
+            debit_open = st.session_state.get("debit_open", 0.0)
+            debit_close = st.session_state.get("debit_close", 0.0)
+            nbe_open = st.session_state.get("nbe_open", 0.0)
+            nbe_close = st.session_state.get("nbe_close", 0.0)
+            
+            opay_diff = opay_close - opay_open
+            debit_diff = debit_close - debit_open
+            nbe_diff = nbe_close - nbe_open
+            
+            
+            cash_diff = st.session_state.get("cash_diff", 0.0)
+            
+            # ============================
+            # BUILD WHATSAPP TEXT
+            # ============================
+            
+            # =====================================================
+            # FORMAT EXPENSES CLEAN TEXT
+            # =====================================================
+            
+            shift_expenses = st.session_state.get("shift_expenses", [])
+            
+            expense_lines = "\n".join(
+                f"• {e.get('type','Unknown')} : {e.get('amount',0):,.2f}"
+                for e in shift_expenses
+            )
+            
+            if not expense_lines:
+                expense_lines = "No Expenses Recorded"
+            
+            
+            total_expenses = sum(
+                e.get("amount", 0)
+                for e in shift_expenses
+            )
+            
+            
+            # =====================================================
+            # FORMAT PRINTER SECTION CLEAN
+            # =====================================================
+            
+            def format_printer_section(data):
+                if not data:
+                    return "No Printer Data"
+            
+                lines = []
+                for name, values in data.items():
+                    lines.append(
+                        f"📠 {name}\n"
+                        f"Used: {values.get('used',0)} | "
+                        f"Jam: {values.get('jam',0)} | "
+                        f"1Side: {values.get('1s',0)} | "
+                        f"2Side: {values.get('2s',0)}"
+                    )
+                return "\n\n".join(lines)
+            
+            
+            printer_diff = st.session_state.get("printer_diff", {})
+            kyocera_text = format_printer_section(
+                {k:v for k,v in printer_diff.items() if "Kyocera" in k}
+            )
+            xerox_text = format_printer_section(
+                {k:v for k,v in printer_diff.items() if "Xerox" in k}
+            )
+            
+            # =====================================================
+            # DIGITAL VALUES
+            # =====================================================
+            
+            opay_open = st.session_state.get("opay_open", 0)
+            opay_close = st.session_state.get("opay_close", 0)
+            debit_open = st.session_state.get("debit_open", 0)
+            debit_close = st.session_state.get("debit_close", 0)
+            nbe_open = st.session_state.get("nbe_open", 0)
+            nbe_close = st.session_state.get("nbe_close", 0)
+            
+            opay_diff = opay_close - opay_open
+            debit_diff = debit_close - debit_open
+            nbe_diff = nbe_close - nbe_open
+            
+            cash_diff = st.session_state.get("cash_diff", 0)
+            sys_sales = st.session_state.get("c_sys_sales", 0)
+            
+            branch = st.session_state.get("branch", "-")
+            shift = st.session_state.get("shift", "-")
+            user = st.session_state.get("user", "-")
+    
+    
+            printer_diff = st.session_state.get("printer_diff", {})
+            
+            printer_lines = ""
+            
+            if not printer_diff:
+                printer_lines = "No Printer Data\n"
+            else:
+                for printer_name, values in printer_diff.items():
+                    printer_lines += (
+                        f"📠 {printer_name}\n"
+                        f"Used: {values.get('used',0)}\n"
+                        f"Jam: {values.get('jam',0)}\n"
+                        f"1-Side: {values.get('1s',0)}\n"
+                        f"2-Side: {values.get('2s',0)}\n"
+                        "------------------------\n\n"
+                    )
+            # =====================================================
+            # BUILD CLEAN REPORT
+            # =====================================================
+            
+            wa_text = f"""
+            ■ NMS FULL SHIFT REPORT
+            ■■■■■■■■■■■■■■■■■■■■■■
+            
+            📅 Date: {date.today()}
+            🏢 Branch: {branch}
+            🕒 Shift: {shift}
+            👤 Staff: {user}
+            
+            ■■■■■■■■■■■■■■■■■■■■■■
+            💰 SALES
+            Total System Sales: {sys_sales:,.2f}
+            
+            ■■■■■■■■■■■■■■■■■■■■■■
+            💳 DIGITAL PAYMENTS
+            
+            🟢 OPAY
+            Open: {opay_open:,.2f}
+            Close: {opay_close:,.2f}
+            Diff: {opay_diff:,.2f}
+            
+            🔵 DEBIT
+            Open: {debit_open:,.2f}
+            Close: {debit_close:,.2f}
+            Diff: {debit_diff:,.2f}
+            
+            🟡 NBE
+            Open: {nbe_open:,.2f}
+            Close: {nbe_close:,.2f}
+            Diff: {nbe_diff:,.2f}
+            
+            ■■■■■■■■■■■■■■■■■■■■■■
+            💸 EXPENSES
+            Total Expenses: {total_expenses:,.2f}
+            
+            {expense_lines}
+            
+            ■■■■■■■■■■■■■■■■■■■■■■
+            🖨 PRINTER DIFFERENCES
+            
+            {printer_lines}
+            
+            ■■■■■■■■■■■■■■■■■■■■■■
+            💵 CASH DIFFERENCE
+            {cash_diff:,.2f}
+            
+            
+            ■■■■■■■■■■■■■■■■■■■■■■
+            Generated by NMS System
+            """
         
         # 🔥 مهم جداً – منع النص يطول و يكسر الواتساب
         wa_text = wa_text[:3500]
