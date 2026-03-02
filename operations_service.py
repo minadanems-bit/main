@@ -227,8 +227,7 @@ def daily_operations_ui(db):
 
         total_expenses = sum(e["amount"] for e in st.session_state["shift_expenses"])
 
-        st.write("### Added Expenses")
-        st.json(st.session_state["shift_expenses"])
+
         st.warning(f"Total Expenses: {total_expenses:,.2f} LE")
 
         # ========================
