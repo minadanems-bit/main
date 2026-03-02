@@ -516,19 +516,18 @@ def daily_operations_ui(db):
         
         with crep1:
             if st.button("📄 GENERATE FULL PDF", use_container_width=True):
-        
+                        
                 pdf_bytes = create_downloadable_pdf(
                     branch,
                     user,
                     str(date.today()),
                     sys_sales,
                     total_expenses,
-                    wa_text,
-                    cash_diff,
-                    kyocera,
-                    xerox,
-                    cash_diff,
-                    v22_val
+                    wa_text,  # ممكن تحط expenses details هنا
+                    st.session_state.get("cash_diff", 0),
+                    st.session_state.get("printer_diff", {}),
+                    st.session_state.get("opay_open", 0),
+                    st.session_state.get("debit_open", 0)
                 )
         
                 st.download_button(
