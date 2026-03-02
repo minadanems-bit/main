@@ -414,12 +414,9 @@ def daily_operations_ui(db):
         debit_diff = debit_close - debit_open
         nbe_diff = nbe_close - nbe_open
         
-        printer_diff = st.session_state.get("printer_diff", {})
-        kyocera = printer_diff.get("Kyocera", {})
-        xerox = printer_diff.get("Xerox", {})
+        {printer_section}
         
         cash_diff = st.session_state.get("ops", 0) - st.session_state.get("ope", 0)
-        v22_val = st.session_state.get("v22_val", 0)
         
         # =====================================================
         # FULL SHIFT REPORT (SAFE VERSION)
@@ -446,30 +443,104 @@ def daily_operations_ui(db):
         debit_diff = debit_close - debit_open
         nbe_diff = nbe_close - nbe_open
         
-        printer_diff = st.session_state.get("printer_diff", {})
-        kyocera = printer_diff.get("Kyocera", {})
-        xerox = printer_diff.get("Xerox", {})
+        {printer_section}
         
         cash_diff = st.session_state.get("cash_diff", 0.0)
-        v22_val = st.session_state.get("v22_val", 0.0)
         
         # ============================
         # BUILD WHATSAPP TEXT
         # ============================
         
+        # =====================================================
+        # FORMAT EXPENSES CLEAN TEXT
+        # =====================================================
+        
+        shift_expenses = st.session_state.get("shift_expenses", [])
+        
+        expense_lines = "\n".join(
+            f"• {e.get('type','Unknown')} : {e.get('amount',0):,.2f}"
+            for e in shift_expenses
+        )
+        
+        if not expense_lines:
+            expense_lines = "No Expenses Recorded"
+        
+        
+        total_expenses = sum(
+            e.get("amount", 0)
+            for e in shift_expenses
+        )
+        
+        
+        # =====================================================
+        # FORMAT PRINTER SECTION CLEAN
+        # =====================================================
+        
+        def format_printer_section(data):
+            if not data:
+                return "No Printer Data"
+        
+            lines = []
+            for name, values in data.items():
+                lines.append(
+                    f"📠 {name}\n"
+                    f"Used: {values.get('used',0)} | "
+                    f"Jam: {values.get('jam',0)} | "
+                    f"1Side: {values.get('1s',0)} | "
+                    f"2Side: {values.get('2s',0)}"
+                )
+            return "\n\n".join(lines)
+        
+        
+        printer_diff = st.session_state.get("printer_diff", {})
+        kyocera_text = format_printer_section(
+            {k:v for k,v in printer_diff.items() if "Kyocera" in k}
+        )
+        xerox_text = format_printer_section(
+            {k:v for k,v in printer_diff.items() if "Xerox" in k}
+        )
+        
+        # =====================================================
+        # DIGITAL VALUES
+        # =====================================================
+        
+        opay_open = st.session_state.get("opay_open", 0)
+        opay_close = st.session_state.get("opay_close", 0)
+        debit_open = st.session_state.get("debit_open", 0)
+        debit_close = st.session_state.get("debit_close", 0)
+        nbe_open = st.session_state.get("nbe_open", 0)
+        nbe_close = st.session_state.get("nbe_close", 0)
+        
+        opay_diff = opay_close - opay_open
+        debit_diff = debit_close - debit_open
+        nbe_diff = nbe_close - nbe_open
+        
+        cash_diff = st.session_state.get("cash_diff", 0)
+        v22_val = st.session_state.get("v22_val", 0)
+        sys_sales = st.session_state.get("c_sys_sales", 0)
+        
+        branch = st.session_state.get("branch", "-")
+        shift = st.session_state.get("shift", "-")
+        user = st.session_state.get("user", "-")
+        
+        # =====================================================
+        # BUILD CLEAN REPORT
+        # =====================================================
+        
         wa_text = f"""
-        📊 NMS FULL SHIFT REPORT
-        ━━━━━━━━━━━━━━━━━━
+        ■ NMS FULL SHIFT REPORT
+        ■■■■■■■■■■■■■■■■■■■■■■
+        
         📅 Date: {date.today()}
         🏢 Branch: {branch}
         🕒 Shift: {shift}
         👤 Staff: {user}
         
-        ━━━━━━━━━━━━━━━━━━
+        ■■■■■■■■■■■■■■■■■■■■■■
         💰 SALES
         Total System Sales: {sys_sales:,.2f}
         
-        ━━━━━━━━━━━━━━━━━━
+        ■■■■■■■■■■■■■■■■■■■■■■
         💳 DIGITAL PAYMENTS
         
         🟢 OPAY
@@ -487,71 +558,34 @@ def daily_operations_ui(db):
         Close: {nbe_close:,.2f}
         Diff: {nbe_diff:,.2f}
         
-        ━━━━━━━━━━━━━━━━━━
+        ■■■■■■■■■■■■■■■■■■■■■■
         💸 EXPENSES
         Total Expenses: {total_expenses:,.2f}
         
-        Details:
-        {st.session_state.get("shift_expenses", [])}
+        {expense_lines}
         
-        ━━━━━━━━━━━━━━━━━━
+        ■■■■■■■■■■■■■■■■■■■■■■
         🖨 PRINTER DIFFERENCES
         
-        🖨 Kyocera:
-        {kyocera}
+        for printer_name, values in (printer_diff or {}).items():
         
-        🖨 Xerox:
-        {xerox}
+            printer_section += f"""
+        📠 {printer_name}
+        Used: {values.get("used", 0)}
+        Jam: {values.get("jam", 0)}
+        1-Side: {values.get("1s", 0)}
+        2-Side: {values.get("2s", 0)}
+        ------------------------
+        """
         
-        ━━━━━━━━━━━━━━━━━━
+        ■■■■■■■■■■■■■■■■■■■■■■
         💵 CASH DIFFERENCE
         {cash_diff:,.2f}
         
-        ━━━━━━━━━━━━━━━━━━
-        💳 V22 VALUE
-        {v22_val:,.2f}
         
-        ━━━━━━━━━━━━━━━━━━
+        ■■■■■■■■■■■■■■■■■■■■■■
         Generated by NMS System
         """
         
-        # =====================================================
-        # PDF + WHATSAPP BUTTONS
-        # =====================================================
-        
-        crep1, crep2 = st.columns(2)
-        
-        with crep1:
-            if st.button("📄 GENERATE FULL PDF", use_container_width=True):
-                        
-                pdf_bytes = create_downloadable_pdf(
-                    branch,
-                    user,
-                    str(date.today()),
-                    sys_sales,
-                    total_expenses,
-                    wa_text,  # ممكن تحط expenses details هنا
-                    st.session_state.get("cash_diff", 0),
-                    st.session_state.get("printer_diff", {}),
-                    st.session_state.get("opay_open", 0),
-                    st.session_state.get("debit_open", 0)
-                )
-        
-                st.download_button(
-                    "📥 Download FULL PDF",
-                    pdf_bytes,
-                    file_name=f"NMS_FULL_{date.today()}.pdf",
-                    key="pdf_download_full"
-                )
-        
-        with crep2:
-            url = f"https://wa.me/{get_manager_phone()}?text={urllib.parse.quote(wa_text)}"
-        
-            st.markdown(
-                f'<a href="{url}" target="_blank">'
-                f'<button style="width:100%; background-color:#25D366; color:white; '
-                f'border:none; padding:15px; border-radius:10px; cursor:pointer; '
-                f'font-weight:bold; font-size:16px;">'
-                f'📱 SEND FULL REPORT TO WHATSAPP</button></a>',
-                unsafe_allow_html=True
-            )
+        # 🔥 مهم جداً – منع النص يطول و يكسر الواتساب
+        wa_text = wa_text[:3500]
