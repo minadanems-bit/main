@@ -484,17 +484,17 @@ def daily_operations_ui(db):
                 from pdf_generator import create_downloadable_pdf
     
                 pdf_bytes = create_downloadable_pdf(
-                    branch,
-                    user,
-                    str(date.today()),
-                    sys_sales,
-                    total_expenses,
-                    expense_lines,
-                    cash_diff,
-                    printer_diff,
-                    opay_diff,
-                    debit_diff
-                )
+                branch=branch,
+                staff_name=user,
+                date_str=str(date.today()),
+                sales=sys_sales,
+                expenses=total_expenses,
+                exp_note=expense_lines,
+                diff=cash_diff,
+                printer_diff=st.session_state.get("printer_diff", {}),
+                opay_move=opay_diff,
+                debit_v22=debit_diff   # ✅ ده هو الـ debit الحقيقي
+            )
     
                 st.download_button(
                     "📥 Download PDF",
