@@ -183,27 +183,77 @@ def daily_operations_ui(db):
 
     with tab2:
 
-        st.subheader("🌇 Closing Tasks")
+        st.subheader("💰 Closing Section")
 
-        for task in db["tasks"].get("closing", []):
-            st.checkbox(task, key=f"close_task_{task}")
+        sys_sales = st.number_input("System Sales", step=1.0, key="c_sys_sales")
+        insta = st.number_input("Instapay", step=1.0)
+        wallet = st.number_input("Wallet", step=1.0)
+        visa = st.number_input("Visa", step=1.0)
 
-        st.divider()
+        for key in ["opay_close", "debit_close", "nbe_close"]:
+            if key not in st.session_state:
+                st.session_state[key] = 0.0
 
-        st.subheader("💰 Closing Cash")
-
-        sys_sales = st.number_input(
-            "System Sales",
-            step=1.0,
-            key="c_sys_sales"
+        st.session_state["opay_close"] = st.number_input(
+            "💳 Opay Closing", min_value=0.0, step=1.0,
+            value=float(st.session_state["opay_close"])
         )
 
-        insta = st.number_input("Instapay", step=1.0, key="c_insta")
-        wallet = st.number_input("Wallet", step=1.0, key="c_wallet")
-        visa = st.number_input("Visa", step=1.0, key="c_visa")
+        st.session_state["debit_close"] = st.number_input(
+            "💳 Debit Closing", min_value=0.0, step=1.0,
+            value=float(st.session_state["debit_close"])
+        )
+
+        st.session_state["nbe_close"] = st.number_input(
+            "🏦 NBE Wallet Closing", min_value=0.0, step=1.0,
+            value=float(st.session_state["nbe_close"])
+        )
+
         # ========================
-        # Opay & Debit Closing
+        # EXPENSES (SELECT LIST)
         # ========================
+
+        st.divider()
+        st.subheader("💸 Expenses")
+
+        expense_categories = db.get("expense_categories", [])
+
+        if "shift_expenses" not in st.session_state:
+            st.session_state["shift_expenses"] = []
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            selected_expense = st.selectbox("Expense Type", expense_categories)
+
+        with col2:
+            expense_value = st.number_input("Amount", min_value=0.0, step=1.0)
+
+        if st.button("➕ Add Expense"):
+            st.session_state["shift_expenses"].append({
+                "type": selected_expense,
+                "amount": expense_value
+            })
+
+        total_expenses = sum(e["amount"] for e in st.session_state["shift_expenses"])
+
+        st.write("### Added Expenses")
+        st.json(st.session_state["shift_expenses"])
+        st.warning(f"Total Expenses: {total_expenses:,.2f} LE")
+
+        # ========================
+        # CASH CALCULATION
+        # ========================
+
+        t_digital = insta + wallet + visa
+        expected = (
+            st.session_state["t_open"]
+            + sys_sales
+            - total_expenses
+            - t_digital
+        )
+
+        st.metric("Expected Cash", f"{expected:,.2f}")
         
         if "opay_close" not in st.session_state:
             st.session_state["opay_close"] = 0.0
@@ -359,47 +409,54 @@ def daily_operations_ui(db):
     col1, col2 = st.columns(2)
 
     with col1:
-
-        if st.button("💾 Archive Shift", use_container_width=True):
-
-            db["history"] = db.get("history", [])
-
-            db["history"].append({
-                "date": str(date.today()),
-                "branch": branch,
-                "shift": shift,
-                "staff": st.session_state.get("user"),
-                "sales": sys_sales,
-                "cash_diff": st.session_state.get("cash_diff", 0),
-                "printer_diff": st.session_state.get("printer_diff", {}),
-                "opay_open": st.session_state.get("opay_open", 0),
-                "opay_close": opay_close,
-                "debit_open": st.session_state.get("debit_open", 0),
-                "debit_close": debit_close,
-            })
-
-            save_db(db)
-
-            st.success("Archived Successfully ✅")
+        
+         if st.button("💾 Archive Shift"):
+        
+                db["history"].append({
+                    "date": str(date.today()),
+                    "branch": st.session_state["branch"],
+                    "shift": st.session_state["shift"],
+                    "staff": st.session_state["user"],
+                    "sales": sys_sales,
+                    "expenses": st.session_state["shift_expenses"],
+                    "opay_open": st.session_state["opay_open"],
+                    "opay_close": st.session_state["opay_close"],
+                    "debit_open": st.session_state["debit_open"],
+                    "debit_close": st.session_state["debit_close"],
+                    "nbe_open": st.session_state["nbe_open"],
+                    "nbe_close": st.session_state["nbe_close"],
+                })
+        
+                save_db(db)
+                st.success("Archived Successfully ✅")
 
     with col2:
 
         sys_sales = st.session_state.get("c_sys_sales", 0)
 
-        wa_text = f"""
-Shift Report
-Branch: {branch}
-Shift: {shift}
-Sales: {sys_sales}
-Cash Diff: {st.session_state.get("cash_diff", 0)}
+    wa_text = f"""
+📊 SHIFT REPORT
+Date: {date.today()}
+Branch: {st.session_state["branch"]}
+Shift: {st.session_state["shift"]}
+Staff: {st.session_state["user"]}
+
+💰 Sales: {sys_sales}
+
+💳 Digital:
+Opay: {st.session_state["opay_open"]} ➜ {st.session_state["opay_close"]}
+Debit: {st.session_state["debit_open"]} ➜ {st.session_state["debit_close"]}
+NBE: {st.session_state["nbe_open"]} ➜ {st.session_state["nbe_close"]}
+
+💸 Expenses: {total_expenses}
 """
 
-        url = f"https://wa.me/{get_manager_phone()}?text={urllib.parse.quote(wa_text)}"
+    url = f"https://wa.me/{get_manager_phone()}?text={urllib.parse.quote(wa_text)}"
 
-        st.markdown(
-            f'<a href="{url}" target="_blank">'
-            f'<button style="width:100%;background:#25D366;color:white;padding:12px;border:none;border-radius:8px;font-weight:bold;">'
-            f'📱 Send To WhatsApp'
-            f'</button></a>',
-            unsafe_allow_html=True
-        )
+    st.markdown(
+        f'<a href="{url}" target="_blank">'
+        f'<button style="width:100%;background:#25D366;color:white;padding:12px;border:none;border-radius:8px;font-weight:bold;">'
+        f'📱 Send Full Report To WhatsApp'
+        f'</button></a>',
+        unsafe_allow_html=True
+    )
