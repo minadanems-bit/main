@@ -36,8 +36,7 @@ def create_downloadable_pdf(
         exp_note,
         diff,
         printer_diff,
-        opay_move,
-        debit_v22
+        opay_move
 ):
     """
     ✅ SAFE VERSION
