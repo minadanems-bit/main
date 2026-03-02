@@ -41,9 +41,9 @@ def create_downloadable_pdf(
 ):
     """
     ✅ SAFE VERSION
+    ✅ Auto Page Break
     ✅ Prevent LayoutError
-    ✅ Auto page breaks
-    ✅ Safe printer loop
+    ✅ Safe Large Tables
     """
 
     buffer = io.BytesIO()
@@ -126,7 +126,7 @@ def create_downloadable_pdf(
         Paragraph(f"Date: {date_str} | Staff: {staff_name}", sub_style)
     )
 
-    elements.append(PageBreak())  # 🔥 فصل الهيدر عن المحتوى
+    elements.append(PageBreak())
 
     # =====================================================
     # FINANCIAL TABLE
@@ -135,17 +135,26 @@ def create_downloadable_pdf(
     elements.append(Paragraph("💰 Financial Summary", styles["Heading2"]))
     elements.append(Spacer(1, 10))
 
+    # 🔥 Prevent long text breaking layout
+    safe_exp_note = Paragraph(
+        str(exp_note) if exp_note else "-",
+        styles["Normal"]
+    )
+
     fin_table_data = [
         ["Item", "Value", "Notes"],
         ["Total Sales", f"{sales:,.2f}", "-"],
-        ["Expenses", f"{expenses:,.2f}", exp_note],
+        ["Expenses", f"{expenses:,.2f}", safe_exp_note],
         ["Opay Movement", f"{opay_move:,.2f}", "-"],
         ["Debit / V22", f"{debit_v22:,.2f}", "-"],
         ["NET Difference", f"{diff:,.2f}", "Final Result"]
     ]
 
-    fin_table = Table(fin_table_data,
-                      colWidths=[3 * inch, 3 * inch, 4 * inch])
+    fin_table = Table(
+        fin_table_data,
+        colWidths=[3 * inch, 3 * inch, 4 * inch],
+        repeatRows=1  # 🔥 مهم جداً — يعيد الهيدر لو الصفحة اتقسمت
+    )
 
     fin_table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), colors.darkblue),
@@ -156,12 +165,12 @@ def create_downloadable_pdf(
         ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
     ]))
 
-    elements.append(KeepTogether([fin_table]))
-    elements.append(Spacer(1, 15))
-    elements.append(PageBreak())  # 🔥 فصل الجدول المالي
+    elements.append(fin_table)
+    elements.append(Spacer(1, 20))
+    elements.append(PageBreak())
 
     # =====================================================
-    # PRINTER TABLE (SAFE + DYNAMIC)
+    # PRINTER TABLE (SAFE + AUTO PAGE BREAK)
     # =====================================================
 
     elements.append(Paragraph("🖨 Printer Analysis", styles["Heading2"]))
@@ -173,17 +182,12 @@ def create_downloadable_pdf(
 
     for printer_name, values in (printer_diff or {}).items():
 
-        used = values.get("used", 0)
-        jam = values.get("jam", 0)
-        one_side = values.get("1s", 0)
-        two_side = values.get("2s", 0)
-
         printer_table_data.append([
             printer_name,
-            used,
-            jam,
-            one_side,
-            two_side
+            values.get("used", 0),
+            values.get("jam", 0),
+            values.get("1s", 0),
+            values.get("2s", 0)
         ])
 
     printer_table = Table(
@@ -194,7 +198,8 @@ def create_downloadable_pdf(
             1.5 * inch,
             1.5 * inch,
             1.5 * inch
-        ]
+        ],
+        repeatRows=1  # 🔥 مهم جداً
     )
 
     printer_table.setStyle(TableStyle([
@@ -205,16 +210,17 @@ def create_downloadable_pdf(
     ]))
 
     elements.append(KeepTogether([printer_table]))
-    elements.append(Spacer(1, 20))
-    # =====================================================
-    # SAFETY: Prevent Layout Explosion
-    # =====================================================
-
     elements.append(Spacer(1, 30))
-    elements.append(PageBreak())  # 🔥 يمنع تكدس المحتوى
 
     # =====================================================
-    # BUILD PDF
+    # EXTRA SAFETY
+    # =====================================================
+
+    elements.append(PageBreak())
+    elements.append(Spacer(1, 40))
+
+    # =====================================================
+    # BUILD PDF SAFELY
     # =====================================================
 
     try:
