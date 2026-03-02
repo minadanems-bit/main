@@ -173,6 +173,13 @@ def daily_operations_ui(db):
 
     with tab2:
 
+        st.subheader("🌅 Closing Tasks")
+
+        for task in db["tasks"].get("closing", []):
+            st.checkbox(task, key=f"close_task_{task}")
+
+        st.divider()
+
         st.subheader("💰 Closing Section")
 
         sys_sales = st.number_input("System Sales", step=1.0, key="c_sys_sales")
