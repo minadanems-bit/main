@@ -527,8 +527,11 @@ def daily_operations_ui(db):
 
         printer_lines = ""
         
-        for printer_name, values in printer_diff.items():
-            printer_lines += f"""
+        if not printer_diff:
+            printer_lines = "No Printer Data\n"
+        else:
+            for printer_name, values in printer_diff.items():
+                printer_lines += f"""
         📠 {printer_name}
         Used: {values.get("used",0)}
         Jam: {values.get("jam",0)}
