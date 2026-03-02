@@ -86,18 +86,37 @@ def daily_operations_ui(db):
         st.subheader("💰 Opening Cash")
 
         t_open = 0.0
-
         for d in [200, 100, 50, 20, 10, 5]:
-            v = st.number_input(
-                f"{d} LE",
-                min_value=0,
-                step=1,
-                key=f"open_{d}"
-            )
+            v = st.number_input(f"{d} LE", min_value=0, step=1, key=f"open_{d}")
             t_open += v * d
 
         coins = st.number_input("Coins", step=0.5, key="open_coins")
         t_open += coins
+
+        # Digital Opening
+        for key in ["opay_open", "debit_open", "nbe_open"]:
+            if key not in st.session_state:
+                st.session_state[key] = 0.0
+
+        st.session_state["opay_open"] = st.number_input(
+            "💳 Opay Opening", min_value=0.0, step=1.0,
+            value=float(st.session_state["opay_open"])
+        )
+
+        st.session_state["debit_open"] = st.number_input(
+            "💳 Debit Opening", min_value=0.0, step=1.0,
+            value=float(st.session_state["debit_open"])
+        )
+
+        st.session_state["nbe_open"] = st.number_input(
+            "🏦 NBE Wallet Opening", min_value=0.0, step=1.0,
+            value=float(st.session_state["nbe_open"])
+        )
+
+        st.success(f"Total Opening Cash: {t_open:,.2f} LE")
+        st.session_state["t_open"] = t_open
+
+
         # ========================
         # Opay & Debit Opening
         # ========================
@@ -255,41 +274,6 @@ def daily_operations_ui(db):
 
         st.metric("Expected Cash", f"{expected:,.2f}")
         
-        if "opay_close" not in st.session_state:
-            st.session_state["opay_close"] = 0.0
-        
-        if "debit_close" not in st.session_state:
-            st.session_state["debit_close"] = 0.0
-        
-        opay_close = st.number_input(
-            "💳 Opay Closing",
-            min_value=0.0,
-            step=1.0,
-            value=float(st.session_state["opay_close"]),
-            key="opay_close_input"
-        )
-        
-        debit_close = st.number_input(
-            "💳 Debit Closing",
-            min_value=0.0,
-            step=1.0,
-            value=float(st.session_state["debit_close"]),
-            key="debit_close_input"
-        )
-        
-        st.session_state["opay_close"] = float(opay_close)
-        st.session_state["debit_close"] = float(debit_close)
-
-        t_digital = insta + wallet + visa
-        t_open = st.session_state.get("t_open", 0)
-
-        expenses = st.number_input(
-            "Expenses",
-            step=1.0,
-            key="ex_val"
-        )
-
-        expected = t_open + sys_sales - expenses - t_digital
 
         st.divider()
         st.subheader("🧮 Cash Count")
