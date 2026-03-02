@@ -117,35 +117,6 @@ def daily_operations_ui(db):
         st.session_state["t_open"] = t_open
 
 
-        # ========================
-        # Opay & Debit Opening
-        # ========================
-        
-        if "opay_open" not in st.session_state:
-            st.session_state["opay_open"] = 0.0
-        
-        if "debit_open" not in st.session_state:
-            st.session_state["debit_open"] = 0.0
-        
-        opay_open = st.number_input(
-            "💳 Opay Opening",
-            min_value=0.0,
-            step=1.0,
-            value=float(st.session_state["opay_open"]),
-            key="opay_open_input"
-        )
-        
-        debit_open = st.number_input(
-            "💳 Debit Opening",
-            min_value=0.0,
-            step=1.0,
-            value=float(st.session_state["debit_open"]),
-            key="debit_open_input"
-        )
-        
-        st.session_state["opay_open"] = float(opay_open)
-        st.session_state["debit_open"] = float(debit_open)
-
         st.divider()
         st.subheader("🖨 Printer Start Counters")
 
