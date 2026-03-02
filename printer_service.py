@@ -38,22 +38,26 @@ def calculate_printer_difference(start_data, end_data):
 
     diff = {}
 
-    if not start_data or not end_data:
-        return diff
+    printers = set(start_data.keys()) | set(end_data.keys())
 
     fields = ["Total", "One Side", "Two Side", "Errors", "Jam"]
 
-    for printer in start_data:
+    for printer in printers:
 
         diff[printer] = {}
 
         for field in fields:
-            try:
-                start_val = int(start_data.get(printer, {}).get(field, 0) or 0)
-                end_val = int(end_data.get(printer, {}).get(field, 0) or 0)
-                diff[printer][field] = end_val - start_val
-            except:
-                diff[printer][field] = 0
+
+            start_val = start_data.get(printer, {}).get(field, 0) or 0
+            end_val = end_data.get(printer, {}).get(field, 0) or 0
+
+            diff[printer][field] = end_val - start_val
+
+        # 🔥 أضيف هذه القيم حتى لا يحدث KeyError في الـ PDF
+        diff[printer]["used"] = diff[printer].get("Total", 0)
+        diff[printer]["jam"] = diff[printer].get("Jam", 0)
+        diff[printer]["1s"] = diff[printer].get("One Side", 0)
+        diff[printer]["2s"] = diff[printer].get("Two Side", 0)
 
     return diff
 
