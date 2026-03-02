@@ -156,8 +156,8 @@ def create_downloadable_pdf(
         ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
     ]))
 
-    elements.append(fin_table)
-
+    elements.append(KeepTogether([fin_table]))
+    elements.append(Spacer(1, 15))
     elements.append(PageBreak())  # 🔥 فصل الجدول المالي
 
     # =====================================================
@@ -204,8 +204,8 @@ def create_downloadable_pdf(
         ("ALIGN", (0, 0), (-1, -1), "CENTER"),
     ]))
 
-    elements.append(printer_table)
-
+    elements.append(KeepTogether([printer_table]))
+    elements.append(Spacer(1, 20))
     # =====================================================
     # SAFETY: Prevent Layout Explosion
     # =====================================================
