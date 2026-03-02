@@ -146,7 +146,7 @@ def create_downloadable_pdf(
         ["Total Sales", f"{sales:,.2f}", "-"],
         ["Expenses", f"{expenses:,.2f}", safe_exp_note],
         ["Opay Movement", f"{opay_move:,.2f}", "-"],
-        ["Debit", f"{debit:,.2f}", "-"],
+        ["Debit", f"{debit_v22:,.2f}", "-"],
         ["NET Difference", f"{safe_diff:,.2f}", "Final Result"]
     ]
 
