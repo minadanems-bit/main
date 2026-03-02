@@ -346,200 +346,200 @@ def daily_operations_ui(db):
             st.success("Printer Usage Calculated ✅")
             st.json(diff_p)
 
-# =====================================================
-# TAB 3 — SOCIAL + ARCHIVE + REPORT
-# =====================================================
-
-with tab3:
-
-    st.subheader("📱 Social Tasks")
-
-    for task in db["tasks"].get("social", []):
-        st.checkbox(task, key=f"social_{task}")
-
-    st.divider()
-
     # =====================================================
-    # ARCHIVE
+    # TAB 3 — SOCIAL + ARCHIVE + REPORT
     # =====================================================
-
-    sys_sales = st.session_state.get("c_sys_sales", 0)
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-
-        if st.button("💾 Archive Shift", use_container_width=True):
-
-            db.setdefault("history", []).append({
-                "date": str(date.today()),
-                "branch": st.session_state.get("branch", "-"),
-                "shift": st.session_state.get("shift", "-"),
-                "staff": st.session_state.get("user", "-"),
-                "sales": sys_sales,
-                "expenses": st.session_state.get("shift_expenses", []),
-                "opay_open": st.session_state.get("opay_open", 0),
-                "opay_close": st.session_state.get("opay_close", 0),
-                "debit_open": st.session_state.get("debit_open", 0),
-                "debit_close": st.session_state.get("debit_close", 0),
-                "nbe_open": st.session_state.get("nbe_open", 0),
-                "nbe_close": st.session_state.get("nbe_close", 0),
-            })
-
-            save_db(db)
-            st.success("Archived Successfully ✅")
-
-    # =====================================================
-    # WHATSAPP + PDF REPORT
-    # =====================================================
-
-    with col2:
-
-        branch = st.session_state.get("branch", "-")
-        user = st.session_state.get("user", "-")
-        shift = st.session_state.get("shift", "-")
-
-        sys_sales = st.session_state.get("c_sys_sales", 0.0)
-
-        opay_open = st.session_state.get("opay_open", 0.0)
-        opay_close = st.session_state.get("opay_close", 0.0)
-        debit_open = st.session_state.get("debit_open", 0.0)
-        debit_close = st.session_state.get("debit_close", 0.0)
-        nbe_open = st.session_state.get("nbe_open", 0.0)
-        nbe_close = st.session_state.get("nbe_close", 0.0)
-
-        opay_diff = opay_close - opay_open
-        debit_diff = debit_close - debit_open
-        nbe_diff = nbe_close - nbe_open
-
-        shift_expenses = st.session_state.get("shift_expenses", [])
-        total_expenses = sum(e.get("amount", 0) for e in shift_expenses)
-
-        expense_lines = "\n".join(
-            f"• {e.get('type','Unknown')} : {e.get('amount',0):,.2f}"
-            for e in shift_expenses
-        )
-
-        if not expense_lines:
-            expense_lines = "No Expenses Recorded"
-
+    
+    with tab3:
+    
+        st.subheader("📱 Social Tasks")
+    
+        for task in db["tasks"].get("social", []):
+            st.checkbox(task, key=f"social_{task}")
+    
+        st.divider()
+    
         # =====================================================
-        # PRINTER SECTION (SAFE)
+        # ARCHIVE
         # =====================================================
-
-        printer_diff = st.session_state.get("printer_diff", {})
-
-        printer_lines = ""
-
-        if not printer_diff:
-            printer_lines = "No Printer Data\n"
-        else:
-            for printer_name, values in printer_diff.items():
-                printer_lines += (
-                    f"📠 {printer_name}\n"
-                    f"Used: {values.get('used',0)}\n"
-                    f"Jam: {values.get('jam',0)}\n"
-                    f"1-Side: {values.get('1s',0)}\n"
-                    f"2-Side: {values.get('2s',0)}\n"
-                    "------------------------\n\n"
+    
+        sys_sales = st.session_state.get("c_sys_sales", 0)
+    
+        col1, col2 = st.columns(2)
+    
+        with col1:
+    
+            if st.button("💾 Archive Shift", use_container_width=True):
+    
+                db.setdefault("history", []).append({
+                    "date": str(date.today()),
+                    "branch": st.session_state.get("branch", "-"),
+                    "shift": st.session_state.get("shift", "-"),
+                    "staff": st.session_state.get("user", "-"),
+                    "sales": sys_sales,
+                    "expenses": st.session_state.get("shift_expenses", []),
+                    "opay_open": st.session_state.get("opay_open", 0),
+                    "opay_close": st.session_state.get("opay_close", 0),
+                    "debit_open": st.session_state.get("debit_open", 0),
+                    "debit_close": st.session_state.get("debit_close", 0),
+                    "nbe_open": st.session_state.get("nbe_open", 0),
+                    "nbe_close": st.session_state.get("nbe_close", 0),
+                })
+    
+                save_db(db)
+                st.success("Archived Successfully ✅")
+    
+        # =====================================================
+        # WHATSAPP + PDF REPORT
+        # =====================================================
+    
+        with col2:
+    
+            branch = st.session_state.get("branch", "-")
+            user = st.session_state.get("user", "-")
+            shift = st.session_state.get("shift", "-")
+    
+            sys_sales = st.session_state.get("c_sys_sales", 0.0)
+    
+            opay_open = st.session_state.get("opay_open", 0.0)
+            opay_close = st.session_state.get("opay_close", 0.0)
+            debit_open = st.session_state.get("debit_open", 0.0)
+            debit_close = st.session_state.get("debit_close", 0.0)
+            nbe_open = st.session_state.get("nbe_open", 0.0)
+            nbe_close = st.session_state.get("nbe_close", 0.0)
+    
+            opay_diff = opay_close - opay_open
+            debit_diff = debit_close - debit_open
+            nbe_diff = nbe_close - nbe_open
+    
+            shift_expenses = st.session_state.get("shift_expenses", [])
+            total_expenses = sum(e.get("amount", 0) for e in shift_expenses)
+    
+            expense_lines = "\n".join(
+                f"• {e.get('type','Unknown')} : {e.get('amount',0):,.2f}"
+                for e in shift_expenses
+            )
+    
+            if not expense_lines:
+                expense_lines = "No Expenses Recorded"
+    
+            # =====================================================
+            # PRINTER SECTION (SAFE)
+            # =====================================================
+    
+            printer_diff = st.session_state.get("printer_diff", {})
+    
+            printer_lines = ""
+    
+            if not printer_diff:
+                printer_lines = "No Printer Data\n"
+            else:
+                for printer_name, values in printer_diff.items():
+                    printer_lines += (
+                        f"📠 {printer_name}\n"
+                        f"Used: {values.get('used',0)}\n"
+                        f"Jam: {values.get('jam',0)}\n"
+                        f"1-Side: {values.get('1s',0)}\n"
+                        f"2-Side: {values.get('2s',0)}\n"
+                        "------------------------\n\n"
+                    )
+    
+            cash_diff = st.session_state.get("cash_diff", 0.0)
+    
+            # =====================================================
+            # BUILD WHATSAPP TEXT
+            # =====================================================
+    
+            wa_text = f"""
+    ■ NMS FULL SHIFT REPORT
+    ■■■■■■■■■■■■■■■■■■■■■■
+    
+    📅 Date: {date.today()}
+    🏢 Branch: {branch}
+    🕒 Shift: {shift}
+    👤 Staff: {user}
+    
+    ■■■■■■■■■■■■■■■■■■■■■■
+    💰 SALES
+    Total System Sales: {sys_sales:,.2f}
+    
+    ■■■■■■■■■■■■■■■■■■■■■■
+    💳 DIGITAL PAYMENTS
+    
+    🟢 OPAY
+    Open: {opay_open:,.2f}
+    Close: {opay_close:,.2f}
+    Diff: {opay_diff:,.2f}
+    
+    🔵 DEBIT
+    Open: {debit_open:,.2f}
+    Close: {debit_close:,.2f}
+    Diff: {debit_diff:,.2f}
+    
+    🟡 NBE
+    Open: {nbe_open:,.2f}
+    Close: {nbe_close:,.2f}
+    Diff: {nbe_diff:,.2f}
+    
+    ■■■■■■■■■■■■■■■■■■■■■■
+    💸 EXPENSES
+    Total Expenses: {total_expenses:,.2f}
+    
+    {expense_lines}
+    
+    ■■■■■■■■■■■■■■■■■■■■■■
+    🖨 PRINTER DIFFERENCES
+    
+    {printer_lines}
+    
+    ■■■■■■■■■■■■■■■■■■■■■■
+    💵 CASH DIFFERENCE
+    {cash_diff:,.2f}
+    
+    ■■■■■■■■■■■■■■■■■■■■■■
+    Generated by NMS System
+    """
+    
+            wa_text = wa_text.strip()[:3500]
+    
+            # =====================================================
+            # BUTTONS
+            # =====================================================
+    
+            if st.button("📄 Generate PDF", use_container_width=True):
+    
+                from pdf_generator import create_downloadable_pdf
+    
+                pdf_bytes = create_downloadable_pdf(
+                    branch,
+                    user,
+                    str(date.today()),
+                    sys_sales,
+                    total_expenses,
+                    expense_lines,
+                    cash_diff,
+                    printer_diff,
+                    opay_diff,
+                    debit_diff
                 )
-
-        cash_diff = st.session_state.get("cash_diff", 0.0)
-
-        # =====================================================
-        # BUILD WHATSAPP TEXT
-        # =====================================================
-
-        wa_text = f"""
-■ NMS FULL SHIFT REPORT
-■■■■■■■■■■■■■■■■■■■■■■
-
-📅 Date: {date.today()}
-🏢 Branch: {branch}
-🕒 Shift: {shift}
-👤 Staff: {user}
-
-■■■■■■■■■■■■■■■■■■■■■■
-💰 SALES
-Total System Sales: {sys_sales:,.2f}
-
-■■■■■■■■■■■■■■■■■■■■■■
-💳 DIGITAL PAYMENTS
-
-🟢 OPAY
-Open: {opay_open:,.2f}
-Close: {opay_close:,.2f}
-Diff: {opay_diff:,.2f}
-
-🔵 DEBIT
-Open: {debit_open:,.2f}
-Close: {debit_close:,.2f}
-Diff: {debit_diff:,.2f}
-
-🟡 NBE
-Open: {nbe_open:,.2f}
-Close: {nbe_close:,.2f}
-Diff: {nbe_diff:,.2f}
-
-■■■■■■■■■■■■■■■■■■■■■■
-💸 EXPENSES
-Total Expenses: {total_expenses:,.2f}
-
-{expense_lines}
-
-■■■■■■■■■■■■■■■■■■■■■■
-🖨 PRINTER DIFFERENCES
-
-{printer_lines}
-
-■■■■■■■■■■■■■■■■■■■■■■
-💵 CASH DIFFERENCE
-{cash_diff:,.2f}
-
-■■■■■■■■■■■■■■■■■■■■■■
-Generated by NMS System
-"""
-
-        wa_text = wa_text.strip()[:3500]
-
-        # =====================================================
-        # BUTTONS
-        # =====================================================
-
-        if st.button("📄 Generate PDF", use_container_width=True):
-
-            from pdf_generator import create_downloadable_pdf
-
-            pdf_bytes = create_downloadable_pdf(
-                branch,
-                user,
-                str(date.today()),
-                sys_sales,
-                total_expenses,
-                expense_lines,
-                cash_diff,
-                printer_diff,
-                opay_diff,
-                debit_diff
+    
+                st.download_button(
+                    "📥 Download PDF",
+                    pdf_bytes,
+                    file_name="shift_report.pdf"
+                )
+    
+            # ================= WhatsApp =================
+    
+            manager_phone = get_manager_phone()
+    
+            url = f"https://wa.me/{manager_phone}?text={urllib.parse.quote(wa_text)}"
+    
+            st.markdown(
+                f'<a href="{url}" target="_blank">'
+                f'<button style="width:100%;background:#25D366;color:white;'
+                f'padding:14px;border-radius:10px;border:none;font-weight:bold;">'
+                f'📱 Send To WhatsApp'
+                f'</button></a>',
+                unsafe_allow_html=True
             )
-
-            st.download_button(
-                "📥 Download PDF",
-                pdf_bytes,
-                file_name="shift_report.pdf"
-            )
-
-        # ================= WhatsApp =================
-
-        manager_phone = get_manager_phone()
-
-        url = f"https://wa.me/{manager_phone}?text={urllib.parse.quote(wa_text)}"
-
-        st.markdown(
-            f'<a href="{url}" target="_blank">'
-            f'<button style="width:100%;background:#25D366;color:white;'
-            f'padding:14px;border-radius:10px;border:none;font-weight:bold;">'
-            f'📱 Send To WhatsApp'
-            f'</button></a>',
-            unsafe_allow_html=True
-        )
