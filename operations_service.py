@@ -516,13 +516,27 @@ def daily_operations_ui(db):
         nbe_diff = nbe_close - nbe_open
         
         cash_diff = st.session_state.get("cash_diff", 0)
-        v22_val = st.session_state.get("v22_val", 0)
         sys_sales = st.session_state.get("c_sys_sales", 0)
         
         branch = st.session_state.get("branch", "-")
         shift = st.session_state.get("shift", "-")
         user = st.session_state.get("user", "-")
+
+
+        printer_diff = st.session_state.get("printer_diff", {})
+
+        printer_lines = ""
         
+        for printer_name, values in printer_diff.items():
+            printer_lines += f"""
+        📠 {printer_name}
+        Used: {values.get("used",0)}
+        Jam: {values.get("jam",0)}
+        1-Side: {values.get("1s",0)}
+        2-Side: {values.get("2s",0)}
+        
+        ------------------------
+        """
         # =====================================================
         # BUILD CLEAN REPORT
         # =====================================================
@@ -567,16 +581,7 @@ def daily_operations_ui(db):
         ■■■■■■■■■■■■■■■■■■■■■■
         🖨 PRINTER DIFFERENCES
         
-        for printer_name, values in (printer_diff or {}).items():
-        
-            printer_section += f"""
-        📠 {printer_name}
-        Used: {values.get("used", 0)}
-        Jam: {values.get("jam", 0)}
-        1-Side: {values.get("1s", 0)}
-        2-Side: {values.get("2s", 0)}
-        ------------------------
-        """
+        {printer_lines}
         
         ■■■■■■■■■■■■■■■■■■■■■■
         💵 CASH DIFFERENCE
