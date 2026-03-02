@@ -5,7 +5,7 @@
 import streamlit as st
 from datetime import date
 import urllib.parse
-
+from pdf_generator import create_downloadable_pdf
 from printer_service import calculate_printer_difference, get_printers
 from database import save_db, get_manager_phone
 
