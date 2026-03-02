@@ -414,7 +414,6 @@ def daily_operations_ui(db):
         debit_diff = debit_close - debit_open
         nbe_diff = nbe_close - nbe_open
         
-        {printer_section}
         
         cash_diff = st.session_state.get("ops", 0) - st.session_state.get("ope", 0)
         
@@ -443,7 +442,6 @@ def daily_operations_ui(db):
         debit_diff = debit_close - debit_open
         nbe_diff = nbe_close - nbe_open
         
-        {printer_section}
         
         cash_diff = st.session_state.get("cash_diff", 0.0)
         
@@ -524,22 +522,21 @@ def daily_operations_ui(db):
 
 
         printer_diff = st.session_state.get("printer_diff", {})
-
+        
         printer_lines = ""
         
         if not printer_diff:
             printer_lines = "No Printer Data\n"
         else:
             for printer_name, values in printer_diff.items():
-                printer_lines += f"""
-        📠 {printer_name}
-        Used: {values.get("used",0)}
-        Jam: {values.get("jam",0)}
-        1-Side: {values.get("1s",0)}
-        2-Side: {values.get("2s",0)}
-        
-        ------------------------
-        """
+                printer_lines += (
+                    f"📠 {printer_name}\n"
+                    f"Used: {values.get('used',0)}\n"
+                    f"Jam: {values.get('jam',0)}\n"
+                    f"1-Side: {values.get('1s',0)}\n"
+                    f"2-Side: {values.get('2s',0)}\n"
+                    "------------------------\n\n"
+                )
         # =====================================================
         # BUILD CLEAN REPORT
         # =====================================================
