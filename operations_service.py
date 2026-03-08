@@ -774,6 +774,17 @@ def render_report_tab(db: dict) -> None:
                 printer_diff=report["printer_diff"],
                 opay_move=report["opay_diff"],
                 debit_v22=report["debit_diff"],
+                shift=report["shift"],
+                staff_role=report["role"],
+                opening_cash=report["t_open"],
+                closing_cash=report["t_close"],
+                opening_cash_text=report["opening_cash_text"],
+                closing_cash_text=report["closing_cash_text"],
+                nbe_move=report["nbe_diff"],
+                social_notes=report["social_notes"],
+                interaction_notes=report["interaction_notes"],
+                special_notes=report["special_notes"],
+                expenses_list=report["expenses_list"],
             )
 
             st.download_button(
