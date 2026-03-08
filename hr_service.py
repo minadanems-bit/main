@@ -98,17 +98,19 @@ def render_create_employee_section(db: dict) -> None:
     st.markdown("## ➕ Create New Employee")
 
     with st.expander("Add New Employee", expanded=False):
-        new_username = st.text_input("Username")
-        new_password = st.text_input("Password", type="password")
-        new_full_name = st.text_input("Full Name")
+        new_username = st.text_input("Username", key="create_username")
+        new_password = st.text_input("Password", type="password", key="create_password")
+        new_full_name = st.text_input("Full Name", key="create_full_name")
         new_role = st.selectbox(
             "Role",
             ROLE_OPTIONS,
             format_func=get_role_display,
+            key="create_role",
         )
         new_job_title = st.text_input(
             "Job Title",
             value=get_role_display(new_role),
+            key="create_job_title",
         )
 
         if st.button("✅ Create Employee", use_container_width=True):
