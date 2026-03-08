@@ -11,9 +11,8 @@ from supabase import Client, create_client
 # =====================================================
 def get_supabase() -> Client:
     url = st.secrets["SUPABASE_URL"]
-    key = st.secrets["SUPABASE_KEY"]
+    key = st.secrets["SUPABASE_SERVICE_KEY"]
     return create_client(url, key)
-
 
 # =====================================================
 # HELPERS
