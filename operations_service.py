@@ -42,8 +42,11 @@ from cash_service import (
 from database import get_manager_phone, save_db
 from pdf_generator import create_downloadable_pdf
 from printer_service import calculate_printer_difference, get_printers
-from report_service import build_role_report_data, build_whatsapp_text
-from role_service import get_allowed_tabs
+from report_service import (
+    build_role_report_data,
+    build_whatsapp_text as build_role_whatsapp_text,
+)
+from role_service import get_allowed_tabs, get_normalized_current_role
 
 
 # =====================================================
@@ -88,7 +91,7 @@ def get_current_user_record(db: dict) -> dict:
 
 
 def get_current_role(db: dict) -> str:
-    return get_current_user_record(db).get("role", "employee")
+    return get_normalized_current_role()
 
 
 def get_staff_display_name(db: dict) -> str:
@@ -423,7 +426,7 @@ def render_closing_tab(db: dict) -> None:
     st.subheader("💳 Digital Closing")
     render_digital_inputs("close")
 
-    total_expenses = render_expenses_section(db)
+    render_expenses_section(db)
 
     st.divider()
     st.subheader("🧮 Cash Count")
@@ -521,7 +524,7 @@ def render_design_section(db: dict) -> None:
 
 
 def render_role_specific_section(db: dict) -> None:
-    role_value = get_current_role(db)
+    role_value = get_normalized_current_role()
 
     if role_value == "cleaner":
         render_cleaning_section(db)
@@ -588,7 +591,13 @@ def render_report_tab(db: dict) -> None:
             )
 
         manager_phone = get_manager_phone()
-        wa_text = build_whatsapp_text(db, st.session_state)
+
+        # Forced role-based WhatsApp builder
+        wa_text = build_role_whatsapp_text(db, st.session_state)
+
+        with st.expander("🔍 WhatsApp Preview", expanded=False):
+            st.code(wa_text)
+
         url = f"https://wa.me/{manager_phone}?text={urllib.parse.quote(wa_text)}"
 
         st.markdown(
