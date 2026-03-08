@@ -4,7 +4,7 @@ from datetime import date
 import urllib.parse
 from database_service import load_db, save_db, get_manager_phone
 from printer_service import get_printers, calculate_printer_difference
-from pdf_service import create_downloadable_pdf
+from pdf_generator import create_downloadable_pdf
 
 def daily_operations_ui(db=None):
     if db is None:
