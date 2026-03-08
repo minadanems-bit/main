@@ -6,6 +6,28 @@ from datetime import datetime, date
 import pandas as pd
 import streamlit as st
 
+from auth_service import (
+    get_current_role,
+    get_current_username,
+    is_admin,
+    is_logged_in,
+    logout_user,
+    render_login_screen,
+)
+from constants import (
+    ADMIN_MODULE_ARCHIVE,
+    ADMIN_MODULE_BRANCHES,
+    ADMIN_MODULE_HR,
+    ADMIN_MODULE_OPTIONS,
+    ADMIN_MODULE_PAYROLL,
+    ADMIN_MODULE_PRINTERS,
+    ADMIN_MODULE_TASKS,
+    ADMIN_MODULE_TRAINING,
+    PAYROLL_ENTRY_KEY_MAP,
+    ROLE_USER,
+    SESSION_USER,
+    TASK_CATEGORIES,
+)
 from database import load_db, save_db
 from operations_service import daily_operations_ui
 from printer_service import printer_management_ui
@@ -21,7 +43,6 @@ db = load_db()
 # Helpers
 # =========================
 def ensure_db_defaults() -> None:
-    """Ensure required top-level keys exist in db."""
     defaults = {
         "users": {},
         "logs": [],
@@ -36,6 +57,7 @@ def ensure_db_defaults() -> None:
         "expense_categories": [],
         "history": [],
         "training_records": {},
+        "printers": {},
     }
 
     changed = False
@@ -49,26 +71,10 @@ def ensure_db_defaults() -> None:
 
 
 def get_current_user() -> dict:
-    username = st.session_state.get("user")
+    username = get_current_username()
     if not username:
         return {}
     return db.get("users", {}).get(username, {})
-
-
-def is_admin() -> bool:
-    return st.session_state.get("role") == "admin"
-
-
-def log_action(action: str) -> None:
-    username = st.session_state.get("user", "unknown")
-    db.setdefault("logs", []).append(
-        {
-            "user": username,
-            "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "action": action,
-        }
-    )
-    save_db(db)
 
 
 def safe_user_image(user_info: dict, width: int = 120) -> None:
@@ -88,102 +94,6 @@ def parse_hiring_date(value: str):
         return datetime.strptime(value, "%Y-%m-%d").date()
     except Exception:
         return date(2024, 1, 1)
-
-
-def sync_draft() -> None:
-    """Persist selected session-state draft keys for the logged-in user."""
-    if not st.session_state.get("logged_in"):
-        return
-
-    user = st.session_state.get("user")
-    if not user:
-        return
-
-    draft_prefixes = (
-        "s_",
-        "o_",
-        "e_",
-        "c_",
-        "m_",
-        "i_",
-        "ks",
-        "xs",
-        "op",
-        "u10",
-        "v22",
-        "ex",
-        "kj",
-        "xj",
-        "dn",
-        "k1",
-        "k2",
-        "x1",
-        "x2",
-    )
-
-    draft_data = {
-        key: value
-        for key, value in st.session_state.items()
-        if key.startswith(draft_prefixes)
-    }
-
-    db.setdefault("drafts", {})
-    db["drafts"][user] = draft_data
-    save_db(db)
-
-
-def restore_user_drafts(username: str) -> None:
-    drafts = db.get("drafts", {}).get(username, {})
-    for key, value in drafts.items():
-        st.session_state[key] = value
-
-
-def logout() -> None:
-    sync_draft()
-    st.session_state["logged_in"] = False
-    st.session_state.pop("user", None)
-    st.session_state.pop("role", None)
-    st.rerun()
-
-
-# =========================
-# Auth UI
-# =========================
-def render_login_screen() -> None:
-    st.title("🔐 NMS Enterprise Access")
-
-    users = list(db.get("users", {}).keys())
-    if not users:
-        st.error("No users found in database. Please create an admin user first.")
-        st.stop()
-
-    c1, c2, c3 = st.columns([1, 2, 1])
-
-    with c2:
-        st.write("### 🔑 Secure Login")
-
-        username = st.selectbox("Select Your Account", users)
-        password = st.text_input("Enter Password", type="password")
-
-        if st.button("🚀 Login", use_container_width=True):
-            user_record = db.get("users", {}).get(username, {})
-
-            if (
-                username in db.get("users", {})
-                and "pass" in user_record
-                and user_record.get("pass") == password
-            ):
-                st.session_state["logged_in"] = True
-                st.session_state["user"] = username
-                st.session_state["role"] = user_record.get("role", "user")
-
-                restore_user_drafts(username)
-                log_action("Login")
-                st.rerun()
-            else:
-                st.error("❌ Access Denied")
-
-    st.stop()
 
 
 # =========================
@@ -261,43 +171,38 @@ def render_payroll_module() -> None:
         db["users"][target]["hiring_date"] = str(hiring_date)
         save_db(db)
         st.success("Contract Updated")
+        st.rerun()
 
     st.divider()
     st.write("**Add Financial Entry:**")
 
     entry_type = st.radio(
         "Type",
-        ["Bonus 🎁", "Deductions ⚠️", "Overtime ⏳", "Extra Leave 🏖️"],
+        list(PAYROLL_ENTRY_KEY_MAP.keys()),
         horizontal=True,
     )
     amount = st.number_input("Value (LE)", min_value=0.0, step=10.0)
     note = st.text_input("Reason / Note")
 
     if st.button("✅ Submit Entry"):
-        key_map = {
-            "Bonus 🎁": "bonus",
-            "Deductions ⚠️": "deductions",
-            "Overtime ⏳": "overtime",
-            "Extra Leave 🏖️": "extra_leaves",
-        }
-        target_key = key_map[entry_type]
-
+        target_key = PAYROLL_ENTRY_KEY_MAP[entry_type]
         db["users"][target].setdefault(target_key, [])
         db["users"][target][target_key].append(
             {
                 "date": str(date.today()),
                 "amount": amount,
-                "note": note,
+                "note": note.strip(),
             }
         )
         save_db(db)
         st.success("Added to HR Record")
+        st.rerun()
 
 
 def render_tasks_module() -> None:
     st.info("Manage operational tasks and checklists")
 
-    category = st.selectbox("Category", ["opening", "closing", "social", "interaction"])
+    category = st.selectbox("Category", TASK_CATEGORIES)
     db.setdefault("tasks", {})
     db["tasks"].setdefault(category, [])
 
@@ -413,12 +318,13 @@ def render_archive_history_module() -> None:
         "date": "Date",
         "staff": "Employee",
         "branch": "Branch",
+        "shift": "Shift",
         "sales": "Sales",
         "expenses": "Expenses",
         "exp_note": "Exp. Details",
         "diff": "Cash Diff",
-        "kyo_jam": "Kyo Jam",
-        "xerox_jam": "Xerox Jam",
+        "t_open": "Opening Cash",
+        "t_close": "Closing Cash",
     }
 
     existing_columns = {
@@ -434,6 +340,8 @@ def render_archive_history_module() -> None:
             "Sales": st.column_config.NumberColumn(format="%.2f LE"),
             "Expenses": st.column_config.NumberColumn(format="%.2f LE"),
             "Cash Diff": st.column_config.NumberColumn(format="%.2f LE"),
+            "Opening Cash": st.column_config.NumberColumn(format="%.2f LE"),
+            "Closing Cash": st.column_config.NumberColumn(format="%.2f LE"),
         },
     )
 
@@ -602,12 +510,12 @@ def render_training_module() -> None:
     if st.button("✅ Confirm Completion", use_container_width=True):
         if agree:
             db.setdefault("training_records", {})
-            db["training_records"][st.session_state.get("user")] = {
+            db["training_records"][get_current_username()] = {
                 "date": str(date.today()),
                 "status": "completed",
             }
             save_db(db)
-            st.success(f"Training Completed ✔ Recorded for {st.session_state.get('user')}")
+            st.success(f"Training Completed ✔ Recorded for {get_current_username()}")
             st.balloons()
         else:
             st.warning("Please confirm the checkbox first.")
@@ -623,30 +531,22 @@ def render_admin_panel() -> None:
 
     admin_choice = st.selectbox(
         "Select Management Module:",
-        [
-            "👥 Manage Employees (HR)",
-            "💰 Payroll & Money",
-            "📝 Tasks & Checklists",
-            "🏢 Branches & Expenses",
-            "🖨 Printer Management",
-            "📂 Archive & History",
-            "🎓 Employee Training",
-        ],
+        ADMIN_MODULE_OPTIONS,
     )
 
-    if admin_choice == "👥 Manage Employees (HR)":
+    if admin_choice == ADMIN_MODULE_HR:
         render_hr_module()
-    elif admin_choice == "💰 Payroll & Money":
+    elif admin_choice == ADMIN_MODULE_PAYROLL:
         render_payroll_module()
-    elif admin_choice == "📝 Tasks & Checklists":
+    elif admin_choice == ADMIN_MODULE_TASKS:
         render_tasks_module()
-    elif admin_choice == "🏢 Branches & Expenses":
+    elif admin_choice == ADMIN_MODULE_BRANCHES:
         render_branches_expenses_module()
-    elif admin_choice == "🖨 Printer Management":
+    elif admin_choice == ADMIN_MODULE_PRINTERS:
         render_printer_management_module()
-    elif admin_choice == "📂 Archive & History":
+    elif admin_choice == ADMIN_MODULE_ARCHIVE:
         render_archive_history_module()
-    elif admin_choice == "🎓 Employee Training":
+    elif admin_choice == ADMIN_MODULE_TRAINING:
         render_training_module()
 
 
@@ -658,13 +558,14 @@ def render_sidebar() -> None:
         user_info = get_current_user()
 
         safe_user_image(user_info)
-        st.header(f"Hi, {user_info.get('full_name', st.session_state.get('user', 'User'))}")
+        st.header(f"Hi, {user_info.get('full_name', get_current_username() or 'User')}")
 
-        if st.session_state.get("role") == "user":
+        if get_current_role() == ROLE_USER:
             render_self_service(user_info)
 
         if st.button("🚪 Logout", use_container_width=True):
-            logout()
+            logout_user(db)
+            st.rerun()
 
         if is_admin():
             render_admin_panel()
@@ -725,13 +626,13 @@ def render_backup_manager() -> None:
 def main() -> None:
     ensure_db_defaults()
 
-    if not st.session_state.get("logged_in", False):
-        render_login_screen()
+    if not is_logged_in():
+        render_login_screen(db)
 
     render_sidebar()
     render_backup_manager()
 
-    if st.session_state.get("logged_in"):
+    if is_logged_in() and st.session_state.get(SESSION_USER):
         daily_operations_ui(db)
 
 
