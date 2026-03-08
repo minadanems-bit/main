@@ -1,6 +1,6 @@
 # =====================================================
 # REPORT SERVICE
-# Builds role-based report data and WhatsApp text
+# Builds strict role-based report data and WhatsApp text
 # =====================================================
 
 from datetime import date
@@ -30,7 +30,7 @@ def build_expense_lines(expenses: list) -> str:
         return "No Expenses Recorded"
 
     return "\n".join(
-        f"• {item.get('type', 'Unknown')} : {safe_float(item.get('amount', 0)):,.2f}"
+        f"- {item.get('type', 'Unknown')} : {safe_float(item.get('amount', 0)):,.2f}"
         for item in expenses
     )
 
@@ -49,7 +49,7 @@ def build_cash_breakdown_text(breakdown: dict) -> str:
         label = "Coins" if key == "coins" else f"{key} LE"
         qty = breakdown[key].get("qty", 0)
         total = safe_float(breakdown[key].get("total", 0))
-        lines.append(f"• {label}: {qty} = {total:,.2f}")
+        lines.append(f"- {label}: {qty} = {total:,.2f}")
 
     return "\n".join(lines) if lines else "No Cash Breakdown"
 
@@ -63,7 +63,7 @@ def build_printer_lines(printer_diff: dict) -> str:
         sections.append(
             "\n".join(
                 [
-                    f"📠 {printer_name}",
+                    f"Printer: {printer_name}",
                     f"Used: {values.get('used', 0)}",
                     f"Jam: {values.get('jam', 0)}",
                     f"1-Side: {values.get('1s', 0)}",
@@ -172,104 +172,118 @@ def build_whatsapp_text(db: dict, session_state) -> str:
     report_type = report["report_type"]
 
     header = (
-        f"■ NMS {report_type.upper()} REPORT\n"
-        f"📅 Date: {report['date']}\n"
-        f"🏢 Branch: {report['branch']}\n"
-        f"🕒 Shift: {report['shift']}\n"
-        f"👤 Staff: {report['staff']}\n"
-        f"🧩 Role: {report['role']}\n"
+        f"NMS {report_type.upper()} REPORT\n"
+        f"Date: {report['date']}\n"
+        f"Branch: {report['branch']}\n"
+        f"Shift: {report['shift']}\n"
+        f"Staff: {report['staff']}\n"
+        f"Role: {report['role']}\n"
     )
 
     if report_type == "financial":
         body = f"""
-💰 SALES
+SALES
 Total System Sales: {report['sales']:,.2f}
 
-💵 OPENING CASH
+OPENING CASH
 {report['opening_cash_text']}
 Total Opening Cash: {report['t_open']:,.2f}
 
-💵 CLOSING CASH
+CLOSING CASH
 {report['closing_cash_text']}
 Total Closing Cash: {report['t_close']:,.2f}
 
-💳 DIGITAL
+DIGITAL
 Opay Diff: {report['opay_diff']:,.2f}
 Debit Diff: {report['debit_diff']:,.2f}
 NBE Diff: {report['nbe_diff']:,.2f}
 
-💸 EXPENSES
+EXPENSES
 Total Expenses: {report['total_expenses']:,.2f}
 {report['expense_lines']}
 
-💵 CASH DIFFERENCE
+CASH DIFFERENCE
 {report['cash_diff']:,.2f}
 """
     elif report_type == "hr":
         body = f"""
-🤝 INTERACTION NOTES
+HR REPORT
+
+INTERACTION NOTES
 {report['interaction_notes']}
 
-📝 HR NOTES
+HR NOTES
 {report['special_notes']}
 """
     elif report_type == "cleaning":
         body = f"""
-🧹 CLEANING REPORT
+CLEANING REPORT
+
+CLEANING NOTES
 {report['special_notes']}
 """
     elif report_type == "design":
         body = f"""
-📱 SOCIAL NOTES
+DESIGN REPORT
+
+SOCIAL NOTES
 {report['social_notes']}
 
-🎨 DESIGN NOTES
+DESIGN NOTES
 {report['special_notes']}
 """
     elif report_type == "full":
         body = f"""
-💰 SALES
+FULL REPORT
+
+SALES
 Total System Sales: {report['sales']:,.2f}
 
-💵 OPENING CASH
+OPENING CASH
 {report['opening_cash_text']}
 
-💵 CLOSING CASH
+CLOSING CASH
 {report['closing_cash_text']}
 
-💸 EXPENSES
+EXPENSES
 Total Expenses: {report['total_expenses']:,.2f}
 {report['expense_lines']}
 
-🤝 INTERACTION NOTES
+INTERACTION NOTES
 {report['interaction_notes']}
 
-📱 SOCIAL NOTES
+SOCIAL NOTES
 {report['social_notes']}
 
-📝 SPECIAL NOTES
+SPECIAL NOTES
 {report['special_notes']}
 
-🖨 PRINTERS
+PRINTERS
 {report['printer_lines']}
 
-💵 CASH DIFFERENCE
+CASH DIFFERENCE
 {report['cash_diff']:,.2f}
 """
     else:
         body = f"""
-🟢 OPERATIONS SUMMARY
-Sales: {report['sales']:,.2f}
-Expenses: {report['total_expenses']:,.2f}
-Cash Difference: {report['cash_diff']:,.2f}
+OPERATIONS REPORT
 
-🤝 INTERACTION NOTES
+SALES
+{report['sales']:,.2f}
+
+EXPENSES
+{report['total_expenses']:,.2f}
+
+CASH DIFFERENCE
+{report['cash_diff']:,.2f}
+
+INTERACTION NOTES
 {report['interaction_notes']}
 
-📱 SOCIAL NOTES
+SOCIAL NOTES
 {report['social_notes']}
 
-📝 SPECIAL NOTES
+SPECIAL NOTES
 {report['special_notes']}
 """
 
