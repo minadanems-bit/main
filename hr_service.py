@@ -95,7 +95,7 @@ def render_profile_images(users: dict, target: str, user: dict) -> None:
 
         if new_photo and st.button("💾 Save Photo", key=f"save_photo_{target}"):
             users[target]["photo"] = save_uploaded_image(new_photo)
-            save_db(db=st.session_state["_active_db"])
+            save_db(st.session_state["_active_db"])
             st.success("Photo Updated")
             st.rerun()
 
@@ -116,7 +116,7 @@ def render_profile_images(users: dict, target: str, user: dict) -> None:
 
         if id_card and st.button("💾 Save ID Card", key=f"save_id_card_{target}"):
             users[target]["id_card"] = save_uploaded_image(id_card)
-            save_db(db=st.session_state["_active_db"])
+            save_db(st.session_state["_active_db"])
             st.success("ID Card Saved")
             st.rerun()
 
