@@ -47,7 +47,25 @@ def _to_paragraph_text(value) -> str:
     return _safe_text(value).replace("\n", "<br/>")
 
 
-def _build_header(branch: str, staff_name: str, date_str: str, shift: str, staff_role: str, styles, db: dict):
+def _has_section(visible_sections: list | None, section_name: str) -> bool:
+    if not visible_sections:
+        return True
+    return section_name in visible_sections
+
+
+# =====================================================
+# Builders
+# =====================================================
+def _build_header(
+    branch: str,
+    staff_name: str,
+    date_str: str,
+    shift: str,
+    staff_role: str,
+    job_title: str,
+    styles,
+    db: dict,
+):
     title_style = ParagraphStyle(
         "Title",
         parent=styles["Heading1"],
@@ -90,7 +108,7 @@ def _build_header(branch: str, staff_name: str, date_str: str, shift: str, staff
 
     meta = Paragraph(
         f"Date: {_safe_text(date_str)} | Staff: {_safe_text(staff_name)} | "
-        f"Role: {_safe_text(staff_role)} | Shift: {_safe_text(shift)}",
+        f"Role: {_safe_text(staff_role)} | Job Title: {_safe_text(job_title)} | Shift: {_safe_text(shift)}",
         sub_style,
     )
 
@@ -107,11 +125,7 @@ def _build_info_table(styles, sales, expenses, diff, opening_cash, closing_cash)
         ["Cash Difference", f"{_safe_number(diff):,.2f} LE"],
     ]
 
-    table = Table(
-        table_data,
-        colWidths=[4.5 * inch, 4.5 * inch],
-        repeatRows=1,
-    )
+    table = Table(table_data, colWidths=[4.5 * inch, 4.5 * inch], repeatRows=1)
     table.setStyle(
         TableStyle(
             [
@@ -130,12 +144,7 @@ def _build_info_table(styles, sales, expenses, diff, opening_cash, closing_cash)
         )
     )
 
-    return [
-        Paragraph("Shift Summary", styles["Heading2"]),
-        Spacer(1, 10),
-        table,
-        Spacer(1, 18),
-    ]
+    return [Paragraph("Shift Summary", styles["Heading2"]), Spacer(1, 10), table, Spacer(1, 18)]
 
 
 def _build_digital_table(styles, opay_move, debit_v22, nbe_move):
@@ -146,11 +155,7 @@ def _build_digital_table(styles, opay_move, debit_v22, nbe_move):
         ["NBE Wallet", f"{_safe_number(nbe_move):,.2f} LE"],
     ]
 
-    table = Table(
-        table_data,
-        colWidths=[4.5 * inch, 4.5 * inch],
-        repeatRows=1,
-    )
+    table = Table(table_data, colWidths=[4.5 * inch, 4.5 * inch], repeatRows=1)
     table.setStyle(
         TableStyle(
             [
@@ -167,12 +172,7 @@ def _build_digital_table(styles, opay_move, debit_v22, nbe_move):
         )
     )
 
-    return [
-        Paragraph("Digital Payments Movement", styles["Heading2"]),
-        Spacer(1, 10),
-        table,
-        Spacer(1, 18),
-    ]
+    return [Paragraph("Digital Payments Movement", styles["Heading2"]), Spacer(1, 10), table, Spacer(1, 18)]
 
 
 def _build_expenses_table(styles, expenses_list: list, exp_note: str):
@@ -189,11 +189,7 @@ def _build_expenses_table(styles, expenses_list: list, exp_note: str):
     else:
         table_data.append(["No Expenses Recorded", "-"])
 
-    table = Table(
-        table_data,
-        colWidths=[6 * inch, 3 * inch],
-        repeatRows=1,
-    )
+    table = Table(table_data, colWidths=[6 * inch, 3 * inch], repeatRows=1)
     table.setStyle(
         TableStyle(
             [
@@ -230,10 +226,7 @@ def _build_cash_breakdown_table(styles, title: str, breakdown_text: str):
         [Paragraph(_to_paragraph_text(breakdown_text), styles["Normal"])],
     ]
 
-    table = Table(
-        table_data,
-        colWidths=[9 * inch],
-    )
+    table = Table(table_data, colWidths=[9 * inch])
     table.setStyle(
         TableStyle(
             [
@@ -247,12 +240,7 @@ def _build_cash_breakdown_table(styles, title: str, breakdown_text: str):
         )
     )
 
-    return [
-        Paragraph(title, styles["Heading2"]),
-        Spacer(1, 10),
-        table,
-        Spacer(1, 18),
-    ]
+    return [Paragraph(title, styles["Heading2"]), Spacer(1, 10), table, Spacer(1, 18)]
 
 
 def _build_notes_section(styles, title: str, value: str):
@@ -302,12 +290,7 @@ def _build_printer_table(printer_diff: dict, styles):
         )
     )
 
-    return [
-        Paragraph("Printer Analysis", styles["Heading2"]),
-        Spacer(1, 10),
-        table,
-        Spacer(1, 20),
-    ]
+    return [Paragraph("Printer Analysis", styles["Heading2"]), Spacer(1, 10), table, Spacer(1, 20)]
 
 
 # =====================================================
@@ -335,6 +318,9 @@ def create_downloadable_pdf(
     interaction_notes="",
     special_notes="",
     expenses_list=None,
+    report_type="operations",
+    visible_sections=None,
+    job_title="",
 ):
     db = load_db()
     buffer = io.BytesIO()
@@ -351,50 +337,106 @@ def create_downloadable_pdf(
     styles = getSampleStyleSheet()
     elements = []
 
-    elements.extend(_build_header(branch, staff_name, date_str, shift, staff_role, styles, db))
     elements.extend(
-        _build_info_table(
+        _build_header(
+            branch=branch,
+            staff_name=staff_name,
+            date_str=date_str,
+            shift=shift,
+            staff_role=staff_role,
+            job_title=job_title,
             styles=styles,
-            sales=sales,
-            expenses=expenses,
-            diff=diff,
-            opening_cash=opening_cash,
-            closing_cash=closing_cash,
+            db=db,
         )
     )
-    elements.extend(
-        _build_digital_table(
-            styles=styles,
-            opay_move=opay_move,
-            debit_v22=debit_v22,
-            nbe_move=nbe_move,
+
+    if _has_section(visible_sections, "summary"):
+        elements.extend(
+            _build_info_table(
+                styles=styles,
+                sales=sales,
+                expenses=expenses,
+                diff=diff,
+                opening_cash=opening_cash,
+                closing_cash=closing_cash,
+            )
         )
-    )
-    elements.extend(
-        _build_expenses_table(
-            styles=styles,
-            expenses_list=expenses_list or [],
-            exp_note=exp_note,
+
+    if _has_section(visible_sections, "digital"):
+        elements.extend(
+            _build_digital_table(
+                styles=styles,
+                opay_move=opay_move,
+                debit_v22=debit_v22,
+                nbe_move=nbe_move,
+            )
         )
-    )
-    elements.extend(
-        _build_cash_breakdown_table(
-            styles=styles,
-            title="Opening Cash Breakdown",
-            breakdown_text=opening_cash_text,
+
+    if _has_section(visible_sections, "expenses"):
+        elements.extend(
+            _build_expenses_table(
+                styles=styles,
+                expenses_list=expenses_list or [],
+                exp_note=exp_note,
+            )
         )
-    )
-    elements.extend(
-        _build_cash_breakdown_table(
-            styles=styles,
-            title="Closing Cash Breakdown",
-            breakdown_text=closing_cash_text,
+
+    if _has_section(visible_sections, "cash_breakdown"):
+        elements.extend(
+            _build_cash_breakdown_table(
+                styles=styles,
+                title="Opening Cash Breakdown",
+                breakdown_text=opening_cash_text,
+            )
         )
-    )
-    elements.extend(_build_notes_section(styles, "Interaction Notes", interaction_notes or "No Interaction Notes"))
-    elements.extend(_build_notes_section(styles, "Social Notes", social_notes or "No Social Notes"))
-    elements.extend(_build_notes_section(styles, "Special Notes", special_notes or "No Special Notes"))
-    elements.extend(_build_printer_table(printer_diff or {}, styles))
+        elements.extend(
+            _build_cash_breakdown_table(
+                styles=styles,
+                title="Closing Cash Breakdown",
+                breakdown_text=closing_cash_text,
+            )
+        )
+
+    if _has_section(visible_sections, "interaction_notes"):
+        elements.extend(
+            _build_notes_section(
+                styles,
+                "Interaction Notes",
+                interaction_notes or "No Interaction Notes",
+            )
+        )
+
+    if _has_section(visible_sections, "social_notes"):
+        elements.extend(
+            _build_notes_section(
+                styles,
+                "Social Notes",
+                social_notes or "No Social Notes",
+            )
+        )
+
+    if _has_section(visible_sections, "special_notes"):
+        elements.extend(
+            _build_notes_section(
+                styles,
+                "Special Notes",
+                special_notes or "No Special Notes",
+            )
+        )
+
+    if _has_section(visible_sections, "printers"):
+        elements.extend(_build_printer_table(printer_diff or {}, styles))
+
+    if _has_section(visible_sections, "identity") and not any(
+        _has_section(visible_sections, name) for name in ["summary", "digital", "expenses", "cash_breakdown"]
+    ):
+        elements.extend(
+            _build_notes_section(
+                styles,
+                "Employee / Role Information",
+                f"Staff: {_safe_text(staff_name)}\nRole: {_safe_text(staff_role)}\nJob Title: {_safe_text(job_title)}\nBranch: {_safe_text(branch)}\nShift: {_safe_text(shift)}",
+            )
+        )
 
     doc.build(elements)
     return buffer.getvalue()
