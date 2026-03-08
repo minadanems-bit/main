@@ -20,9 +20,38 @@ DEFAULT_MANAGER_PHONE = "+971522045638"
 # Roles
 # =====================================================
 ROLE_ADMIN = "admin"
-ROLE_USER = "user"
+ROLE_MANAGER = "manager"
+ROLE_EMPLOYEE = "employee"
+ROLE_ACCOUNTS = "accounts"
+ROLE_HR = "hr"
+ROLE_CLEANER = "cleaner"
+ROLE_GRAPHIC_DESIGNER = "graphic_designer"
 
-ROLE_OPTIONS = [ROLE_ADMIN, ROLE_USER]
+ROLE_OPTIONS = [
+    ROLE_ADMIN,
+    ROLE_MANAGER,
+    ROLE_EMPLOYEE,
+    ROLE_ACCOUNTS,
+    ROLE_HR,
+    ROLE_CLEANER,
+    ROLE_GRAPHIC_DESIGNER,
+]
+
+ROLE_LABELS = {
+    ROLE_ADMIN: "Admin",
+    ROLE_MANAGER: "Manager",
+    ROLE_EMPLOYEE: "Employee",
+    ROLE_ACCOUNTS: "Accounts",
+    ROLE_HR: "HR",
+    ROLE_CLEANER: "Cleaner",
+    ROLE_GRAPHIC_DESIGNER: "Graphic Designer",
+}
+
+
+# =====================================================
+# Legacy Compatibility
+# =====================================================
+ROLE_USER = ROLE_EMPLOYEE
 
 
 # =====================================================
@@ -46,13 +75,90 @@ TASK_OPENING = "opening"
 TASK_CLOSING = "closing"
 TASK_SOCIAL = "social"
 TASK_INTERACTION = "interaction"
+TASK_CLEANING = "cleaning"
+TASK_DESIGN = "design"
 
 TASK_CATEGORIES = [
     TASK_OPENING,
     TASK_CLOSING,
     TASK_SOCIAL,
     TASK_INTERACTION,
+    TASK_CLEANING,
+    TASK_DESIGN,
 ]
+
+TASK_CATEGORY_LABELS = {
+    TASK_OPENING: "Opening",
+    TASK_CLOSING: "Closing",
+    TASK_SOCIAL: "Social",
+    TASK_INTERACTION: "Interaction",
+    TASK_CLEANING: "Cleaning",
+    TASK_DESIGN: "Design",
+}
+
+
+# =====================================================
+# Role-Based Task Access
+# =====================================================
+ROLE_TASK_ACCESS = {
+    ROLE_ADMIN: TASK_CATEGORIES,
+    ROLE_MANAGER: [TASK_OPENING, TASK_CLOSING, TASK_SOCIAL, TASK_INTERACTION],
+    ROLE_EMPLOYEE: [TASK_OPENING, TASK_CLOSING, TASK_SOCIAL, TASK_INTERACTION],
+    ROLE_ACCOUNTS: [TASK_OPENING, TASK_CLOSING, TASK_INTERACTION],
+    ROLE_HR: [TASK_INTERACTION],
+    ROLE_CLEANER: [TASK_CLEANING],
+    ROLE_GRAPHIC_DESIGNER: [TASK_DESIGN, TASK_SOCIAL, TASK_INTERACTION],
+}
+
+
+# =====================================================
+# Default Tasks by Category
+# =====================================================
+DEFAULT_TASKS = {
+    TASK_OPENING: [
+        "Open branch and check lighting",
+        "Check POS / system status",
+        "Count opening cash",
+        "Check internet connection",
+        "Check printers status",
+        "Prepare workstations",
+    ],
+    TASK_CLOSING: [
+        "Count closing cash",
+        "Review sales total",
+        "Review expenses",
+        "Check digital wallets",
+        "Turn off devices safely",
+        "Lock branch and secure keys",
+    ],
+    TASK_SOCIAL: [
+        "Reply to pending social messages",
+        "Upload daily social story",
+        "Review customer comments",
+    ],
+    TASK_INTERACTION: [
+        "Follow up with waiting customers",
+        "Call customers for pickup confirmation",
+        "Handle customer complaints professionally",
+        "Confirm urgent orders status",
+    ],
+    TASK_CLEANING: [
+        "Clean floors",
+        "Clean reception desk",
+        "Clean printer area",
+        "Empty trash bins",
+        "Sanitize customer seating area",
+        "Check restroom cleanliness",
+    ],
+    TASK_DESIGN: [
+        "Review pending design orders",
+        "Prepare customer mockups",
+        "Finalize print-ready files",
+        "Check brand consistency",
+        "Export final approved files",
+        "Coordinate with printing team",
+    ],
+}
 
 
 # =====================================================
@@ -199,8 +305,9 @@ DRAFT_PREFIXES = (
 # =====================================================
 DEFAULT_USER_SCHEMA = {
     "pass": "",
-    "role": ROLE_USER,
+    "role": ROLE_EMPLOYEE,
     "full_name": "",
+    "job_title": "",
     "photo": None,
     "id_card": None,
     "phone": "",
@@ -230,6 +337,7 @@ DEFAULT_APP_DATA = {
             "pass": "admin123",
             "role": ROLE_ADMIN,
             "full_name": "Manager",
+            "job_title": "System Admin",
             "photo": None,
             "id_card": None,
             "phone": "",
@@ -245,12 +353,7 @@ DEFAULT_APP_DATA = {
             "extra_leaves": [],
         }
     },
-    "tasks": {
-        TASK_OPENING: [],
-        TASK_CLOSING: [],
-        TASK_SOCIAL: [],
-        TASK_INTERACTION: [],
-    },
+    "tasks": DEFAULT_TASKS,
     "history": [],
     "drafts": {},
     "logs": [],
