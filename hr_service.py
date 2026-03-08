@@ -183,30 +183,36 @@ def render_profile_images(users: dict, target: str, user: dict) -> None:
 def render_personal_details(users: dict, target: str, user: dict, db: dict) -> None:
     st.divider()
     st.markdown("## 📝 Personal Details")
-
-    full_name = st.text_input("Full Name", value=user.get("full_name", ""))
-    password = st.text_input("Password", value=user.get("pass", ""))
+    
+    full_name = st.text_input("Full Name", value=user.get("full_name", ""), key=f"edit_full_name_{target}")
+    password = st.text_input("Password", value=user.get("pass", ""), key=f"edit_password_{target}")
     role_value = st.selectbox(
         "Role",
         ROLE_OPTIONS,
         index=ROLE_OPTIONS.index(user.get("role", ROLE_USER)) if user.get("role", ROLE_USER) in ROLE_OPTIONS else 0,
         format_func=get_role_display,
+        key=f"edit_role_{target}",
     )
-    job_title = st.text_input("Job Title", value=user.get("job_title", ""))
+    job_title = st.text_input("Job Title", value=user.get("job_title", ""), key=f"edit_job_title_{target}")
+    
+    phone = st.text_input("Phone", value=user.get("phone", ""), key=f"edit_phone_{target}")
+    email = st.text_input("Email", value=user.get("email", ""), key=f"edit_email_{target}")
+    national_id = st.text_input("National ID", value=user.get("national_id", ""), key=f"edit_national_id_{target}")
+    address = st.text_area("Address", value=user.get("address", ""), key=f"edit_address_{target}")
+    qualification = st.text_input("Qualification", value=user.get("qualification", ""), key=f"edit_qualification_{target}")
 
-    phone = st.text_input("Phone", value=user.get("phone", ""))
-    email = st.text_input("Email", value=user.get("email", ""))
-    national_id = st.text_input("National ID", value=user.get("national_id", ""))
-    address = st.text_area("Address", value=user.get("address", ""))
-    qualification = st.text_input("Qualification", value=user.get("qualification", ""))
-
-    hiring_date = st.date_input("Work Start Date", value=get_safe_hiring_date(user))
-
+    hiring_date = st.date_input(
+        "Work Start Date",
+        value=get_safe_hiring_date(user),
+        key=f"edit_hiring_date_{target}",
+    )
+    
     salary = st.number_input(
         "Base Salary",
         min_value=0.0,
         value=float(user.get("salary", 0) or 0),
         step=100.0,
+        key=f"edit_salary_{target}",
     )
 
     if st.button("💾 Save Employee Data"):
