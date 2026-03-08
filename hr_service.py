@@ -9,10 +9,12 @@ from constants import (
     HR_FORM_TO_DB_KEY,
     HR_RECORD_KEYS,
     HR_RECORD_LABELS,
+    ROLE_LABELS,
+    ROLE_OPTIONS,
     ROLE_USER,
     SESSION_ACTIVE_DB,
 )
-from database import save_db
+from database import create_user, save_db
 
 
 # =====================================================
@@ -36,11 +38,16 @@ def ensure_user_defaults(user: dict) -> None:
         "overtime": [],
         "extra_leaves": [],
         "role": ROLE_USER,
+        "job_title": "",
     }
 
     for key, default_value in defaults.items():
         if key not in user:
             user[key] = default_value
+
+    if not user.get("job_title"):
+        role_value = user.get("role", ROLE_USER)
+        user["job_title"] = role_value.replace("_", " ").title()
 
 
 def safe_decode_image(image_b64: str):
@@ -78,6 +85,46 @@ def get_safe_hiring_date(user: dict):
         return date.fromisoformat(raw_value)
     except Exception:
         return date.fromisoformat(DEFAULT_HIRING_DATE)
+
+
+def get_role_display(role_value: str) -> str:
+    return ROLE_LABELS.get(role_value, role_value.replace("_", " ").title())
+
+
+# =====================================================
+# Create New Employee
+# =====================================================
+def render_create_employee_section(db: dict) -> None:
+    st.markdown("## ➕ Create New Employee")
+
+    with st.expander("Add New Employee", expanded=False):
+        new_username = st.text_input("Username")
+        new_password = st.text_input("Password", type="password")
+        new_full_name = st.text_input("Full Name")
+        new_role = st.selectbox(
+            "Role",
+            ROLE_OPTIONS,
+            format_func=get_role_display,
+        )
+        new_job_title = st.text_input(
+            "Job Title",
+            value=get_role_display(new_role),
+        )
+
+        if st.button("✅ Create Employee", use_container_width=True):
+            success, message = create_user(
+                username=new_username,
+                password=new_password,
+                full_name=new_full_name,
+                role=new_role,
+                job_title=new_job_title,
+            )
+
+            if success:
+                st.success(message)
+                st.rerun()
+            else:
+                st.error(message)
 
 
 # =====================================================
@@ -137,6 +184,14 @@ def render_personal_details(users: dict, target: str, user: dict, db: dict) -> N
 
     full_name = st.text_input("Full Name", value=user.get("full_name", ""))
     password = st.text_input("Password", value=user.get("pass", ""))
+    role_value = st.selectbox(
+        "Role",
+        ROLE_OPTIONS,
+        index=ROLE_OPTIONS.index(user.get("role", ROLE_USER)) if user.get("role", ROLE_USER) in ROLE_OPTIONS else 0,
+        format_func=get_role_display,
+    )
+    job_title = st.text_input("Job Title", value=user.get("job_title", ""))
+
     phone = st.text_input("Phone", value=user.get("phone", ""))
     email = st.text_input("Email", value=user.get("email", ""))
     national_id = st.text_input("National ID", value=user.get("national_id", ""))
@@ -157,6 +212,8 @@ def render_personal_details(users: dict, target: str, user: dict, db: dict) -> N
             {
                 "full_name": full_name.strip(),
                 "pass": password,
+                "role": role_value,
+                "job_title": job_title.strip() or get_role_display(role_value),
                 "phone": phone.strip(),
                 "email": email.strip(),
                 "national_id": national_id.strip(),
@@ -252,10 +309,15 @@ def hr_management_ui(db: dict) -> None:
 
     st.title("👥 Employee Management System")
 
+    render_create_employee_section(db)
+
     users = db.get("users", {})
     if not users:
         st.warning("No Employees Found")
         return
+
+    st.divider()
+    st.markdown("## 👤 Manage Existing Employee")
 
     target = st.selectbox("Select Employee", list(users.keys()))
     if not target:
@@ -263,6 +325,11 @@ def hr_management_ui(db: dict) -> None:
 
     user = users[target]
     ensure_user_defaults(user)
+
+    st.info(
+        f"Role: {get_role_display(user.get('role', ROLE_USER))} | "
+        f"Job Title: {user.get('job_title', '-')}"
+    )
 
     render_profile_images(users, target, user)
     render_personal_details(users, target, user, db)
