@@ -1,15 +1,16 @@
 # =====================================================
-# DATABASE LAYER (JSON FILE VERSION - SAFE PATH)
+# DATABASE LAYER (JSON FILE VERSION - SAFE)
 # =====================================================
 
 import json
 import os
+import shutil
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_FILE = os.path.join(BASE_DIR, "nms_enterprise_pro_db.json")
 
 
-def get_default_data():
+def get_default_data() -> dict:
     return {
         "logo": None,
         "manager_phone": "201234567890",
@@ -56,75 +57,153 @@ def get_default_data():
     }
 
 
-def init_db():
+def init_db() -> None:
     if not os.path.exists(DB_FILE):
-        with open(DB_FILE, "w", encoding="utf-8") as f:
-            json.dump(get_default_data(), f, indent=4, ensure_ascii=False)
+        save_db(get_default_data())
 
 
-def load_db():
-    init_db()
+def normalize_user(user: dict) -> dict:
+    defaults = {
+        "pass": "",
+        "role": "employee",
+        "full_name": "",
+        "photo": None,
+        "id_card": None,
+        "phone": "",
+        "email": "",
+        "national_id": "",
+        "address": "",
+        "qualification": "",
+        "hiring_date": "2024-01-01",
+        "salary": 0,
+        "bonus": [],
+        "deductions": [],
+        "overtime": [],
+        "extra_leaves": [],
+        "job_title": "",
+    }
 
-    with open(DB_FILE, "r", encoding="utf-8") as f:
-        data = json.load(f)
+    for key, value in defaults.items():
+        if key not in user:
+            user[key] = value
 
-    changed = False
+    return user
+
+
+def normalize_data(data: dict) -> dict:
     default_data = get_default_data()
 
     for key, value in default_data.items():
         if key not in data:
             data[key] = value
-            changed = True
 
-    if "tasks" not in data:
+    if "tasks" not in data or not isinstance(data["tasks"], dict):
         data["tasks"] = default_data["tasks"]
-        changed = True
     else:
         for task_key, task_value in default_data["tasks"].items():
             if task_key not in data["tasks"]:
                 data["tasks"][task_key] = task_value
-                changed = True
 
-    if "users" not in data:
+    if "users" not in data or not isinstance(data["users"], dict):
         data["users"] = default_data["users"]
-        changed = True
 
-    for username, user in data["users"].items():
-        user_defaults = {
-            "pass": "",
-            "role": "employee",
-            "full_name": "",
-            "photo": None,
-            "id_card": None,
-            "phone": "",
-            "email": "",
-            "national_id": "",
-            "address": "",
-            "qualification": "",
-            "hiring_date": "2024-01-01",
-            "salary": 0,
-            "bonus": [],
-            "deductions": [],
-            "overtime": [],
-            "extra_leaves": [],
-            "job_title": "",
-        }
-        for k, v in user_defaults.items():
-            if k not in user:
-                user[k] = v
-                changed = True
+    for username, user_data in data["users"].items():
+        data["users"][username] = normalize_user(user_data)
 
-    if changed:
-        save_db(data)
+    if "admin" not in data["users"]:
+        data["users"]["admin"] = default_data["users"]["admin"]
 
     return data
 
 
-def save_db(data):
-    with open(DB_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=4, ensure_ascii=False)
+def load_db() -> dict:
+    init_db()
+
+    try:
+        with open(DB_FILE, "r", encoding="utf-8") as f:
+            raw = f.read().strip()
+
+        if not raw:
+            data = get_default_data()
+            save_db(data)
+            return data
+
+        data = json.loads(raw)
+
+        if not isinstance(data, dict):
+            data = get_default_data()
+            save_db(data)
+            return data
+
+        normalized = normalize_data(data)
+
+        if normalized != data:
+            save_db(normalized)
+
+        return normalized
+
+    except json.JSONDecodeError:
+        broken_file = DB_FILE + ".broken"
+        try:
+            shutil.copy(DB_FILE, broken_file)
+        except Exception:
+            pass
+
+        data = get_default_data()
+        save_db(data)
+        return data
+
+    except FileNotFoundError:
+        data = get_default_data()
+        save_db(data)
+        return data
 
 
-def get_manager_phone():
+def save_db(data: dict) -> None:
+    normalized = normalize_data(data)
+    temp_file = DB_FILE + ".tmp"
+
+    with open(temp_file, "w", encoding="utf-8") as f:
+        json.dump(normalized, f, indent=4, ensure_ascii=False)
+
+    os.replace(temp_file, DB_FILE)
+
+
+def create_user(
+    username: str,
+    password: str,
+    full_name: str,
+    role: str = "employee",
+    job_title: str = "",
+) -> tuple[bool, str]:
+    db = load_db()
+
+    username = username.strip()
+    full_name = full_name.strip()
+
+    if not username:
+        return False, "Username is required."
+
+    if not full_name:
+        return False, "Full name is required."
+
+    if username in db.get("users", {}):
+        return False, "Username already exists."
+
+    new_user = normalize_user(
+        {
+            "pass": password,
+            "role": role,
+            "full_name": full_name,
+            "job_title": job_title.strip() or role.replace("_", " ").title(),
+        }
+    )
+
+    db["users"][username] = new_user
+    save_db(db)
+    return True, "User created successfully."
+
+
+def get_manager_phone() -> str:
     db = load_db()
     return db.get("manager_phone", "201234567890")
