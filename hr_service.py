@@ -4,6 +4,14 @@ from datetime import date
 import pandas as pd
 import streamlit as st
 
+from constants import (
+    DEFAULT_HIRING_DATE,
+    HR_FORM_TO_DB_KEY,
+    HR_RECORD_KEYS,
+    HR_RECORD_LABELS,
+    ROLE_USER,
+    SESSION_ACTIVE_DB,
+)
 from database import save_db
 
 
@@ -11,7 +19,6 @@ from database import save_db
 # Helpers
 # =====================================================
 def ensure_user_defaults(user: dict) -> None:
-    """Ensure employee record has all expected keys."""
     defaults = {
         "full_name": "",
         "pass": "",
@@ -20,7 +27,7 @@ def ensure_user_defaults(user: dict) -> None:
         "national_id": "",
         "address": "",
         "qualification": "",
-        "hiring_date": str(date.today()),
+        "hiring_date": DEFAULT_HIRING_DATE,
         "salary": 0.0,
         "photo": "",
         "id_card": "",
@@ -28,7 +35,7 @@ def ensure_user_defaults(user: dict) -> None:
         "deductions": [],
         "overtime": [],
         "extra_leaves": [],
-        "role": "user",
+        "role": ROLE_USER,
     }
 
     for key, default_value in defaults.items():
@@ -37,7 +44,6 @@ def ensure_user_defaults(user: dict) -> None:
 
 
 def safe_decode_image(image_b64: str):
-    """Decode base64 image safely."""
     if not image_b64:
         return None
 
@@ -48,12 +54,6 @@ def safe_decode_image(image_b64: str):
 
 
 def normalize_financial_records(records: list) -> list:
-    """
-    Normalize old/new financial record shapes.
-    Supports both:
-    - {"amount": ...}
-    - {"val": ...}
-    """
     normalized = []
 
     for record in records or []:
@@ -69,10 +69,20 @@ def normalize_financial_records(records: list) -> list:
 
 
 def save_uploaded_image(uploaded_file) -> str:
-    """Convert uploaded file to base64 string."""
     return base64.b64encode(uploaded_file.getvalue()).decode()
 
 
+def get_safe_hiring_date(user: dict):
+    raw_value = user.get("hiring_date", DEFAULT_HIRING_DATE)
+    try:
+        return date.fromisoformat(raw_value)
+    except Exception:
+        return date.fromisoformat(DEFAULT_HIRING_DATE)
+
+
+# =====================================================
+# UI Sections
+# =====================================================
 def render_profile_images(users: dict, target: str, user: dict) -> None:
     st.markdown("## 📌 Employee Profile")
 
@@ -95,7 +105,7 @@ def render_profile_images(users: dict, target: str, user: dict) -> None:
 
         if new_photo and st.button("💾 Save Photo", key=f"save_photo_{target}"):
             users[target]["photo"] = save_uploaded_image(new_photo)
-            save_db(st.session_state["_active_db"])
+            save_db(st.session_state[SESSION_ACTIVE_DB])
             st.success("Photo Updated")
             st.rerun()
 
@@ -116,7 +126,7 @@ def render_profile_images(users: dict, target: str, user: dict) -> None:
 
         if id_card and st.button("💾 Save ID Card", key=f"save_id_card_{target}"):
             users[target]["id_card"] = save_uploaded_image(id_card)
-            save_db(st.session_state["_active_db"])
+            save_db(st.session_state[SESSION_ACTIVE_DB])
             st.success("ID Card Saved")
             st.rerun()
 
@@ -133,13 +143,7 @@ def render_personal_details(users: dict, target: str, user: dict, db: dict) -> N
     address = st.text_area("Address", value=user.get("address", ""))
     qualification = st.text_input("Qualification", value=user.get("qualification", ""))
 
-    hiring_date_raw = user.get("hiring_date", str(date.today()))
-    try:
-        hiring_date_value = date.fromisoformat(hiring_date_raw)
-    except Exception:
-        hiring_date_value = date.today()
-
-    hiring_date = st.date_input("Work Start Date", value=hiring_date_value)
+    hiring_date = st.date_input("Work Start Date", value=get_safe_hiring_date(user))
 
     salary = st.number_input(
         "Base Salary",
@@ -168,13 +172,13 @@ def render_personal_details(users: dict, target: str, user: dict, db: dict) -> N
         st.rerun()
 
 
-def render_financial_entry_form(users: dict, target: str, user: dict, db: dict) -> None:
+def render_financial_entry_form(user: dict, db: dict) -> None:
     st.divider()
     st.markdown("## 💰 Financial History")
 
     record_type = st.radio(
         "Record Type",
-        ["Bonus", "Deduction", "Overtime", "Extra Leave"],
+        list(HR_FORM_TO_DB_KEY.keys()),
         horizontal=True,
     )
 
@@ -182,14 +186,7 @@ def render_financial_entry_form(users: dict, target: str, user: dict, db: dict) 
     note = st.text_input("Reason / Note")
 
     if st.button("➕ Add Financial Record"):
-        key_map = {
-            "Bonus": "bonus",
-            "Deduction": "deductions",
-            "Overtime": "overtime",
-            "Extra Leave": "extra_leaves",
-        }
-
-        target_key = key_map[record_type]
+        target_key = HR_FORM_TO_DB_KEY[record_type]
         user.setdefault(target_key, [])
         user[target_key].append(
             {
@@ -208,15 +205,9 @@ def render_records_history(user: dict) -> None:
     st.divider()
     st.markdown("## 📊 Employee Records History")
 
-    category_labels = {
-        "bonus": "BONUS",
-        "deductions": "DEDUCTIONS",
-        "overtime": "OVERTIME",
-        "extra_leaves": "EXTRA LEAVES",
-    }
-
-    for category, label in category_labels.items():
-        st.markdown(f"### 🔹 {label}")
+    for category in HR_RECORD_KEYS:
+        label = HR_RECORD_LABELS.get(category, category.title())
+        st.markdown(f"### 🔹 {label.upper()}")
 
         records = normalize_financial_records(user.get(category, []))
 
@@ -257,7 +248,7 @@ def render_delete_employee(users: dict, target: str, db: dict) -> None:
 # Main UI
 # =====================================================
 def hr_management_ui(db: dict) -> None:
-    st.session_state["_active_db"] = db
+    st.session_state[SESSION_ACTIVE_DB] = db
 
     st.title("👥 Employee Management System")
 
@@ -275,6 +266,6 @@ def hr_management_ui(db: dict) -> None:
 
     render_profile_images(users, target, user)
     render_personal_details(users, target, user, db)
-    render_financial_entry_form(users, target, user, db)
+    render_financial_entry_form(user, db)
     render_records_history(user)
     render_delete_employee(users, target, db)
