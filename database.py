@@ -92,4 +92,3 @@ def save_db(data):
 def get_manager_phone():
     db = load_db()
     return db.get("manager_phone", "201234567890")
-مفيش موظفين ولا مهام ولا اى حاجة انا سجلتها ، لية ؟
