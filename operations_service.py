@@ -1,5 +1,5 @@
 # =====================================================
-# DAILY OPERATIONS MODULE (ENHANCED FINAL VERSION)
+# DAILY OPERATIONS MODULE (ROLE-BASED VERSION)
 # =====================================================
 
 from datetime import date
@@ -8,13 +8,6 @@ import urllib.parse
 import streamlit as st
 
 from constants import (
-    CASH_DENOMINATIONS,
-    ROLE_ACCOUNTS,
-    ROLE_CLEANER,
-    ROLE_GRAPHIC_DESIGNER,
-    ROLE_HR,
-    ROLE_MANAGER,
-    ROLE_TASK_ACCESS,
     SESSION_BRANCH,
     SESSION_CASH_DIFF,
     SESSION_CLOSE_TOTAL,
@@ -42,9 +35,15 @@ from constants import (
     TASK_OPENING,
     TASK_SOCIAL,
 )
+from cash_service import (
+    build_cash_breakdown_from_quantities,
+    build_cash_summary,
+)
 from database import get_manager_phone, save_db
 from pdf_generator import create_downloadable_pdf
 from printer_service import calculate_printer_difference, get_printers
+from report_service import build_role_report_data, build_whatsapp_text
+from role_service import get_allowed_tabs
 
 
 # =====================================================
@@ -73,6 +72,9 @@ def ensure_session_defaults() -> None:
         "social_notes": "",
         "interaction_notes": "",
         "special_notes": "",
+        "insta_amount": 0.0,
+        "wallet_amount": 0.0,
+        "visa_amount": 0.0,
     }
 
     for key, value in defaults.items():
@@ -89,9 +91,10 @@ def get_current_role(db: dict) -> str:
     return get_current_user_record(db).get("role", "employee")
 
 
-def get_allowed_task_categories(db: dict) -> list:
-    current_role = get_current_role(db)
-    return ROLE_TASK_ACCESS.get(current_role, [TASK_OPENING, TASK_CLOSING, TASK_SOCIAL, TASK_INTERACTION])
+def get_staff_display_name(db: dict) -> str:
+    username = st.session_state.get(SESSION_USER, "-")
+    user_record = db.get("users", {}).get(username, {})
+    return user_record.get("full_name") or username
 
 
 def get_selected_branch(db: dict) -> str:
@@ -127,25 +130,19 @@ def get_selected_shift() -> str:
 
 
 # =====================================================
-# Generic Helpers
+# Cash Helpers
 # =====================================================
 def render_cash_counter(section_prefix: str, title_suffix: str = "") -> tuple[float, dict]:
-    total = 0.0
-    breakdown = {}
+    quantities = {}
 
-    for denomination in CASH_DENOMINATIONS:
+    for denomination in [200, 100, 50, 20, 10, 5]:
         qty = st.number_input(
             f"{denomination} LE{title_suffix}",
             min_value=0,
             step=1,
             key=f"{section_prefix}_{denomination}",
         )
-        total_value = qty * denomination
-        breakdown[str(denomination)] = {
-            "qty": qty,
-            "total": total_value,
-        }
-        total += total_value
+        quantities[str(denomination)] = qty
 
     coins_label = "Coins" if section_prefix == "open" else "Closing Coins"
     coins = st.number_input(
@@ -154,35 +151,16 @@ def render_cash_counter(section_prefix: str, title_suffix: str = "") -> tuple[fl
         step=0.5,
         key=f"{section_prefix}_coins",
     )
+    quantities["coins"] = coins
 
-    breakdown["coins"] = {
-        "qty": coins,
-        "total": coins,
-    }
-    total += coins
-
+    breakdown = build_cash_breakdown_from_quantities(quantities)
+    total = breakdown["_meta"]["grand_total"]
     return total, breakdown
 
 
-def format_cash_breakdown_text(breakdown: dict) -> str:
-    if not breakdown:
-        return "No Cash Breakdown"
-
-    ordered_keys = [str(value) for value in CASH_DENOMINATIONS] + ["coins"]
-    lines = []
-
-    for key in ordered_keys:
-        if key not in breakdown:
-            continue
-
-        label = "Coins" if key == "coins" else f"{key} LE"
-        qty = breakdown[key].get("qty", 0)
-        total = breakdown[key].get("total", 0)
-        lines.append(f"• {label}: {qty} = {float(total):,.2f}")
-
-    return "\n".join(lines)
-
-
+# =====================================================
+# Other Inputs
+# =====================================================
 def render_digital_inputs(mode: str) -> tuple[float, float, float]:
     opay_key = f"opay_{mode}"
     debit_key = f"debit_{mode}"
@@ -227,13 +205,13 @@ def render_printer_start_inputs() -> None:
         st.session_state[SESSION_PRINTER_START] = {}
         return
 
-    for printer_name in printers.keys():
+    for idx, printer_name in enumerate(printers.keys()):
         st.markdown(f"##### 📠 {printer_name}")
 
         total = st.number_input(
             f"{printer_name} ✔ Total",
             min_value=0,
-            key=f"{printer_name}_start_total",
+            key=f"{printer_name}_start_total_{idx}",
         )
 
         printer_start[printer_name] = {
@@ -256,33 +234,33 @@ def render_printer_end_inputs() -> None:
         st.session_state[SESSION_PRINTER_END] = {}
         return
 
-    for printer_name in printers.keys():
+    for idx, printer_name in enumerate(printers.keys()):
         st.markdown(f"##### 📠 {printer_name}")
 
         total_end = st.number_input(
             f"{printer_name} ✔ End Total",
             min_value=0,
-            key=f"{printer_name}_end_total",
+            key=f"{printer_name}_end_total_{idx}",
         )
         one_end = st.number_input(
             f"{printer_name} ✔ End 1 Side",
             min_value=0,
-            key=f"{printer_name}_end_one",
+            key=f"{printer_name}_end_one_{idx}",
         )
         two_end = st.number_input(
             f"{printer_name} ✔ End 2 Side",
             min_value=0,
-            key=f"{printer_name}_end_two",
+            key=f"{printer_name}_end_two_{idx}",
         )
         err_end = st.number_input(
             f"{printer_name} ❌ End Errors",
             min_value=0,
-            key=f"{printer_name}_end_err",
+            key=f"{printer_name}_end_err_{idx}",
         )
         jam_end = st.number_input(
             f"{printer_name} ⚠ End Jam",
             min_value=0,
-            key=f"{printer_name}_end_jam",
+            key=f"{printer_name}_end_jam_{idx}",
         )
 
         printer_end[printer_name] = {
@@ -298,111 +276,11 @@ def render_printer_end_inputs() -> None:
     st.session_state[SESSION_PRINTER_END] = printer_end
 
 
-def calculate_total_expenses(expenses: list) -> float:
-    return sum(float(item.get("amount", 0) or 0) for item in expenses)
-
-
-def build_expense_lines(expenses: list) -> str:
-    if not expenses:
-        return "No Expenses Recorded"
-
-    return "\n".join(
-        f"• {item.get('type', 'Unknown')} : {float(item.get('amount', 0) or 0):,.2f}"
-        for item in expenses
-    )
-
-
-def build_printer_lines(printer_diff: dict) -> str:
-    if not printer_diff:
-        return "No Printer Data\n"
-
-    lines = []
-    for printer_name, values in printer_diff.items():
-        lines.append(
-            "\n".join(
-                [
-                    f"📠 {printer_name}",
-                    f"Used: {values.get('used', 0)}",
-                    f"Jam: {values.get('jam', 0)}",
-                    f"1-Side: {values.get('1s', 0)}",
-                    f"2-Side: {values.get('2s', 0)}",
-                    "------------------------",
-                ]
-            )
-        )
-
-    return "\n\n".join(lines)
-
-
-def get_staff_display_name(db: dict) -> str:
-    username = st.session_state.get(SESSION_USER, "-")
-    user_record = db.get("users", {}).get(username, {})
-    return user_record.get("full_name") or username
-
-
-def get_staff_role(db: dict) -> str:
-    user_record = get_current_user_record(db)
-    return user_record.get("role", "employee")
-
-
+# =====================================================
+# Report/Archive Helpers
+# =====================================================
 def get_shift_report_data(db: dict) -> dict:
-    sys_sales = float(st.session_state.get(SESSION_SYSTEM_SALES, 0.0) or 0.0)
-
-    opay_open = float(st.session_state.get(SESSION_OPAY_OPEN, 0.0) or 0.0)
-    opay_close = float(st.session_state.get(SESSION_OPAY_CLOSE, 0.0) or 0.0)
-
-    debit_open = float(st.session_state.get(SESSION_DEBIT_OPEN, 0.0) or 0.0)
-    debit_close = float(st.session_state.get(SESSION_DEBIT_CLOSE, 0.0) or 0.0)
-
-    nbe_open = float(st.session_state.get(SESSION_NBE_OPEN, 0.0) or 0.0)
-    nbe_close = float(st.session_state.get(SESSION_NBE_CLOSE, 0.0) or 0.0)
-
-    shift_expenses = st.session_state.get(SESSION_SHIFT_EXPENSES, [])
-    total_expenses = calculate_total_expenses(shift_expenses)
-
-    opay_diff = opay_close - opay_open
-    debit_diff = debit_close - debit_open
-    nbe_diff = nbe_close - nbe_open
-
-    cash_diff = float(st.session_state.get(SESSION_CASH_DIFF, 0.0) or 0.0)
-    printer_diff = st.session_state.get(SESSION_PRINTER_DIFF, {})
-
-    opening_cash_breakdown = st.session_state.get("opening_cash_breakdown", {})
-    closing_cash_breakdown = st.session_state.get("closing_cash_breakdown", {})
-
-    return {
-        "date": str(date.today()),
-        "branch": st.session_state.get(SESSION_BRANCH, "-"),
-        "shift": st.session_state.get(SESSION_SHIFT, "-"),
-        "staff": get_staff_display_name(db),
-        "staff_username": st.session_state.get(SESSION_USER, "-"),
-        "role": get_staff_role(db),
-        "sales": sys_sales,
-        "expenses_list": shift_expenses,
-        "total_expenses": total_expenses,
-        "expense_lines": build_expense_lines(shift_expenses),
-        "cash_diff": cash_diff,
-        "printer_diff": printer_diff,
-        "printer_lines": build_printer_lines(printer_diff),
-        "opay_open": opay_open,
-        "opay_close": opay_close,
-        "opay_diff": opay_diff,
-        "debit_open": debit_open,
-        "debit_close": debit_close,
-        "debit_diff": debit_diff,
-        "nbe_open": nbe_open,
-        "nbe_close": nbe_close,
-        "nbe_diff": nbe_diff,
-        "t_open": float(st.session_state.get(SESSION_OPEN_TOTAL, 0.0) or 0.0),
-        "t_close": float(st.session_state.get(SESSION_CLOSE_TOTAL, 0.0) or 0.0),
-        "opening_cash_breakdown": opening_cash_breakdown,
-        "closing_cash_breakdown": closing_cash_breakdown,
-        "opening_cash_text": format_cash_breakdown_text(opening_cash_breakdown),
-        "closing_cash_text": format_cash_breakdown_text(closing_cash_breakdown),
-        "social_notes": st.session_state.get("social_notes", "").strip(),
-        "interaction_notes": st.session_state.get("interaction_notes", "").strip(),
-        "special_notes": st.session_state.get("special_notes", "").strip(),
-    }
+    return build_role_report_data(db, st.session_state)
 
 
 def archive_shift(db: dict) -> None:
@@ -417,6 +295,8 @@ def archive_shift(db: dict) -> None:
             "staff": report["staff"],
             "staff_username": report["staff_username"],
             "role": report["role"],
+            "job_title": report.get("job_title", ""),
+            "report_type": report.get("report_type", ""),
             "sales": report["sales"],
             "expenses": report["total_expenses"],
             "expenses_list": report["expenses_list"],
@@ -439,94 +319,11 @@ def archive_shift(db: dict) -> None:
             "social_notes": report["social_notes"],
             "interaction_notes": report["interaction_notes"],
             "special_notes": report["special_notes"],
+            "visible_sections": report.get("visible_sections", []),
         }
     )
 
     save_db(db)
-
-
-def build_whatsapp_text(db: dict) -> str:
-    report = get_shift_report_data(db)
-
-    social_notes = report["social_notes"] or "No Social Notes"
-    interaction_notes = report["interaction_notes"] or "No Interaction Notes"
-    special_notes = report["special_notes"] or "No Special Notes"
-
-    wa_text = f"""
-■ NMS FULL SHIFT REPORT
-■■■■■■■■■■■■■■■■■■■
-
-📅 Date: {report["date"]}
-🏢 Branch: {report["branch"]}
-🕒 Shift: {report["shift"]}
-👤 Staff: {report["staff"]}
-🧩 Role: {report["role"]}
-
-■■■■■■■■■■■■■■■■■■■
-💰 SALES
-Total System Sales: {report["sales"]:,.2f}
-
-■■■■■■■■■■■■■■■■■■■
-💵 OPENING CASH BREAKDOWN
-{report["opening_cash_text"]}
-
-Total Opening Cash: {report["t_open"]:,.2f}
-
-■■■■■■■■■■■■■■■■■■■
-💵 CLOSING CASH BREAKDOWN
-{report["closing_cash_text"]}
-
-Total Closing Cash: {report["t_close"]:,.2f}
-
-■■■■■■■■■■■■■■■■■■■
-💳 DIGITAL PAYMENTS
-
-🟢 OPAY
-Open: {report["opay_open"]:,.2f}
-Close: {report["opay_close"]:,.2f}
-Diff: {report["opay_diff"]:,.2f}
-
-🔵 DEBIT
-Open: {report["debit_open"]:,.2f}
-Close: {report["debit_close"]:,.2f}
-Diff: {report["debit_diff"]:,.2f}
-
-🟡 NBE
-Open: {report["nbe_open"]:,.2f}
-Close: {report["nbe_close"]:,.2f}
-Diff: {report["nbe_diff"]:,.2f}
-
-■■■■■■■■■■■■■■■■■■■
-💸 EXPENSES
-Total Expenses: {report["total_expenses"]:,.2f}
-
-{report["expense_lines"]}
-
-■■■■■■■■■■■■■■■■■■■
-🤝 INTERACTION NOTES
-{interaction_notes}
-
-■■■■■■■■■■■■■■■■■■■
-📱 SOCIAL NOTES
-{social_notes}
-
-■■■■■■■■■■■■■■■■■■■
-📝 SPECIAL NOTES
-{special_notes}
-
-■■■■■■■■■■■■■■■■■■■
-🖨 PRINTER DIFFERENCES
-
-{report["printer_lines"]}
-
-■■■■■■■■■■■■■■■■■■■
-💵 CASH DIFFERENCE
-{report["cash_diff"]:,.2f}
-
-■■■■■■■■■■■■■■■■■■■
-Generated by NMS System
-"""
-    return wa_text.strip()[:3500]
 
 
 # =====================================================
@@ -568,10 +365,10 @@ def render_expenses_section(db: dict) -> float:
     col1, col2 = st.columns(2)
 
     with col1:
-        selected_expense = st.selectbox("Expense Type", expense_categories)
+        selected_expense = st.selectbox("Expense Type", expense_categories, key="expense_type_select")
 
     with col2:
-        expense_value = st.number_input("Amount", min_value=0.0, step=1.0)
+        expense_value = st.number_input("Amount", min_value=0.0, step=1.0, key="expense_value_input")
 
     if st.button("➕ Add Expense"):
         st.session_state[SESSION_SHIFT_EXPENSES].append(
@@ -600,10 +397,7 @@ def render_expenses_section(db: dict) -> float:
             st.session_state[SESSION_SHIFT_EXPENSES] = []
             st.rerun()
 
-    total_expenses = calculate_total_expenses(st.session_state[SESSION_SHIFT_EXPENSES])
-    st.warning(f"Total Expenses: {total_expenses:,.2f} LE")
-
-    return total_expenses
+    return sum(float(item.get("amount", 0) or 0) for item in st.session_state[SESSION_SHIFT_EXPENSES])
 
 
 def render_closing_tab(db: dict) -> None:
@@ -631,22 +425,27 @@ def render_closing_tab(db: dict) -> None:
 
     total_expenses = render_expenses_section(db)
 
-    t_digital = insta + wallet + visa
-    expected = float(st.session_state.get(SESSION_OPEN_TOTAL, 0.0) or 0.0) + sys_sales - total_expenses - t_digital
-
-    st.metric("Expected Cash", f"{expected:,.2f} LE")
-
     st.divider()
     st.subheader("🧮 Cash Count")
 
     t_close, closing_breakdown = render_cash_counter("close", title_suffix=" ")
-    diff = t_close - expected
 
-    st.metric("Actual Cash", f"{t_close:,.2f} LE")
-    st.metric("Difference", f"{diff:,.2f} LE")
+    cash_summary = build_cash_summary(
+        opening_breakdown=st.session_state.get("opening_cash_breakdown", {}),
+        closing_breakdown=closing_breakdown,
+        sales=sys_sales,
+        expenses=st.session_state.get(SESSION_SHIFT_EXPENSES, []),
+        instapay=insta,
+        wallet=wallet,
+        visa=visa,
+    )
+
+    st.metric("Expected Cash", f"{cash_summary['expected_cash']:,.2f} LE")
+    st.metric("Actual Cash", f"{cash_summary['closing_total']:,.2f} LE")
+    st.metric("Difference", f"{cash_summary['difference']:,.2f} LE")
 
     st.session_state[SESSION_CLOSE_TOTAL] = t_close
-    st.session_state[SESSION_CASH_DIFF] = diff
+    st.session_state[SESSION_CASH_DIFF] = cash_summary["difference"]
     st.session_state["closing_cash_breakdown"] = closing_breakdown
 
     st.divider()
@@ -724,25 +523,17 @@ def render_design_section(db: dict) -> None:
 def render_role_specific_section(db: dict) -> None:
     role_value = get_current_role(db)
 
-    if role_value == ROLE_CLEANER:
+    if role_value == "cleaner":
         render_cleaning_section(db)
-    elif role_value == ROLE_GRAPHIC_DESIGNER:
+    elif role_value == "graphic_designer":
         render_design_section(db)
-    elif role_value in [ROLE_MANAGER, ROLE_ACCOUNTS, ROLE_HR]:
-        st.subheader("📝 Role Notes")
-        st.text_area(
-            "Special Notes",
-            key="special_notes",
-            height=140,
-            placeholder="Write role-specific notes, approvals, pending items, follow-up remarks...",
-        )
     else:
         st.subheader("📝 Special Notes")
         st.text_area(
             "Special Notes",
             key="special_notes",
             height=140,
-            placeholder="Write any additional notes for this shift...",
+            placeholder="Write role-specific notes...",
         )
 
 
@@ -785,6 +576,9 @@ def render_report_tab(db: dict) -> None:
                 interaction_notes=report["interaction_notes"],
                 special_notes=report["special_notes"],
                 expenses_list=report["expenses_list"],
+                report_type=report.get("report_type", "operations"),
+                visible_sections=report.get("visible_sections", []),
+                job_title=report.get("job_title", ""),
             )
 
             st.download_button(
@@ -794,7 +588,7 @@ def render_report_tab(db: dict) -> None:
             )
 
         manager_phone = get_manager_phone()
-        wa_text = build_whatsapp_text(db)
+        wa_text = build_whatsapp_text(db, st.session_state)
         url = f"https://wa.me/{manager_phone}?text={urllib.parse.quote(wa_text)}"
 
         st.markdown(
@@ -825,37 +619,42 @@ def daily_operations_ui(db: dict) -> None:
     with col1:
         st.info(f"📅 {date.today()}")
     with col2:
-        st.info(f"👤 {get_staff_display_name(db)} | {get_staff_role(db)}")
+        st.info(f"👤 {get_staff_display_name(db)} | {get_current_role(db)}")
 
     st.divider()
 
-    allowed_categories = get_allowed_task_categories(db)
+    allowed_tabs = get_allowed_tabs()
 
     tabs = []
     renderers = []
 
-    if TASK_OPENING in allowed_categories:
+    if "opening" in allowed_tabs:
         tabs.append("🟢 OPENING")
         renderers.append(lambda: render_opening_tab(db))
 
-    if TASK_CLOSING in allowed_categories:
+    if "closing" in allowed_tabs:
         tabs.append("🔴 CLOSING")
         renderers.append(lambda: render_closing_tab(db))
 
-    if TASK_INTERACTION in allowed_categories:
+    if "interaction" in allowed_tabs:
         tabs.append("🤝 INTERACTION")
         renderers.append(lambda: render_interaction_section(db))
 
-    if TASK_SOCIAL in allowed_categories:
+    if "social" in allowed_tabs:
         tabs.append("📱 SOCIAL")
         renderers.append(lambda: render_social_section(db))
 
-    if TASK_CLEANING in allowed_categories or TASK_DESIGN in allowed_categories:
+    if "cleaning" in allowed_tabs or "design" in allowed_tabs:
         tabs.append("🧩 ROLE TASKS")
         renderers.append(lambda: render_role_specific_section(db))
 
-    tabs.append("📦 REPORT")
-    renderers.append(lambda: render_report_tab(db))
+    if "report" in allowed_tabs:
+        tabs.append("📦 REPORT")
+        renderers.append(lambda: render_report_tab(db))
+
+    if not tabs:
+        st.info("No operational modules are available for this role.")
+        return
 
     tab_objects = st.tabs(tabs)
 
