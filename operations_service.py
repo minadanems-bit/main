@@ -683,7 +683,7 @@ def render_social_section(db: dict) -> None:
     st.subheader("📱 Social Tasks")
 
     for idx, task in enumerate(db.get("tasks", {}).get(TASK_SOCIAL, [])):
-    st.checkbox(task, key=f"social_{idx}_{task}")
+        st.checkbox(task, key=f"social_{idx}_{task}")
 
     st.text_area(
         "Social Notes",
@@ -697,7 +697,7 @@ def render_cleaning_section(db: dict) -> None:
     st.subheader("🧹 Cleaning Tasks")
 
     for idx, task in enumerate(db.get("tasks", {}).get(TASK_CLEANING, [])):
-    st.checkbox(task, key=f"cleaning_{idx}_{task}")
+        st.checkbox(task, key=f"cleaning_{idx}_{task}")
 
     st.text_area(
         "Cleaning Notes",
@@ -711,7 +711,7 @@ def render_design_section(db: dict) -> None:
     st.subheader("🎨 Design Tasks")
 
     for idx, task in enumerate(db.get("tasks", {}).get(TASK_DESIGN, [])):
-    st.checkbox(task, key=f"design_{idx}_{task}")
+        st.checkbox(task, key=f"design_{idx}_{task}")
 
     st.text_area(
         "Design Notes",
