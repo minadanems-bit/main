@@ -1,70 +1,43 @@
 # =====================================================
-# DATABASE LAYER (SQLITE - REFACTORED VERSION)
+# DATABASE LAYER (SQLITE - FINAL REFACTORED VERSION)
 # =====================================================
 
 import json
 import os
-import shutil
 import sqlite3
+from copy import deepcopy
 from datetime import datetime
+
+from constants import (
+    DEFAULT_APP_DATA,
+    DEFAULT_MANAGER_PHONE,
+    DEFAULT_TASKS,
+    DEFAULT_USER_SCHEMA,
+    ROLE_ADMIN,
+    ROLE_EMPLOYEE,
+    ROLE_OPTIONS,
+    TASK_CATEGORIES,
+)
 
 
 # =====================================================
-# Paths & Constants
+# Paths
 # =====================================================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 BACKUP_DIR = os.path.join(BASE_DIR, "backups")
 DB_FILE = os.path.join(DATA_DIR, "nms_system.db")
 
-DEFAULT_MANAGER_PHONE = "+971522045638"
-
 
 # =====================================================
 # Default Data Schema
 # =====================================================
 def get_default_data() -> dict:
-    return {
-        "logo": None,
-        "manager_phone": DEFAULT_MANAGER_PHONE,
-        "branches": [],
-        "expense_categories": [],
-        "users": {
-            "admin": {
-                "pass": "admin123",
-                "role": "admin",
-                "full_name": "Manager",
-                "photo": None,
-                "id_card": None,
-                "phone": "",
-                "email": "",
-                "national_id": "",
-                "address": "",
-                "qualification": "",
-                "hiring_date": "2024-01-01",
-                "salary": 0.0,
-                "bonus": [],
-                "deductions": [],
-                "overtime": [],
-                "extra_leaves": [],
-            }
-        },
-        "tasks": {
-            "opening": [],
-            "closing": [],
-            "social": [],
-            "interaction": [],
-        },
-        "history": [],
-        "drafts": {},
-        "logs": [],
-        "printers": {
-            "Kyocera 3010i": "192.168.1.120",
-            "Xerox 7835": "192.168.1.65",
-            "Kyocera P5031DN": "192.168.1.126",
-        },
-        "training_records": {},
-    }
+    return deepcopy(DEFAULT_APP_DATA)
+
+
+def get_default_user_schema() -> dict:
+    return deepcopy(DEFAULT_USER_SCHEMA)
 
 
 def ensure_directories() -> None:
@@ -77,8 +50,7 @@ def ensure_directories() -> None:
 # =====================================================
 def get_connection():
     ensure_directories()
-    conn = sqlite3.connect(DB_FILE, check_same_thread=False)
-    return conn
+    return sqlite3.connect(DB_FILE, check_same_thread=False)
 
 
 # =====================================================
@@ -89,34 +61,35 @@ def ensure_top_level_defaults(data: dict) -> dict:
 
     for key, default_value in default_data.items():
         if key not in data:
-            data[key] = default_value
+            data[key] = deepcopy(default_value)
+
+    return data
+
+
+def ensure_tasks_defaults(data: dict) -> dict:
+    data.setdefault("tasks", {})
+
+    for task_category in TASK_CATEGORIES:
+        if task_category not in data["tasks"]:
+            data["tasks"][task_category] = deepcopy(DEFAULT_TASKS.get(task_category, []))
 
     return data
 
 
 def ensure_user_defaults(user: dict) -> dict:
-    default_user = {
-        "pass": "",
-        "role": "user",
-        "full_name": "",
-        "photo": None,
-        "id_card": None,
-        "phone": "",
-        "email": "",
-        "national_id": "",
-        "address": "",
-        "qualification": "",
-        "hiring_date": "2024-01-01",
-        "salary": 0.0,
-        "bonus": [],
-        "deductions": [],
-        "overtime": [],
-        "extra_leaves": [],
-    }
+    default_user = get_default_user_schema()
 
     for key, default_value in default_user.items():
         if key not in user:
-            user[key] = default_value
+            user[key] = deepcopy(default_value)
+
+    if user.get("role") not in ROLE_OPTIONS:
+        legacy_role = user.get("role", ROLE_EMPLOYEE)
+        user["role"] = ROLE_EMPLOYEE if legacy_role == "user" else ROLE_EMPLOYEE
+
+    if not user.get("job_title"):
+        role_value = user.get("role", ROLE_EMPLOYEE)
+        user["job_title"] = role_value.replace("_", " ").title()
 
     return user
 
@@ -137,14 +110,18 @@ def normalize_history_records(data: dict) -> dict:
             record["expenses_list"] = expenses_list
             record["expenses"] = total_expenses
             record["exp_note"] = record.get("exp_note", exp_note)
-
         else:
             record.setdefault("expenses_list", [])
             record.setdefault("exp_note", "No Expenses Recorded")
 
+        record.setdefault("shift", "-")
+        record.setdefault("staff", "-")
+        record.setdefault("staff_username", "")
         record.setdefault("diff", 0.0)
         record.setdefault("t_open", 0.0)
         record.setdefault("t_close", 0.0)
+        record.setdefault("cash_breakdown", {})
+        record.setdefault("closing_cash_breakdown", {})
         record.setdefault("opay_open", 0.0)
         record.setdefault("opay_close", 0.0)
         record.setdefault("opay_diff", 0.0)
@@ -155,12 +132,16 @@ def normalize_history_records(data: dict) -> dict:
         record.setdefault("nbe_close", 0.0)
         record.setdefault("nbe_diff", 0.0)
         record.setdefault("printer_diff", {})
+        record.setdefault("interaction_notes", [])
+        record.setdefault("social_notes", [])
+        record.setdefault("role", "")
 
     return data
 
 
 def normalize_users(data: dict) -> dict:
     users = data.get("users", {})
+
     for username, user_data in users.items():
         users[username] = ensure_user_defaults(user_data)
 
@@ -185,14 +166,17 @@ def normalize_data(data: dict) -> dict:
         data = {}
 
     data = ensure_top_level_defaults(data)
+    data = ensure_tasks_defaults(data)
     data = normalize_users(data)
     data = normalize_history_records(data)
 
     if "admin" not in data["users"]:
-        data["users"]["admin"] = get_default_data()["users"]["admin"]
+        data["users"]["admin"] = deepcopy(get_default_data()["users"]["admin"])
     else:
         ensure_user_defaults(data["users"]["admin"])
-        data["users"]["admin"]["role"] = "admin"
+        data["users"]["admin"]["role"] = ROLE_ADMIN
+        if not data["users"]["admin"].get("job_title"):
+            data["users"]["admin"]["job_title"] = "System Admin"
 
     return data
 
@@ -333,6 +317,48 @@ def set_manager_phone(phone: str) -> None:
     db = load_db()
     db["manager_phone"] = phone
     save_db(db)
+
+
+def username_exists(username: str) -> bool:
+    db = load_db()
+    return username in db.get("users", {})
+
+
+def create_user(
+    username: str,
+    password: str,
+    full_name: str,
+    role: str = ROLE_EMPLOYEE,
+    job_title: str = "",
+) -> tuple[bool, str]:
+    db = load_db()
+
+    cleaned_username = username.strip()
+    cleaned_full_name = full_name.strip()
+
+    if not cleaned_username:
+        return False, "Username is required."
+
+    if not cleaned_full_name:
+        return False, "Full name is required."
+
+    if cleaned_username in db.get("users", {}):
+        return False, "Username already exists."
+
+    if role not in ROLE_OPTIONS:
+        role = ROLE_EMPLOYEE
+
+    new_user = get_default_user_schema()
+    new_user["pass"] = password
+    new_user["full_name"] = cleaned_full_name
+    new_user["role"] = role
+    new_user["job_title"] = job_title.strip() or role.replace("_", " ").title()
+
+    db.setdefault("users", {})
+    db["users"][cleaned_username] = new_user
+    save_db(db)
+
+    return True, "User created successfully."
 
 
 def reset_database() -> None:
