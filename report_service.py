@@ -5,13 +5,10 @@
 
 from datetime import date
 
-from auth_service import get_current_role, get_current_username
-from role_service import get_report_type
+from auth_service import get_current_username
+from role_service import get_report_type, get_normalized_current_role
 
 
-# =====================================================
-# Helpers
-# =====================================================
 def safe_float(value) -> float:
     try:
         return float(value or 0)
@@ -81,18 +78,16 @@ def build_printer_lines(printer_diff: dict) -> str:
 def get_user_display_data(db: dict) -> dict:
     username = get_current_username() or "-"
     user_record = db.get("users", {}).get(username, {})
+    normalized_role = get_normalized_current_role()
 
     return {
         "username": username,
         "full_name": user_record.get("full_name") or username,
-        "role": user_record.get("role", get_current_role() or "employee"),
+        "role": normalized_role,
         "job_title": user_record.get("job_title", ""),
     }
 
 
-# =====================================================
-# Unified Report Data
-# =====================================================
 def build_base_report_data(db: dict, session_state) -> dict:
     user_data = get_user_display_data(db)
 
@@ -143,38 +138,18 @@ def build_base_report_data(db: dict, session_state) -> dict:
     }
 
 
-# =====================================================
-# Role-Based Views
-# =====================================================
 def build_role_report_data(db: dict, session_state) -> dict:
     data = build_base_report_data(db, session_state)
     report_type = data["report_type"]
 
     if report_type == "financial":
-        data["visible_sections"] = [
-            "summary",
-            "cash_breakdown",
-            "digital",
-            "expenses",
-            "difference",
-        ]
+        data["visible_sections"] = ["summary", "cash_breakdown", "digital", "expenses"]
     elif report_type == "hr":
-        data["visible_sections"] = [
-            "identity",
-            "interaction_notes",
-            "special_notes",
-        ]
+        data["visible_sections"] = ["identity", "interaction_notes", "special_notes"]
     elif report_type == "cleaning":
-        data["visible_sections"] = [
-            "identity",
-            "special_notes",
-        ]
+        data["visible_sections"] = ["identity", "special_notes"]
     elif report_type == "design":
-        data["visible_sections"] = [
-            "identity",
-            "social_notes",
-            "special_notes",
-        ]
+        data["visible_sections"] = ["identity", "social_notes", "special_notes"]
     elif report_type == "full":
         data["visible_sections"] = [
             "summary",
@@ -187,25 +162,17 @@ def build_role_report_data(db: dict, session_state) -> dict:
             "printers",
         ]
     else:
-        data["visible_sections"] = [
-            "summary",
-            "interaction_notes",
-            "social_notes",
-            "special_notes",
-        ]
+        data["visible_sections"] = ["summary", "interaction_notes", "social_notes", "special_notes"]
 
     return data
 
 
-# =====================================================
-# WhatsApp Builders
-# =====================================================
 def build_whatsapp_text(db: dict, session_state) -> str:
     report = build_role_report_data(db, session_state)
     report_type = report["report_type"]
 
     header = (
-        f"■ NMS REPORT\n"
+        f"■ NMS {report_type.upper()} REPORT\n"
         f"📅 Date: {report['date']}\n"
         f"🏢 Branch: {report['branch']}\n"
         f"🕒 Shift: {report['shift']}\n"
@@ -291,6 +258,11 @@ Total Expenses: {report['total_expenses']:,.2f}
 """
     else:
         body = f"""
+🟢 OPERATIONS SUMMARY
+Sales: {report['sales']:,.2f}
+Expenses: {report['total_expenses']:,.2f}
+Cash Difference: {report['cash_diff']:,.2f}
+
 🤝 INTERACTION NOTES
 {report['interaction_notes']}
 
