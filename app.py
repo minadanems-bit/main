@@ -24,7 +24,8 @@ from constants import (
     ADMIN_MODULE_TASKS,
     ADMIN_MODULE_TRAINING,
     PAYROLL_ENTRY_KEY_MAP,
-    ROLE_USER,
+    ROLE_ADMIN,
+    ROLE_LABELS,
     SESSION_USER,
     TASK_CATEGORIES,
 )
@@ -52,6 +53,8 @@ def ensure_db_defaults() -> None:
             "closing": [],
             "social": [],
             "interaction": [],
+            "cleaning": [],
+            "design": [],
         },
         "branches": [],
         "expense_categories": [],
@@ -96,12 +99,23 @@ def parse_hiring_date(value: str):
         return date(2024, 1, 1)
 
 
+def get_role_label(role_value: str) -> str:
+    return ROLE_LABELS.get(role_value, str(role_value).replace("_", " ").title())
+
+
+def can_view_self_service() -> bool:
+    return get_current_role() != ROLE_ADMIN
+
+
 # =========================
 # Employee self service
 # =========================
 def render_self_service(user_info: dict) -> None:
     st.divider()
-    st.subheader("📂 My Financial Profile")
+    st.subheader("📂 My Profile")
+
+    st.write(f"**🧩 Role:** {get_role_label(user_info.get('role', 'employee'))}")
+    st.write(f"**💼 Job Title:** {user_info.get('job_title', '-')}")
     st.write(f"**📅 Hiring Date:** {user_info.get('hiring_date', '-')}")
 
     salary = float(user_info.get("salary", 0) or 0)
@@ -317,6 +331,8 @@ def render_archive_history_module() -> None:
     column_mapping = {
         "date": "Date",
         "staff": "Employee",
+        "staff_username": "Username",
+        "role": "Role",
         "branch": "Branch",
         "shift": "Shift",
         "sales": "Sales",
@@ -325,6 +341,9 @@ def render_archive_history_module() -> None:
         "diff": "Cash Diff",
         "t_open": "Opening Cash",
         "t_close": "Closing Cash",
+        "social_notes": "Social Notes",
+        "interaction_notes": "Interaction Notes",
+        "special_notes": "Special Notes",
     }
 
     existing_columns = {
@@ -332,6 +351,9 @@ def render_archive_history_module() -> None:
         for old_name, new_name in column_mapping.items()
         if old_name in df_history.columns
     }
+
+    if "role" in df_history.columns:
+        df_history["role"] = df_history["role"].apply(get_role_label)
 
     st.dataframe(
         df_history.rename(columns=existing_columns),
@@ -556,11 +578,14 @@ def render_admin_panel() -> None:
 def render_sidebar() -> None:
     with st.sidebar:
         user_info = get_current_user()
+        current_role = get_current_role()
 
         safe_user_image(user_info)
         st.header(f"Hi, {user_info.get('full_name', get_current_username() or 'User')}")
+        st.caption(f"Role: {get_role_label(current_role)}")
+        st.caption(f"Job Title: {user_info.get('job_title', '-')}")
 
-        if get_current_role() == ROLE_USER:
+        if can_view_self_service():
             render_self_service(user_info)
 
         if st.button("🚪 Logout", use_container_width=True):
