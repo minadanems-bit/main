@@ -1,48 +1,78 @@
 # =====================================================
 # ROLE SERVICE
-# Handles role permissions and visible modules
+# Handles role permissions and report type per role
 # =====================================================
 
 from auth_service import get_current_role
 
 
-# =====================================================
-# Role → Allowed Tabs
-# =====================================================
+ROLE_MANAGER = "manager"
+ROLE_EMPLOYEE = "employee"
+ROLE_ACCOUNTS = "accounts"
+ROLE_HR = "hr"
+ROLE_CLEANER = "cleaner"
+ROLE_GRAPHIC_DESIGNER = "graphic_designer"
+ROLE_ADMIN = "admin"
+ROLE_USER = "user"  # legacy
+
+
+def normalize_role(role_value: str | None) -> str:
+    role = (role_value or "").strip().lower()
+
+    legacy_map = {
+        "user": ROLE_EMPLOYEE,
+        "employee": ROLE_EMPLOYEE,
+        "admin": ROLE_ADMIN,
+        "manager": ROLE_MANAGER,
+        "accounts": ROLE_ACCOUNTS,
+        "hr": ROLE_HR,
+        "cleaner": ROLE_CLEANER,
+        "graphic_designer": ROLE_GRAPHIC_DESIGNER,
+        "graphic designer": ROLE_GRAPHIC_DESIGNER,
+        "designer": ROLE_GRAPHIC_DESIGNER,
+    }
+
+    return legacy_map.get(role, ROLE_EMPLOYEE)
+
+
 ROLE_ALLOWED_TABS = {
-    "manager": [
+    ROLE_ADMIN: [
+        "opening",
+        "closing",
+        "interaction",
+        "social",
+        "cleaning",
+        "design",
+        "report",
+    ],
+    ROLE_MANAGER: [
         "opening",
         "closing",
         "interaction",
         "social",
         "report",
     ],
-
-    "accounts": [
+    ROLE_ACCOUNTS: [
         "opening",
         "closing",
         "report",
     ],
-
-    "employee": [
+    ROLE_EMPLOYEE: [
         "opening",
         "closing",
         "interaction",
         "social",
         "report",
     ],
-
-    "hr": [
+    ROLE_HR: [
         "interaction",
         "report",
     ],
-
-    "cleaner": [
+    ROLE_CLEANER: [
         "cleaning",
         "report",
     ],
-
-    "graphic_designer": [
+    ROLE_GRAPHIC_DESIGNER: [
         "design",
         "social",
         "report",
@@ -50,54 +80,30 @@ ROLE_ALLOWED_TABS = {
 }
 
 
-# =====================================================
-# Role → Report Type
-# =====================================================
 ROLE_REPORT_TYPE = {
-    "manager": "full",
-    "accounts": "financial",
-    "employee": "operations",
-    "hr": "hr",
-    "cleaner": "cleaning",
-    "graphic_designer": "design",
+    ROLE_ADMIN: "full",
+    ROLE_MANAGER: "full",
+    ROLE_ACCOUNTS: "financial",
+    ROLE_EMPLOYEE: "operations",
+    ROLE_HR: "hr",
+    ROLE_CLEANER: "cleaning",
+    ROLE_GRAPHIC_DESIGNER: "design",
 }
 
 
-# =====================================================
-# Get allowed tabs for current user
-# =====================================================
-def get_allowed_tabs():
-    role = get_current_role()
+def get_normalized_current_role() -> str:
+    return normalize_role(get_current_role())
+
+
+def get_allowed_tabs() -> list[str]:
+    role = get_normalized_current_role()
     return ROLE_ALLOWED_TABS.get(role, ["report"])
 
 
-# =====================================================
-# Get report type for current user
-# =====================================================
-def get_report_type():
-    role = get_current_role()
+def get_report_type() -> str:
+    role = get_normalized_current_role()
     return ROLE_REPORT_TYPE.get(role, "operations")
 
 
-# =====================================================
-# Helper checks
-# =====================================================
 def can_access(tab_name: str) -> bool:
-    allowed = get_allowed_tabs()
-    return tab_name in allowed
-
-
-def is_financial_role() -> bool:
-    return get_report_type() == "financial"
-
-
-def is_hr_role() -> bool:
-    return get_report_type() == "hr"
-
-
-def is_cleaner_role() -> bool:
-    return get_report_type() == "cleaning"
-
-
-def is_design_role() -> bool:
-    return get_report_type() == "design"
+    return tab_name in get_allowed_tabs()
