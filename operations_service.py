@@ -536,7 +536,7 @@ def render_opening_tab(db: dict) -> None:
     st.subheader("🌅 Opening Tasks")
 
     for idx, task in enumerate(db.get("tasks", {}).get(TASK_OPENING, [])):
-    st.checkbox(task, key=f"open_task_{idx}_{task}")
+        st.checkbox(task, key=f"open_task_{idx}_{task}")
 
     st.divider()
 
@@ -610,7 +610,7 @@ def render_closing_tab(db: dict) -> None:
     st.subheader("🌇 Closing Tasks")
 
     for idx, task in enumerate(db.get("tasks", {}).get(TASK_CLOSING, [])):
-    st.checkbox(task, key=f"close_task_{idx}_{task}")
+        st.checkbox(task, key=f"close_task_{idx}_{task}")
 
     st.divider()
     st.subheader("💰 Closing Section")
