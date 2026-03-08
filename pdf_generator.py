@@ -1,231 +1,100 @@
+# pdf_service.py
 import io
 import base64
 from datetime import date
-
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter, landscape
-from reportlab.platypus import (
-    SimpleDocTemplate,
-    Table,
-    TableStyle,
-    Paragraph,
-    Spacer,
-    Image,
-    PageBreak
-)
-from reportlab.platypus.flowables import KeepTogether
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image, PageBreak, KeepTogether
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
-
-import streamlit as st
-from database import load_db
+from database_service import load_db
 
 db = load_db()
 
-
-# =====================================================
-# CREATE SHIFT PDF
-# =====================================================
-
 def create_downloadable_pdf(
-        branch,
-        staff_name,
-        date_str,
-        sales,
-        expenses,
-        exp_note,
-        diff,
-        printer_diff,
-        opay_move,
-        debit_v22   # ✅ ده يبقى debit بس
+    branch,
+    staff_name,
+    date_str,
+    sales,
+    expenses,
+    exp_note,
+    diff,
+    printer_diff,
+    opay_move,
+    debit_v22
 ):
-    """
-    ✅ SAFE VERSION
-    ✅ Auto Page Break
-    ✅ Prevent LayoutError
-    ✅ Safe Large Tables
-    """
-
     buffer = io.BytesIO()
-
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=landscape(letter),
-        topMargin=30,
-        bottomMargin=30
-    )
-
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(letter), topMargin=24, bottomMargin=24)
     elements = []
     styles = getSampleStyleSheet()
+    title_style = ParagraphStyle("Title", parent=styles["Heading1"], fontSize=20, alignment=1)
+    sub_style = ParagraphStyle("Sub", parent=styles["Normal"], fontSize=10, alignment=1)
 
-    # =====================================================
-    # STYLES
-    # =====================================================
-
-    title_style = ParagraphStyle(
-        "Title",
-        parent=styles["Heading1"],
-        fontSize=22,
-        alignment=1,
-        spaceAfter=15,
-        textColor=colors.darkblue
-    )
-
-    sub_style = ParagraphStyle(
-        "Sub",
-        parent=styles["Normal"],
-        fontSize=11,
-        alignment=1,
-        spaceAfter=20
-    )
-
-    # =====================================================
-    # HEADER
-    # =====================================================
-
-    logo_img = ""
+    # header: logo + title + staff photo
+    logo = ""
     staff_img = ""
-
     if db.get("logo"):
         try:
-            logo_bytes = base64.b64decode(db["logo"])
-            logo_img = Image(
-                io.BytesIO(logo_bytes),
-                width=1.2 * inch,
-                height=1.2 * inch
-            )
+            logo = Image(io.BytesIO(base64.b64decode(db["logo"])), width=1.2*inch, height=1.2*inch)
         except:
-            logo_img = ""
-
-    staff_data = db.get("users", {}).get(st.session_state.get("user"), {})
-
-    if staff_data.get("photo"):
+            logo = ""
+    staff = db.get("users", {}).get(staff_name, {}) if staff_name else {}
+    if staff and staff.get("photo"):
         try:
-            staff_bytes = base64.b64decode(staff_data["photo"])
-            staff_img = Image(
-                io.BytesIO(staff_bytes),
-                width=1.0 * inch,
-                height=1.0 * inch
-            )
+            staff_img = Image(io.BytesIO(base64.b64decode(staff["photo"])), width=1.0*inch, height=1.0*inch)
         except:
             staff_img = ""
 
-    header_table = Table(
-        [[logo_img, Paragraph(f"<b>NMS SHIFT REPORT</b><br/>{branch}", title_style), staff_img]],
-        colWidths=[2 * inch, 6 * inch, 2 * inch]
-    )
-
-    header_table.setStyle(TableStyle([
-        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-    ]))
-
-    elements.append(header_table)
-    elements.append(Spacer(1, 10))
-    elements.append(
-        Paragraph(f"Date: {date_str} | Staff: {staff_name}", sub_style)
-    )
-
+    header = Table([[logo, Paragraph(f"<b>NMS SHIFT REPORT</b><br/>{branch}", title_style), staff_img]],
+                   colWidths=[1.5*inch, 7.5*inch, 1.5*inch])
+    header.setStyle(TableStyle([("ALIGN",(0,0),(-1,-1),"CENTER"), ("VALIGN",(0,0),(-1,-1),"MIDDLE")]))
+    elements.append(header)
+    elements.append(Spacer(1,8))
+    elements.append(Paragraph(f"Date: {date_str} | By: {staff_name}", sub_style))
     elements.append(PageBreak())
 
-    # =====================================================
-    # FINANCIAL TABLE
-    # =====================================================
-
-    elements.append(Paragraph("💰 Financial Summary", styles["Heading2"]))
-    elements.append(Spacer(1, 10))
-
-    # 🔥 Prevent long text breaking layout
-    safe_exp_note = Paragraph(
-        str(exp_note) if exp_note else "-",
-        styles["Normal"]
-    )
-
-    fin_table_data = [
+    # Financial summary
+    elements.append(Paragraph("Financial Summary", styles["Heading2"]))
+    safe_note = Paragraph(str(exp_note) if exp_note else "-", styles["Normal"])
+    fin_rows = [
         ["Item", "Value", "Notes"],
         ["Total Sales", f"{sales:,.2f}", "-"],
-        ["Expenses", f"{expenses:,.2f}", safe_exp_note],
+        ["Expenses", f"{expenses:,.2f}", safe_note],
         ["Opay Movement", f"{opay_move:,.2f}", "-"],
         ["Debit", f"{debit_v22:,.2f}", "-"],
-        ["NET Difference", f"{diff:,.2f}", "Final Result"]
+        ["NET Difference", f"{diff:,.2f}", "Final"]
     ]
-
-    fin_table = Table(
-        fin_table_data,
-        colWidths=[3 * inch, 3 * inch, 4 * inch],
-        repeatRows=1  # 🔥 مهم جداً — يعيد الهيدر لو الصفحة اتقسمت
-    )
-
+    fin_table = Table(fin_rows, colWidths=[3*inch, 3*inch, 5*inch], repeatRows=1)
     fin_table.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), colors.darkblue),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
-        ("GRID", (0, 0), (-1, -1), 1, colors.black),
-        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-        ("BACKGROUND", (0, -1), (-1, -1), colors.lightgrey),
-        ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+        ("GRID",(0,0),(-1,-1),0.5,colors.grey),
+        ("BACKGROUND",(0,0),(-1,0),colors.HexColor("#0f172a")),
+        ("TEXTCOLOR",(0,0),(-1,0),colors.whitesmoke),
+        ("ALIGN",(0,0),(-1,-1),"CENTER")
     ]))
-
-    elements.append(fin_table)
-    elements.append(Spacer(1, 20))
+    elements.append(KeepTogether([fin_table]))
     elements.append(PageBreak())
 
-    # =====================================================
-    # PRINTER TABLE (SAFE + AUTO PAGE BREAK)
-    # =====================================================
-
-    elements.append(Paragraph("🖨 Printer Analysis", styles["Heading2"]))
-    elements.append(Spacer(1, 10))
-
-    printer_table_data = [
-        ["Printer", "Used", "Jam", "1-Side", "2-Side"]
-    ]
-
-    for printer_name, values in (printer_diff or {}).items():
-
-        printer_table_data.append([
-            printer_name,
-            values.get("used", 0),
-            values.get("jam", 0),
-            values.get("1s", 0),
-            values.get("2s", 0)
-        ])
-
-    printer_table = Table(
-        printer_table_data,
-        colWidths=[
-            2.5 * inch,
-            1.5 * inch,
-            1.5 * inch,
-            1.5 * inch,
-            1.5 * inch
-        ],
-        repeatRows=1  # 🔥 مهم جداً
-    )
-
-    printer_table.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), colors.darkred),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
-        ("GRID", (0, 0), (-1, -1), 1, colors.black),
-        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+    # Printers table (dynamic)
+    elements.append(Paragraph("Printers Analysis", styles["Heading2"]))
+    prn_header = [["Printer","Used","Jam","1-Side","2-Side"]]
+    prn_rows = prn_header[:]
+    for name, v in (printer_diff or {}).items():
+        prn_rows.append([name, v.get("used",0), v.get("jam",0), v.get("1s",0), v.get("2s",0)])
+    prn_table = Table(prn_rows, colWidths=[3*inch, 1.5*inch, 1.5*inch, 1.5*inch, 1.5*inch], repeatRows=1)
+    prn_table.setStyle(TableStyle([
+        ("GRID",(0,0),(-1,-1),0.5,colors.grey),
+        ("BACKGROUND",(0,0),(-1,0),colors.HexColor("#7f1d1d")),
+        ("TEXTCOLOR",(0,0),(-1,0),colors.whitesmoke),
+        ("ALIGN",(0,0),(-1,-1),"CENTER")
     ]))
+    elements.append(KeepTogether([prn_table]))
+    elements.append(Spacer(1,12))
 
-    elements.append(KeepTogether([printer_table]))
-    elements.append(Spacer(1, 30))
-
-    # =====================================================
-    # EXTRA SAFETY
-    # =====================================================
-
-    elements.append(PageBreak())
-    elements.append(Spacer(1, 40))
-
-    # =====================================================
-    # BUILD PDF SAFELY
-    # =====================================================
-
+    # footer summary
+    elements.append(Paragraph(f"Generated by NMS System", styles["Normal"]))
     try:
         doc.build(elements)
     except Exception as e:
-        st.error(f"PDF Build Error: {e}")
-
+        # return a readable error inside PDF bytes? Here we raise to caller
+        raise
     return buffer.getvalue()
