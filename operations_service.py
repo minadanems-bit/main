@@ -1,5 +1,5 @@
 # =====================================================
-# DAILY OPERATIONS MODULE (FINAL REFACTORED VERSION)
+# DAILY OPERATIONS MODULE (ENHANCED FINAL VERSION)
 # =====================================================
 
 from datetime import date
@@ -9,6 +9,12 @@ import streamlit as st
 
 from constants import (
     CASH_DENOMINATIONS,
+    ROLE_ACCOUNTS,
+    ROLE_CLEANER,
+    ROLE_GRAPHIC_DESIGNER,
+    ROLE_HR,
+    ROLE_MANAGER,
+    ROLE_TASK_ACCESS,
     SESSION_BRANCH,
     SESSION_CASH_DIFF,
     SESSION_CLOSE_TOTAL,
@@ -29,7 +35,10 @@ from constants import (
     SESSION_USER,
     SHIFT_MORNING,
     SHIFT_OPTIONS,
+    TASK_CLEANING,
     TASK_CLOSING,
+    TASK_DESIGN,
+    TASK_INTERACTION,
     TASK_OPENING,
     TASK_SOCIAL,
 )
@@ -59,11 +68,30 @@ def ensure_session_defaults() -> None:
         SESSION_DEBIT_CLOSE: 0.0,
         SESSION_NBE_OPEN: 0.0,
         SESSION_NBE_CLOSE: 0.0,
+        "opening_cash_breakdown": {},
+        "closing_cash_breakdown": {},
+        "social_notes": "",
+        "interaction_notes": "",
+        "special_notes": "",
     }
 
     for key, value in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = value
+
+
+def get_current_user_record(db: dict) -> dict:
+    username = st.session_state.get(SESSION_USER, "")
+    return db.get("users", {}).get(username, {})
+
+
+def get_current_role(db: dict) -> str:
+    return get_current_user_record(db).get("role", "employee")
+
+
+def get_allowed_task_categories(db: dict) -> list:
+    current_role = get_current_role(db)
+    return ROLE_TASK_ACCESS.get(current_role, [TASK_OPENING, TASK_CLOSING, TASK_SOCIAL, TASK_INTERACTION])
 
 
 def get_selected_branch(db: dict) -> str:
@@ -101,8 +129,9 @@ def get_selected_shift() -> str:
 # =====================================================
 # Generic Helpers
 # =====================================================
-def render_cash_counter(section_prefix: str, title_suffix: str = "") -> float:
+def render_cash_counter(section_prefix: str, title_suffix: str = "") -> tuple[float, dict]:
     total = 0.0
+    breakdown = {}
 
     for denomination in CASH_DENOMINATIONS:
         qty = st.number_input(
@@ -111,7 +140,12 @@ def render_cash_counter(section_prefix: str, title_suffix: str = "") -> float:
             step=1,
             key=f"{section_prefix}_{denomination}",
         )
-        total += qty * denomination
+        total_value = qty * denomination
+        breakdown[str(denomination)] = {
+            "qty": qty,
+            "total": total_value,
+        }
+        total += total_value
 
     coins_label = "Coins" if section_prefix == "open" else "Closing Coins"
     coins = st.number_input(
@@ -120,9 +154,33 @@ def render_cash_counter(section_prefix: str, title_suffix: str = "") -> float:
         step=0.5,
         key=f"{section_prefix}_coins",
     )
+
+    breakdown["coins"] = {
+        "qty": coins,
+        "total": coins,
+    }
     total += coins
 
-    return total
+    return total, breakdown
+
+
+def format_cash_breakdown_text(breakdown: dict) -> str:
+    if not breakdown:
+        return "No Cash Breakdown"
+
+    ordered_keys = [str(value) for value in CASH_DENOMINATIONS] + ["coins"]
+    lines = []
+
+    for key in ordered_keys:
+        if key not in breakdown:
+            continue
+
+        label = "Coins" if key == "coins" else f"{key} LE"
+        qty = breakdown[key].get("qty", 0)
+        total = breakdown[key].get("total", 0)
+        lines.append(f"• {label}: {qty} = {float(total):,.2f}")
+
+    return "\n".join(lines)
 
 
 def render_digital_inputs(mode: str) -> tuple[float, float, float]:
@@ -282,6 +340,11 @@ def get_staff_display_name(db: dict) -> str:
     return user_record.get("full_name") or username
 
 
+def get_staff_role(db: dict) -> str:
+    user_record = get_current_user_record(db)
+    return user_record.get("role", "employee")
+
+
 def get_shift_report_data(db: dict) -> dict:
     sys_sales = float(st.session_state.get(SESSION_SYSTEM_SALES, 0.0) or 0.0)
 
@@ -304,12 +367,16 @@ def get_shift_report_data(db: dict) -> dict:
     cash_diff = float(st.session_state.get(SESSION_CASH_DIFF, 0.0) or 0.0)
     printer_diff = st.session_state.get(SESSION_PRINTER_DIFF, {})
 
+    opening_cash_breakdown = st.session_state.get("opening_cash_breakdown", {})
+    closing_cash_breakdown = st.session_state.get("closing_cash_breakdown", {})
+
     return {
         "date": str(date.today()),
         "branch": st.session_state.get(SESSION_BRANCH, "-"),
         "shift": st.session_state.get(SESSION_SHIFT, "-"),
         "staff": get_staff_display_name(db),
         "staff_username": st.session_state.get(SESSION_USER, "-"),
+        "role": get_staff_role(db),
         "sales": sys_sales,
         "expenses_list": shift_expenses,
         "total_expenses": total_expenses,
@@ -328,6 +395,13 @@ def get_shift_report_data(db: dict) -> dict:
         "nbe_diff": nbe_diff,
         "t_open": float(st.session_state.get(SESSION_OPEN_TOTAL, 0.0) or 0.0),
         "t_close": float(st.session_state.get(SESSION_CLOSE_TOTAL, 0.0) or 0.0),
+        "opening_cash_breakdown": opening_cash_breakdown,
+        "closing_cash_breakdown": closing_cash_breakdown,
+        "opening_cash_text": format_cash_breakdown_text(opening_cash_breakdown),
+        "closing_cash_text": format_cash_breakdown_text(closing_cash_breakdown),
+        "social_notes": st.session_state.get("social_notes", "").strip(),
+        "interaction_notes": st.session_state.get("interaction_notes", "").strip(),
+        "special_notes": st.session_state.get("special_notes", "").strip(),
     }
 
 
@@ -342,6 +416,7 @@ def archive_shift(db: dict) -> None:
             "shift": report["shift"],
             "staff": report["staff"],
             "staff_username": report["staff_username"],
+            "role": report["role"],
             "sales": report["sales"],
             "expenses": report["total_expenses"],
             "expenses_list": report["expenses_list"],
@@ -349,6 +424,8 @@ def archive_shift(db: dict) -> None:
             "diff": report["cash_diff"],
             "t_open": report["t_open"],
             "t_close": report["t_close"],
+            "cash_breakdown": report["opening_cash_breakdown"],
+            "closing_cash_breakdown": report["closing_cash_breakdown"],
             "opay_open": report["opay_open"],
             "opay_close": report["opay_close"],
             "opay_diff": report["opay_diff"],
@@ -359,6 +436,9 @@ def archive_shift(db: dict) -> None:
             "nbe_close": report["nbe_close"],
             "nbe_diff": report["nbe_diff"],
             "printer_diff": report["printer_diff"],
+            "social_notes": report["social_notes"],
+            "interaction_notes": report["interaction_notes"],
+            "special_notes": report["special_notes"],
         }
     )
 
@@ -368,6 +448,10 @@ def archive_shift(db: dict) -> None:
 def build_whatsapp_text(db: dict) -> str:
     report = get_shift_report_data(db)
 
+    social_notes = report["social_notes"] or "No Social Notes"
+    interaction_notes = report["interaction_notes"] or "No Interaction Notes"
+    special_notes = report["special_notes"] or "No Special Notes"
+
     wa_text = f"""
 ■ NMS FULL SHIFT REPORT
 ■■■■■■■■■■■■■■■■■■■
@@ -376,10 +460,23 @@ def build_whatsapp_text(db: dict) -> str:
 🏢 Branch: {report["branch"]}
 🕒 Shift: {report["shift"]}
 👤 Staff: {report["staff"]}
+🧩 Role: {report["role"]}
 
 ■■■■■■■■■■■■■■■■■■■
 💰 SALES
 Total System Sales: {report["sales"]:,.2f}
+
+■■■■■■■■■■■■■■■■■■■
+💵 OPENING CASH BREAKDOWN
+{report["opening_cash_text"]}
+
+Total Opening Cash: {report["t_open"]:,.2f}
+
+■■■■■■■■■■■■■■■■■■■
+💵 CLOSING CASH BREAKDOWN
+{report["closing_cash_text"]}
+
+Total Closing Cash: {report["t_close"]:,.2f}
 
 ■■■■■■■■■■■■■■■■■■■
 💳 DIGITAL PAYMENTS
@@ -404,6 +501,18 @@ Diff: {report["nbe_diff"]:,.2f}
 Total Expenses: {report["total_expenses"]:,.2f}
 
 {report["expense_lines"]}
+
+■■■■■■■■■■■■■■■■■■■
+🤝 INTERACTION NOTES
+{interaction_notes}
+
+■■■■■■■■■■■■■■■■■■■
+📱 SOCIAL NOTES
+{social_notes}
+
+■■■■■■■■■■■■■■■■■■■
+📝 SPECIAL NOTES
+{special_notes}
 
 ■■■■■■■■■■■■■■■■■■■
 🖨 PRINTER DIFFERENCES
@@ -432,9 +541,10 @@ def render_opening_tab(db: dict) -> None:
     st.divider()
 
     st.subheader("💰 Opening Cash")
-    t_open = render_cash_counter("open")
+    t_open, opening_breakdown = render_cash_counter("open")
     st.success(f"Total Opening Cash: {t_open:,.2f} LE")
     st.session_state[SESSION_OPEN_TOTAL] = t_open
+    st.session_state["opening_cash_breakdown"] = opening_breakdown
 
     st.divider()
     st.subheader("💳 Digital Opening")
@@ -529,7 +639,7 @@ def render_closing_tab(db: dict) -> None:
     st.divider()
     st.subheader("🧮 Cash Count")
 
-    t_close = render_cash_counter("close", title_suffix=" ")
+    t_close, closing_breakdown = render_cash_counter("close", title_suffix=" ")
     diff = t_close - expected
 
     st.metric("Actual Cash", f"{t_close:,.2f} LE")
@@ -537,6 +647,7 @@ def render_closing_tab(db: dict) -> None:
 
     st.session_state[SESSION_CLOSE_TOTAL] = t_close
     st.session_state[SESSION_CASH_DIFF] = diff
+    st.session_state["closing_cash_breakdown"] = closing_breakdown
 
     st.divider()
     render_printer_end_inputs()
@@ -552,15 +663,94 @@ def render_closing_tab(db: dict) -> None:
 
 
 # =====================================================
-# Social / Archive / Report Tab
+# Interaction / Social / Special Tabs
 # =====================================================
-def render_social_tab(db: dict) -> None:
+def render_interaction_section(db: dict) -> None:
+    st.subheader("🤝 Interaction Tasks")
+
+    for task in db.get("tasks", {}).get(TASK_INTERACTION, []):
+        st.checkbox(task, key=f"interaction_task_{task}")
+
+    st.text_area(
+        "Interaction Notes",
+        key="interaction_notes",
+        height=140,
+        placeholder="Write customer interaction notes, complaint handling, follow-up status...",
+    )
+
+
+def render_social_section(db: dict) -> None:
     st.subheader("📱 Social Tasks")
 
     for task in db.get("tasks", {}).get(TASK_SOCIAL, []):
         st.checkbox(task, key=f"social_{task}")
 
-    st.divider()
+    st.text_area(
+        "Social Notes",
+        key="social_notes",
+        height=140,
+        placeholder="Write social media updates, responses, stories, inbox follow-up...",
+    )
+
+
+def render_cleaning_section(db: dict) -> None:
+    st.subheader("🧹 Cleaning Tasks")
+
+    for task in db.get("tasks", {}).get(TASK_CLEANING, []):
+        st.checkbox(task, key=f"cleaning_{task}")
+
+    st.text_area(
+        "Cleaning Notes",
+        key="special_notes",
+        height=140,
+        placeholder="Write cleaning status, sanitation notes, supplies needed...",
+    )
+
+
+def render_design_section(db: dict) -> None:
+    st.subheader("🎨 Design Tasks")
+
+    for task in db.get("tasks", {}).get(TASK_DESIGN, []):
+        st.checkbox(task, key=f"design_{task}")
+
+    st.text_area(
+        "Design Notes",
+        key="special_notes",
+        height=140,
+        placeholder="Write design jobs, pending mockups, export notes, customer approvals...",
+    )
+
+
+def render_role_specific_section(db: dict) -> None:
+    role_value = get_current_role(db)
+
+    if role_value == ROLE_CLEANER:
+        render_cleaning_section(db)
+    elif role_value == ROLE_GRAPHIC_DESIGNER:
+        render_design_section(db)
+    elif role_value in [ROLE_MANAGER, ROLE_ACCOUNTS, ROLE_HR]:
+        st.subheader("📝 Role Notes")
+        st.text_area(
+            "Special Notes",
+            key="special_notes",
+            height=140,
+            placeholder="Write role-specific notes, approvals, pending items, follow-up remarks...",
+        )
+    else:
+        st.subheader("📝 Special Notes")
+        st.text_area(
+            "Special Notes",
+            key="special_notes",
+            height=140,
+            placeholder="Write any additional notes for this shift...",
+        )
+
+
+# =====================================================
+# Report Tab
+# =====================================================
+def render_report_tab(db: dict) -> None:
+    st.subheader("📦 Archive & Reporting")
 
     col1, col2 = st.columns(2)
 
@@ -624,17 +814,40 @@ def daily_operations_ui(db: dict) -> None:
     with col1:
         st.info(f"📅 {date.today()}")
     with col2:
-        st.info(f"👤 {get_staff_display_name(db)}")
+        st.info(f"👤 {get_staff_display_name(db)} | {get_staff_role(db)}")
 
     st.divider()
 
-    tab1, tab2, tab3 = st.tabs(["🟢 OPENING", "🔴 CLOSING", "📱 SOCIAL"])
+    allowed_categories = get_allowed_task_categories(db)
 
-    with tab1:
-        render_opening_tab(db)
+    tabs = []
+    renderers = []
 
-    with tab2:
-        render_closing_tab(db)
+    if TASK_OPENING in allowed_categories:
+        tabs.append("🟢 OPENING")
+        renderers.append(lambda: render_opening_tab(db))
 
-    with tab3:
-        render_social_tab(db)
+    if TASK_CLOSING in allowed_categories:
+        tabs.append("🔴 CLOSING")
+        renderers.append(lambda: render_closing_tab(db))
+
+    if TASK_INTERACTION in allowed_categories:
+        tabs.append("🤝 INTERACTION")
+        renderers.append(lambda: render_interaction_section(db))
+
+    if TASK_SOCIAL in allowed_categories:
+        tabs.append("📱 SOCIAL")
+        renderers.append(lambda: render_social_section(db))
+
+    if TASK_CLEANING in allowed_categories or TASK_DESIGN in allowed_categories:
+        tabs.append("🧩 ROLE TASKS")
+        renderers.append(lambda: render_role_specific_section(db))
+
+    tabs.append("📦 REPORT")
+    renderers.append(lambda: render_report_tab(db))
+
+    tab_objects = st.tabs(tabs)
+
+    for tab_obj, renderer in zip(tab_objects, renderers):
+        with tab_obj:
+            renderer()
