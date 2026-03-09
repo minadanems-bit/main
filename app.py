@@ -115,6 +115,45 @@ def can_view_self_service() -> bool:
 
 
 # =========================
+# Supabase import manager
+# =========================
+def render_supabase_import_manager() -> None:
+    if not is_admin():
+        return
+
+    st.markdown("### ☁️ Import Backup To Supabase")
+    st.info("ارفع ملف النسخة الاحتياطية JSON ثم اضغط استيراد إلى Supabase.")
+
+    uploaded_backup = st.file_uploader(
+        "Upload Backup JSON File",
+        type=["json"],
+        key="supabase_backup_upload",
+    )
+
+    if uploaded_backup is not None:
+        st.success(f"Selected file: {uploaded_backup.name}")
+
+        if st.button("🚀 Import Backup To Supabase", use_container_width=True):
+            try:
+                backup_folder = "backups"
+                os.makedirs(backup_folder, exist_ok=True)
+
+                temp_backup_path = os.path.join(backup_folder, uploaded_backup.name)
+
+                with open(temp_backup_path, "wb") as f:
+                    f.write(uploaded_backup.getbuffer())
+
+                migrate(temp_backup_path)
+                refresh_db()
+
+                st.success("✅ Backup imported to Supabase successfully.")
+                st.rerun()
+
+            except Exception as e:
+                st.error(f"Import failed: {e}")
+
+
+# =========================
 # Employee self service
 # =========================
 def render_self_service(user_info: dict) -> None:
