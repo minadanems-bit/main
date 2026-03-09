@@ -650,6 +650,9 @@ def render_backup_manager() -> None:
     os.makedirs(backup_folder, exist_ok=True)
 
     with st.expander("🧰 Backup Manager"):
+        render_supabase_import_manager()
+        st.divider()
+
         backup_files = sorted(os.listdir(backup_folder), reverse=True)
 
         if not backup_files:
