@@ -32,6 +32,7 @@ from constants import (
 from database import get_supabase, load_db, save_db
 from operations_service import daily_operations_ui
 from printer_service import printer_management_ui
+from supabase_migration import migrate
 
 
 # =========================
@@ -710,3 +711,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+عدل كامل ونهائي وراجع منيح قبل ماتبعتهولي
