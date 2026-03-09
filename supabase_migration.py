@@ -1,12 +1,11 @@
 # =====================================================
-# SUPABASE MIGRATION SCRIPT
-# Migrates JSON backup data to Supabase
+# SUPABASE MIGRATION SCRIPT (RESET + FULL IMPORT)
 # =====================================================
 
 import json
 from pathlib import Path
 
-from supabase import create_client, Client
+from supabase import Client, create_client
 
 
 # =====================================================
@@ -49,12 +48,42 @@ def safe_dict(value):
     return value if isinstance(value, dict) else {}
 
 
-def upsert_users(supabase: Client, data: dict) -> None:
-    users = safe_dict(data.get("users"))
+def chunked(items, size=200):
+    for i in range(0, len(items), size):
+        yield items[i:i + size]
 
-    payload = []
+
+def count_rows(supabase: Client, table_name: str) -> int:
+    result = supabase.table(table_name).select("*", count="exact").limit(1).execute()
+    return result.count or 0
+
+
+def delete_all_rows(supabase: Client, table_name: str, key_column: str) -> None:
+    print(f"Clearing table: {table_name}")
+    supabase.table(table_name).delete().neq(key_column, "__never__").execute()
+
+
+def insert_rows(supabase: Client, table_name: str, rows: list, chunk_size: int = 200) -> None:
+    if not rows:
+        print(f"No rows to insert into {table_name}")
+        return
+
+    for batch in chunked(rows, chunk_size):
+        supabase.table(table_name).insert(batch).execute()
+
+    print(f"Inserted {len(rows)} rows into {table_name}")
+
+
+# =====================================================
+# BUILD ROWS
+# =====================================================
+def build_user_rows(data: dict) -> tuple[list, list]:
+    users = safe_dict(data.get("users"))
+    user_rows = []
+    financial_rows = []
+
     for username, user in users.items():
-        payload.append(
+        user_rows.append(
             {
                 "username": username,
                 "password": user.get("pass", ""),
@@ -73,11 +102,6 @@ def upsert_users(supabase: Client, data: dict) -> None:
             }
         )
 
-    if payload:
-        supabase.table("users").upsert(payload, on_conflict="username").execute()
-
-    financial_rows = []
-    for username, user in users.items():
         for record_type in ["bonus", "deductions", "overtime", "extra_leaves"]:
             for item in safe_list(user.get(record_type)):
                 financial_rows.append(
@@ -90,49 +114,47 @@ def upsert_users(supabase: Client, data: dict) -> None:
                     }
                 )
 
-    if financial_rows:
-        supabase.table("employee_financial_records").insert(financial_rows).execute()
+    return user_rows, financial_rows
 
 
-def upsert_tasks(supabase: Client, data: dict) -> None:
+def build_task_rows(data: dict) -> list:
     tasks = safe_dict(data.get("tasks"))
-
     rows = []
+
     for category, task_list in tasks.items():
         for task_text in safe_list(task_list):
-            rows.append(
-                {
-                    "category": category,
-                    "task_text": str(task_text).strip(),
-                }
-            )
+            task_text = str(task_text).strip()
+            if task_text:
+                rows.append(
+                    {
+                        "category": category,
+                        "task_text": task_text,
+                    }
+                )
 
-    if rows:
-        existing = supabase.table("tasks").select("id").limit(1).execute()
-        if not existing.data:
-            supabase.table("tasks").insert(rows).execute()
-
-
-def upsert_branches(supabase: Client, data: dict) -> None:
-    rows = [{"branch_name": branch} for branch in safe_list(data.get("branches")) if str(branch).strip()]
-    if rows:
-        supabase.table("branches").upsert(rows, on_conflict="branch_name").execute()
+    return rows
 
 
-def upsert_expense_categories(supabase: Client, data: dict) -> None:
-    rows = [
+def build_branch_rows(data: dict) -> list:
+    return [
+        {"branch_name": branch}
+        for branch in safe_list(data.get("branches"))
+        if str(branch).strip()
+    ]
+
+
+def build_expense_category_rows(data: dict) -> list:
+    return [
         {"category_name": item}
         for item in safe_list(data.get("expense_categories"))
         if str(item).strip()
     ]
-    if rows:
-        supabase.table("expense_categories").upsert(rows, on_conflict="category_name").execute()
 
 
-def upsert_printers(supabase: Client, data: dict) -> None:
+def build_printer_rows(data: dict) -> list:
     printers = safe_dict(data.get("printers"))
-
     rows = []
+
     for printer_name, printer_ip in printers.items():
         rows.append(
             {
@@ -141,15 +163,25 @@ def upsert_printers(supabase: Client, data: dict) -> None:
             }
         )
 
-    if rows:
-        supabase.table("printers").upsert(rows, on_conflict="printer_name").execute()
+    return rows
 
 
-def upsert_history(supabase: Client, data: dict) -> None:
+def build_history_rows(data: dict) -> list:
     history = safe_list(data.get("history"))
-
     rows = []
+
     for item in history:
+        interaction_notes = item.get("interaction_notes", "")
+        social_notes = item.get("social_notes", "")
+        special_notes = item.get("special_notes", "")
+
+        if isinstance(interaction_notes, list):
+            interaction_notes = "\n".join(str(x) for x in interaction_notes)
+        if isinstance(social_notes, list):
+            social_notes = "\n".join(str(x) for x in social_notes)
+        if isinstance(special_notes, list):
+            special_notes = "\n".join(str(x) for x in special_notes)
+
         rows.append(
             {
                 "report_date": item.get("date", "2024-01-01"),
@@ -179,23 +211,20 @@ def upsert_history(supabase: Client, data: dict) -> None:
                 "nbe_diff": float(item.get("nbe_diff", 0) or 0),
                 "printer_diff": safe_dict(item.get("printer_diff")),
                 "expenses_list": safe_list(item.get("expenses_list")),
-                "social_notes": item.get("social_notes", ""),
-                "interaction_notes": item.get("interaction_notes", ""),
-                "special_notes": item.get("special_notes", ""),
+                "social_notes": social_notes,
+                "interaction_notes": interaction_notes,
+                "special_notes": special_notes,
                 "visible_sections": safe_list(item.get("visible_sections")),
             }
         )
 
-    if rows:
-        existing = supabase.table("shift_history").select("id").limit(1).execute()
-        if not existing.data:
-            supabase.table("shift_history").insert(rows).execute()
+    return rows
 
 
-def upsert_training_records(supabase: Client, data: dict) -> None:
+def build_training_rows(data: dict) -> list:
     records = safe_dict(data.get("training_records"))
-
     rows = []
+
     for username, item in records.items():
         rows.append(
             {
@@ -205,12 +234,11 @@ def upsert_training_records(supabase: Client, data: dict) -> None:
             }
         )
 
-    if rows:
-        supabase.table("training_records").insert(rows).execute()
+    return rows
 
 
-def upsert_settings(supabase: Client, data: dict) -> None:
-    rows = [
+def build_settings_rows(data: dict) -> list:
+    return [
         {
             "setting_key": "manager_phone",
             "setting_value": data.get("manager_phone"),
@@ -221,43 +249,82 @@ def upsert_settings(supabase: Client, data: dict) -> None:
         },
     ]
 
-    supabase.table("app_settings").upsert(rows, on_conflict="setting_key").execute()
-
 
 # =====================================================
 # RUN
 # =====================================================
 def migrate() -> None:
+    print("=" * 60)
     print("Loading backup...")
     data = load_backup()
 
     print("Connecting to Supabase...")
     supabase = get_supabase()
 
-    print("Migrating users...")
-    upsert_users(supabase, data)
+    # Build rows first
+    user_rows, financial_rows = build_user_rows(data)
+    task_rows = build_task_rows(data)
+    branch_rows = build_branch_rows(data)
+    expense_rows = build_expense_category_rows(data)
+    printer_rows = build_printer_rows(data)
+    history_rows = build_history_rows(data)
+    training_rows = build_training_rows(data)
+    settings_rows = build_settings_rows(data)
 
-    print("Migrating tasks...")
-    upsert_tasks(supabase, data)
+    print("=" * 60)
+    print("Prepared data counts:")
+    print(f"users: {len(user_rows)}")
+    print(f"employee_financial_records: {len(financial_rows)}")
+    print(f"tasks: {len(task_rows)}")
+    print(f"branches: {len(branch_rows)}")
+    print(f"expense_categories: {len(expense_rows)}")
+    print(f"printers: {len(printer_rows)}")
+    print(f"shift_history: {len(history_rows)}")
+    print(f"training_records: {len(training_rows)}")
+    print(f"app_settings: {len(settings_rows)}")
 
-    print("Migrating branches...")
-    upsert_branches(supabase, data)
+    print("=" * 60)
+    print("Clearing old data...")
 
-    print("Migrating expense categories...")
-    upsert_expense_categories(supabase, data)
+    delete_all_rows(supabase, "employee_financial_records", "username")
+    delete_all_rows(supabase, "shift_history", "staff")
+    delete_all_rows(supabase, "training_records", "username")
+    delete_all_rows(supabase, "tasks", "category")
+    delete_all_rows(supabase, "branches", "branch_name")
+    delete_all_rows(supabase, "expense_categories", "category_name")
+    delete_all_rows(supabase, "printers", "printer_name")
+    delete_all_rows(supabase, "users", "username")
+    delete_all_rows(supabase, "app_settings", "setting_key")
 
-    print("Migrating printers...")
-    upsert_printers(supabase, data)
+    print("=" * 60)
+    print("Inserting fresh data...")
 
-    print("Migrating history...")
-    upsert_history(supabase, data)
+    insert_rows(supabase, "users", user_rows)
+    insert_rows(supabase, "employee_financial_records", financial_rows)
+    insert_rows(supabase, "tasks", task_rows)
+    insert_rows(supabase, "branches", branch_rows)
+    insert_rows(supabase, "expense_categories", expense_rows)
+    insert_rows(supabase, "printers", printer_rows)
+    insert_rows(supabase, "shift_history", history_rows)
+    insert_rows(supabase, "training_records", training_rows)
 
-    print("Migrating training records...")
-    upsert_training_records(supabase, data)
+    if settings_rows:
+        supabase.table("app_settings").upsert(settings_rows, on_conflict="setting_key").execute()
+        print(f"Upserted {len(settings_rows)} rows into app_settings")
 
-    print("Migrating settings...")
-    upsert_settings(supabase, data)
+    print("=" * 60)
+    print("Final table counts:")
+    print(f"users: {count_rows(supabase, 'users')}")
+    print(f"employee_financial_records: {count_rows(supabase, 'employee_financial_records')}")
+    print(f"tasks: {count_rows(supabase, 'tasks')}")
+    print(f"branches: {count_rows(supabase, 'branches')}")
+    print(f"expense_categories: {count_rows(supabase, 'expense_categories')}")
+    print(f"printers: {count_rows(supabase, 'printers')}")
+    print(f"shift_history: {count_rows(supabase, 'shift_history')}")
+    print(f"training_records: {count_rows(supabase, 'training_records')}")
+    print(f"app_settings: {count_rows(supabase, 'app_settings')}")
 
+    print("=" * 60)
     print("Migration completed successfully.")
 
 
