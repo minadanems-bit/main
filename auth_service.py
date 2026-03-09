@@ -6,8 +6,6 @@ from datetime import datetime
 
 import streamlit as st
 
-from database import save_db
-
 
 # =====================================================
 # Helpers
@@ -41,14 +39,24 @@ def require_admin() -> bool:
 
 
 def log_auth_event(db: dict, username: str, action: str) -> None:
-    db.setdefault("logs", []).append(
-        {
-            "user": username,
-            "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "action": action,
-        }
-    )
-    save_db(db)
+    """
+    Temporary safe logger:
+    keep auth logs in memory only, without saving the whole database.
+
+    Reason:
+    current project moved to Supabase, while logs are not yet migrated
+    and save_db(db) performs a full sync that can break login/logout.
+    """
+    try:
+        db.setdefault("logs", []).append(
+            {
+                "user": username,
+                "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "action": action,
+            }
+        )
+    except Exception:
+        pass
 
 
 # =====================================================
@@ -79,6 +87,10 @@ def get_draft_prefixes() -> tuple[str, ...]:
 
 
 def sync_user_drafts(db: dict) -> None:
+    """
+    Temporary safe draft sync:
+    store drafts in runtime memory only, without calling save_db(db).
+    """
     if not is_logged_in():
         return
 
@@ -96,7 +108,6 @@ def sync_user_drafts(db: dict) -> None:
 
     db.setdefault("drafts", {})
     db["drafts"][username] = draft_data
-    save_db(db)
 
 
 def restore_user_drafts(db: dict, username: str) -> None:
@@ -106,7 +117,7 @@ def restore_user_drafts(db: dict, username: str) -> None:
 
 
 def clear_user_session() -> None:
-    keep_keys = {"theme"}  # placeholder if you keep UI-level preferences later
+    keep_keys = {"theme"}
     keys_to_remove = [key for key in st.session_state.keys() if key not in keep_keys]
 
     for key in keys_to_remove:
