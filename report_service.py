@@ -6,9 +6,12 @@
 from datetime import date
 
 from auth_service import get_current_username
-from role_service import get_report_type, get_normalized_current_role
+from role_service import get_normalized_current_role, get_report_type
 
 
+# =====================================================
+# Generic Helpers
+# =====================================================
 def safe_float(value) -> float:
     try:
         return float(value or 0)
@@ -21,6 +24,14 @@ def safe_text(value, default="-") -> str:
     return text if text else default
 
 
+def join_non_empty_sections(sections: list[str]) -> str:
+    cleaned = [section.strip() for section in sections if str(section).strip()]
+    return "\n\n".join(cleaned)
+
+
+# =====================================================
+# Data Builders
+# =====================================================
 def calculate_total_expenses(expenses: list) -> float:
     return sum(safe_float(item.get("amount", 0)) for item in (expenses or []))
 
@@ -101,6 +112,10 @@ def build_base_report_data(db: dict, session_state) -> dict:
     nbe_open = safe_float(session_state.get("nbe_open", 0))
     nbe_close = safe_float(session_state.get("nbe_close", 0))
 
+    opening_cash_breakdown = session_state.get("opening_cash_breakdown", {})
+    closing_cash_breakdown = session_state.get("closing_cash_breakdown", {})
+    printer_diff = session_state.get("printer_diff", {})
+
     return {
         "date": str(date.today()),
         "branch": session_state.get("branch", "-"),
@@ -117,10 +132,10 @@ def build_base_report_data(db: dict, session_state) -> dict:
         "cash_diff": safe_float(session_state.get("cash_diff", 0)),
         "t_open": safe_float(session_state.get("t_open", 0)),
         "t_close": safe_float(session_state.get("t_close", 0)),
-        "opening_cash_breakdown": session_state.get("opening_cash_breakdown", {}),
-        "closing_cash_breakdown": session_state.get("closing_cash_breakdown", {}),
-        "opening_cash_text": build_cash_breakdown_text(session_state.get("opening_cash_breakdown", {})),
-        "closing_cash_text": build_cash_breakdown_text(session_state.get("closing_cash_breakdown", {})),
+        "opening_cash_breakdown": opening_cash_breakdown,
+        "closing_cash_breakdown": closing_cash_breakdown,
+        "opening_cash_text": build_cash_breakdown_text(opening_cash_breakdown),
+        "closing_cash_text": build_cash_breakdown_text(closing_cash_breakdown),
         "opay_open": opay_open,
         "opay_close": opay_close,
         "opay_diff": opay_close - opay_open,
@@ -130,28 +145,29 @@ def build_base_report_data(db: dict, session_state) -> dict:
         "nbe_open": nbe_open,
         "nbe_close": nbe_close,
         "nbe_diff": nbe_close - nbe_open,
-        "printer_diff": session_state.get("printer_diff", {}),
-        "printer_lines": build_printer_lines(session_state.get("printer_diff", {})),
+        "printer_diff": printer_diff,
+        "printer_lines": build_printer_lines(printer_diff),
         "social_notes": safe_text(session_state.get("social_notes", ""), "No Social Notes"),
         "interaction_notes": safe_text(session_state.get("interaction_notes", ""), "No Interaction Notes"),
         "special_notes": safe_text(session_state.get("special_notes", ""), "No Special Notes"),
     }
 
 
-def build_role_report_data(db: dict, session_state) -> dict:
-    data = build_base_report_data(db, session_state)
-    report_type = data["report_type"]
-
+# =====================================================
+# Visible Sections
+# =====================================================
+def get_visible_sections(report_type: str) -> list[str]:
     if report_type == "financial":
-        data["visible_sections"] = ["summary", "cash_breakdown", "digital", "expenses"]
-    elif report_type == "hr":
-        data["visible_sections"] = ["identity", "interaction_notes", "special_notes"]
-    elif report_type == "cleaning":
-        data["visible_sections"] = ["identity", "special_notes"]
-    elif report_type == "design":
-        data["visible_sections"] = ["identity", "social_notes", "special_notes"]
-    elif report_type == "full":
-        data["visible_sections"] = [
+        return ["identity", "summary", "cash_breakdown", "digital", "expenses"]
+    if report_type == "hr":
+        return ["identity", "interaction_notes", "special_notes"]
+    if report_type == "cleaning":
+        return ["identity", "special_notes"]
+    if report_type == "design":
+        return ["identity", "social_notes", "special_notes"]
+    if report_type == "full":
+        return [
+            "identity",
             "summary",
             "cash_breakdown",
             "digital",
@@ -161,130 +177,164 @@ def build_role_report_data(db: dict, session_state) -> dict:
             "special_notes",
             "printers",
         ]
-    else:
-        data["visible_sections"] = ["summary", "interaction_notes", "social_notes", "special_notes"]
+    return ["identity", "summary", "interaction_notes", "social_notes", "special_notes"]
 
+
+def build_role_report_data(db: dict, session_state) -> dict:
+    data = build_base_report_data(db, session_state)
+    data["visible_sections"] = get_visible_sections(data["report_type"])
     return data
 
 
+# =====================================================
+# WhatsApp Section Builders
+# =====================================================
+def build_identity_section(report: dict) -> str:
+    return "\n".join(
+        [
+            f"Date: {report['date']}",
+            f"Branch: {report['branch']}",
+            f"Shift: {report['shift']}",
+            f"Staff: {report['staff']}",
+            f"Role: {report['role']}",
+        ]
+    )
+
+
+def build_summary_section(report: dict) -> str:
+    return "\n".join(
+        [
+            "SALES",
+            f"Total System Sales: {report['sales']:,.2f}",
+            "",
+            "CASH DIFFERENCE",
+            f"{report['cash_diff']:,.2f}",
+        ]
+    )
+
+
+def build_cash_breakdown_section(report: dict) -> str:
+    return "\n".join(
+        [
+            "OPENING CASH",
+            report["opening_cash_text"],
+            f"Total Opening Cash: {report['t_open']:,.2f}",
+            "",
+            "CLOSING CASH",
+            report["closing_cash_text"],
+            f"Total Closing Cash: {report['t_close']:,.2f}",
+        ]
+    )
+
+
+def build_digital_section(report: dict) -> str:
+    return "\n".join(
+        [
+            "DIGITAL",
+            f"Opay Diff: {report['opay_diff']:,.2f}",
+            f"Debit Diff: {report['debit_diff']:,.2f}",
+            f"NBE Diff: {report['nbe_diff']:,.2f}",
+        ]
+    )
+
+
+def build_expenses_section(report: dict) -> str:
+    return "\n".join(
+        [
+            "EXPENSES",
+            f"Total Expenses: {report['total_expenses']:,.2f}",
+            report["expense_lines"],
+        ]
+    )
+
+
+def build_interaction_notes_section(report: dict) -> str:
+    return "\n".join(
+        [
+            "INTERACTION NOTES",
+            report["interaction_notes"],
+        ]
+    )
+
+
+def build_social_notes_section(report: dict) -> str:
+    return "\n".join(
+        [
+            "SOCIAL NOTES",
+            report["social_notes"],
+        ]
+    )
+
+
+def build_special_notes_section(report: dict) -> str:
+    report_type = report.get("report_type", "")
+
+    if report_type == "hr":
+        title = "HR NOTES"
+    elif report_type == "cleaning":
+        title = "CLEANING NOTES"
+    elif report_type == "design":
+        title = "DESIGN NOTES"
+    else:
+        title = "SPECIAL NOTES"
+
+    return "\n".join(
+        [
+            title,
+            report["special_notes"],
+        ]
+    )
+
+
+def build_printers_section(report: dict) -> str:
+    return "\n".join(
+        [
+            "PRINTERS",
+            report["printer_lines"],
+        ]
+    )
+
+
+def build_section_text(section_name: str, report: dict) -> str:
+    if section_name == "identity":
+        return build_identity_section(report)
+    if section_name == "summary":
+        return build_summary_section(report)
+    if section_name == "cash_breakdown":
+        return build_cash_breakdown_section(report)
+    if section_name == "digital":
+        return build_digital_section(report)
+    if section_name == "expenses":
+        return build_expenses_section(report)
+    if section_name == "interaction_notes":
+        return build_interaction_notes_section(report)
+    if section_name == "social_notes":
+        return build_social_notes_section(report)
+    if section_name == "special_notes":
+        return build_special_notes_section(report)
+    if section_name == "printers":
+        return build_printers_section(report)
+    return ""
+
+
+# =====================================================
+# WhatsApp
+# =====================================================
 def build_whatsapp_text(db: dict, session_state) -> str:
     report = build_role_report_data(db, session_state)
     report_type = report["report_type"]
 
-    header = (
-        f"NMS {report_type.upper()} REPORT\n"
-        f"Date: {report['date']}\n"
-        f"Branch: {report['branch']}\n"
-        f"Shift: {report['shift']}\n"
-        f"Staff: {report['staff']}\n"
-        f"Role: {report['role']}\n"
+    title = f"NMS {report_type.upper()} REPORT"
+
+    visible_sections = report.get("visible_sections", [])
+    section_blocks = [build_section_text(section_name, report) for section_name in visible_sections]
+
+    full_text = join_non_empty_sections(
+        [
+            title,
+            *section_blocks,
+            "Generated by NMS System",
+        ]
     )
 
-    if report_type == "financial":
-        body = f"""
-SALES
-Total System Sales: {report['sales']:,.2f}
-
-OPENING CASH
-{report['opening_cash_text']}
-Total Opening Cash: {report['t_open']:,.2f}
-
-CLOSING CASH
-{report['closing_cash_text']}
-Total Closing Cash: {report['t_close']:,.2f}
-
-DIGITAL
-Opay Diff: {report['opay_diff']:,.2f}
-Debit Diff: {report['debit_diff']:,.2f}
-NBE Diff: {report['nbe_diff']:,.2f}
-
-EXPENSES
-Total Expenses: {report['total_expenses']:,.2f}
-{report['expense_lines']}
-
-CASH DIFFERENCE
-{report['cash_diff']:,.2f}
-"""
-    elif report_type == "hr":
-        body = f"""
-HR REPORT
-
-INTERACTION NOTES
-{report['interaction_notes']}
-
-HR NOTES
-{report['special_notes']}
-"""
-    elif report_type == "cleaning":
-        body = f"""
-CLEANING REPORT
-
-CLEANING NOTES
-{report['special_notes']}
-"""
-    elif report_type == "design":
-        body = f"""
-DESIGN REPORT
-
-SOCIAL NOTES
-{report['social_notes']}
-
-DESIGN NOTES
-{report['special_notes']}
-"""
-    elif report_type == "full":
-        body = f"""
-FULL REPORT
-
-SALES
-Total System Sales: {report['sales']:,.2f}
-
-OPENING CASH
-{report['opening_cash_text']}
-
-CLOSING CASH
-{report['closing_cash_text']}
-
-EXPENSES
-Total Expenses: {report['total_expenses']:,.2f}
-{report['expense_lines']}
-
-INTERACTION NOTES
-{report['interaction_notes']}
-
-SOCIAL NOTES
-{report['social_notes']}
-
-SPECIAL NOTES
-{report['special_notes']}
-
-PRINTERS
-{report['printer_lines']}
-
-CASH DIFFERENCE
-{report['cash_diff']:,.2f}
-"""
-    else:
-        body = f"""
-OPERATIONS REPORT
-
-SALES
-{report['sales']:,.2f}
-
-EXPENSES
-{report['total_expenses']:,.2f}
-
-CASH DIFFERENCE
-{report['cash_diff']:,.2f}
-
-INTERACTION NOTES
-{report['interaction_notes']}
-
-SOCIAL NOTES
-{report['social_notes']}
-
-SPECIAL NOTES
-{report['special_notes']}
-"""
-
-    return (header + "\n" + body + "\nGenerated by NMS System").strip()[:3500]
+    return full_text.strip()[:3500]
