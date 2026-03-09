@@ -262,23 +262,12 @@ def render_payroll_module() -> None:
 
 
 def render_tasks_module() -> None:
+    from task_service import add_task, delete_task, get_tasks_by_category
+
     st.info("Manage operational tasks and checklists")
 
     category = st.selectbox("Category", TASK_CATEGORIES, key="tasks_category_select")
-    supabase = get_supabase()
-
-    try:
-        result = (
-            supabase.table("tasks")
-            .select("id, category, task_text")
-            .eq("category", category)
-            .order("created_at")
-            .execute()
-        )
-        task_rows = result.data or []
-    except Exception as e:
-        st.error(f"Failed to load tasks: {e}")
-        return
+    task_rows = get_tasks_by_category(category)
 
     if task_rows:
         for row in task_rows:
@@ -287,30 +276,25 @@ def render_tasks_module() -> None:
                 st.text(f"📌 {row.get('task_text', '')}")
             with c2:
                 if st.button("🗑️", key=f"del_task_{row['id']}"):
-                    try:
-                        supabase.table("tasks").delete().eq("id", row["id"]).execute()
+                    success, message = delete_task(row["id"])
+                    if success:
+                        st.success(message)
                         refresh_db()
                         st.rerun()
-                    except Exception as e:
-                        st.error(f"Failed to delete task: {e}")
+                    else:
+                        st.error(message)
     else:
         st.info("No tasks found in this category.")
 
     new_task = st.text_input("New Task", key="new_task_text")
     if st.button("➕ Add Task"):
-        if new_task.strip():
-            try:
-                supabase.table("tasks").insert(
-                    {
-                        "category": category,
-                        "task_text": new_task.strip(),
-                    }
-                ).execute()
-                refresh_db()
-                st.success("Task added successfully.")
-                st.rerun()
-            except Exception as e:
-                st.error(f"Failed to add task: {e}")
+        success, message = add_task(category, new_task)
+        if success:
+            st.success(message)
+            refresh_db()
+            st.rerun()
+        else:
+            st.error(message)
 
 
 def render_branches_expenses_module() -> None:
