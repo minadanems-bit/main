@@ -13,7 +13,7 @@ from supabase import create_client, Client
 # CONFIG
 # =====================================================
 SUPABASE_URL = "https://undyjopxllbxbfqfrwrt.supabase.co"
-SUPABASE_KEY = "sb_publishable_1SD_SMXLvUqA41978CA5Ow_afN4RjVz"
+SUPABASE_KEY = "sb_secret_6LUUSrzDDSZcMFF58M6btA_IMGr3Pj8"
 
 BACKUP_FILE = "backup_2026-03-08_22-44-48.json"
 
