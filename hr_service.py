@@ -42,8 +42,7 @@ def ensure_user_defaults(user: dict) -> None:
     }
 
     for key, default_value in defaults.items():
-        if key not in user:
-            user[key] = default_value
+        user.setdefault(key, default_value)
 
     if not user.get("job_title"):
         role_value = user.get("role", ROLE_USER)
@@ -58,6 +57,22 @@ def safe_decode_image(image_b64: str):
         return base64.b64decode(image_b64)
     except Exception:
         return None
+
+
+def save_uploaded_image(uploaded_file) -> str:
+    return base64.b64encode(uploaded_file.getvalue()).decode()
+
+
+def get_safe_hiring_date(user: dict):
+    raw_value = user.get("hiring_date", DEFAULT_HIRING_DATE)
+    try:
+        return date.fromisoformat(raw_value)
+    except Exception:
+        return date.fromisoformat(DEFAULT_HIRING_DATE)
+
+
+def get_role_display(role_value: str) -> str:
+    return ROLE_LABELS.get(role_value, role_value.replace("_", " ").title())
 
 
 def normalize_financial_records(records: list) -> list:
@@ -75,20 +90,11 @@ def normalize_financial_records(records: list) -> list:
     return normalized
 
 
-def save_uploaded_image(uploaded_file) -> str:
-    return base64.b64encode(uploaded_file.getvalue()).decode()
-
-
-def get_safe_hiring_date(user: dict):
-    raw_value = user.get("hiring_date", DEFAULT_HIRING_DATE)
-    try:
-        return date.fromisoformat(raw_value)
-    except Exception:
-        return date.fromisoformat(DEFAULT_HIRING_DATE)
-
-
-def get_role_display(role_value: str) -> str:
-    return ROLE_LABELS.get(role_value, role_value.replace("_", " ").title())
+def persist_db(db: dict, success_message: str | None = None) -> None:
+    save_db(db)
+    if success_message:
+        st.success(success_message)
+    st.rerun()
 
 
 def rename_username_in_db(db: dict, old_username: str, new_username: str) -> tuple[bool, str]:
@@ -115,10 +121,10 @@ def rename_username_in_db(db: dict, old_username: str, new_username: str) -> tup
 
     db["users"][new_username] = db["users"].pop(old_username)
 
-    if "drafts" in db and old_username in db["drafts"]:
+    if old_username in db.get("drafts", {}):
         db["drafts"][new_username] = db["drafts"].pop(old_username)
 
-    if "training_records" in db and old_username in db["training_records"]:
+    if old_username in db.get("training_records", {}):
         db["training_records"][new_username] = db["training_records"].pop(old_username)
 
     for log_item in db.get("logs", []):
@@ -134,7 +140,7 @@ def rename_username_in_db(db: dict, old_username: str, new_username: str) -> tup
 
 
 # =====================================================
-# Create New Employee
+# Create Employee
 # =====================================================
 def render_create_employee_section(db: dict) -> None:
     st.markdown("## ➕ Create New Employee")
@@ -172,7 +178,7 @@ def render_create_employee_section(db: dict) -> None:
 
 
 # =====================================================
-# UI Sections
+# Sections
 # =====================================================
 def render_profile_images(users: dict, target: str, user: dict) -> None:
     st.markdown("## 📌 Employee Profile")
@@ -196,9 +202,7 @@ def render_profile_images(users: dict, target: str, user: dict) -> None:
 
         if new_photo and st.button("💾 Save Photo", key=f"save_photo_{target}"):
             users[target]["photo"] = save_uploaded_image(new_photo)
-            save_db(st.session_state[SESSION_ACTIVE_DB])
-            st.success("Photo Updated")
-            st.rerun()
+            persist_db(st.session_state[SESSION_ACTIVE_DB], "Photo Updated")
 
     with col2:
         st.markdown("### 🪪 ID Card")
@@ -217,16 +221,19 @@ def render_profile_images(users: dict, target: str, user: dict) -> None:
 
         if id_card and st.button("💾 Save ID Card", key=f"save_id_card_{target}"):
             users[target]["id_card"] = save_uploaded_image(id_card)
-            save_db(st.session_state[SESSION_ACTIVE_DB])
-            st.success("ID Card Saved")
-            st.rerun()
+            persist_db(st.session_state[SESSION_ACTIVE_DB], "ID Card Saved")
 
 
-def render_username_management(users: dict, target: str, db: dict) -> None:
+def render_username_management(target: str, db: dict) -> None:
     st.divider()
     st.markdown("## 🔑 Username Management")
 
-    st.text_input("Current Username", value=target, disabled=True, key=f"current_username_{target}")
+    st.text_input(
+        "Current Username",
+        value=target,
+        disabled=True,
+        key=f"current_username_{target}",
+    )
 
     if target == "admin":
         st.info("Admin username cannot be changed.")
@@ -252,17 +259,21 @@ def render_personal_details(users: dict, target: str, user: dict, db: dict) -> N
     st.divider()
     st.markdown("## 📝 Personal Details")
 
+    current_role = user.get("role", ROLE_USER)
+    current_role_index = ROLE_OPTIONS.index(current_role) if current_role in ROLE_OPTIONS else 0
+
     full_name = st.text_input("Full Name", value=user.get("full_name", ""), key=f"edit_full_name_{target}")
     password = st.text_input("Password", value=user.get("pass", ""), key=f"edit_password_{target}")
+
     role_value = st.selectbox(
         "Role",
         ROLE_OPTIONS,
-        index=ROLE_OPTIONS.index(user.get("role", ROLE_USER)) if user.get("role", ROLE_USER) in ROLE_OPTIONS else 0,
+        index=current_role_index,
         format_func=get_role_display,
         key=f"edit_role_{target}",
     )
-    job_title = st.text_input("Job Title", value=user.get("job_title", ""), key=f"edit_job_title_{target}")
 
+    job_title = st.text_input("Job Title", value=user.get("job_title", ""), key=f"edit_job_title_{target}")
     phone = st.text_input("Phone", value=user.get("phone", ""), key=f"edit_phone_{target}")
     email = st.text_input("Email", value=user.get("email", ""), key=f"edit_email_{target}")
     national_id = st.text_input("National ID", value=user.get("national_id", ""), key=f"edit_national_id_{target}")
@@ -300,9 +311,7 @@ def render_personal_details(users: dict, target: str, user: dict, db: dict) -> N
             }
         )
 
-        save_db(db)
-        st.success("✅ Employee Updated")
-        st.rerun()
+        persist_db(db, "✅ Employee Updated")
 
 
 def render_financial_entry_form(user: dict, db: dict, target: str) -> None:
@@ -316,7 +325,13 @@ def render_financial_entry_form(user: dict, db: dict, target: str) -> None:
         key=f"record_type_{target}",
     )
 
-    amount = st.number_input("Amount", min_value=0.0, step=10.0, key=f"record_amount_{target}")
+    amount = st.number_input(
+        "Amount",
+        min_value=0.0,
+        step=10.0,
+        key=f"record_amount_{target}",
+    )
+
     note = st.text_input("Reason / Note", key=f"record_note_{target}")
 
     if st.button("➕ Add Financial Record", key=f"add_financial_record_{target}"):
@@ -330,9 +345,7 @@ def render_financial_entry_form(user: dict, db: dict, target: str) -> None:
             }
         )
 
-        save_db(db)
-        st.success("✅ Record Added")
-        st.rerun()
+        persist_db(db, "✅ Record Added")
 
 
 def render_records_history(user: dict) -> None:
@@ -369,20 +382,21 @@ def render_delete_employee(users: dict, target: str, db: dict) -> None:
         return
 
     st.markdown("## ⚠️ Delete Employee")
-    confirm_delete = st.checkbox(f"I confirm deleting employee: {target}", key=f"delete_confirm_{target}")
+    confirm_delete = st.checkbox(
+        f"I confirm deleting employee: {target}",
+        key=f"delete_confirm_{target}",
+    )
 
     if confirm_delete and st.button("🗑 Delete Employee", type="primary", key=f"delete_employee_{target}"):
         del users[target]
 
-        if "drafts" in db and target in db["drafts"]:
+        if target in db.get("drafts", {}):
             del db["drafts"][target]
 
-        if "training_records" in db and target in db["training_records"]:
+        if target in db.get("training_records", {}):
             del db["training_records"][target]
 
-        save_db(db)
-        st.warning("Employee Deleted")
-        st.rerun()
+        persist_db(db, "Employee Deleted")
 
 
 # =====================================================
@@ -415,7 +429,7 @@ def hr_management_ui(db: dict) -> None:
         f"Job Title: {user.get('job_title', '-')}"
     )
 
-    render_username_management(users, target, db)
+    render_username_management(target, db)
     render_profile_images(users, target, user)
     render_personal_details(users, target, user, db)
     render_financial_entry_form(user, db, target)
