@@ -27,11 +27,11 @@ def get_supabase() -> Client:
 # =====================================================
 # LOAD BACKUP
 # =====================================================
-def load_backup() -> dict:
-    backup_path = Path(BACKUP_FILE)
+def load_backup(backup_file: str = BACKUP_FILE) -> dict:
+    backup_path = Path(backup_file)
 
     if not backup_path.exists():
-        raise FileNotFoundError(f"Backup file not found: {BACKUP_FILE}")
+        raise FileNotFoundError(f"Backup file not found: {backup_file}")
 
     with open(backup_path, "r", encoding="utf-8") as f:
         return json.load(f)
@@ -253,15 +253,14 @@ def build_settings_rows(data: dict) -> list:
 # =====================================================
 # RUN
 # =====================================================
-def migrate() -> None:
+def migrate(backup_file: str = BACKUP_FILE) -> None:
     print("=" * 60)
     print("Loading backup...")
-    data = load_backup()
+    data = load_backup(backup_file)
 
     print("Connecting to Supabase...")
     supabase = get_supabase()
 
-    # Build rows first
     user_rows, financial_rows = build_user_rows(data)
     task_rows = build_task_rows(data)
     branch_rows = build_branch_rows(data)
