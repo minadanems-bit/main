@@ -238,14 +238,20 @@ def build_training_rows(data: dict) -> list:
 
 
 def build_settings_rows(data: dict) -> list:
+    manager_phone = data.get("manager_phone", "201234567890")
+    logo_value = data.get("logo", "")
+
+    if logo_value is None:
+        logo_value = ""
+
     return [
         {
             "setting_key": "manager_phone",
-            "setting_value": data.get("manager_phone"),
+            "setting_value": manager_phone,
         },
         {
             "setting_key": "logo",
-            "setting_value": data.get("logo"),
+            "setting_value": logo_value,
         },
     ]
 
