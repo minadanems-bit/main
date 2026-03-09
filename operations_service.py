@@ -1,5 +1,5 @@
 # =====================================================
-# DAILY OPERATIONS MODULE (ROLE-BASED VERSION)
+# DAILY OPERATIONS MODULE (ROLE-BASED VERSION - CLEAN)
 # =====================================================
 
 from datetime import date
@@ -8,6 +8,7 @@ import urllib.parse
 import streamlit as st
 
 from constants import (
+    CASH_DENOMINATIONS,
     SESSION_BRANCH,
     SESSION_CASH_DIFF,
     SESSION_CLOSE_TOTAL,
@@ -35,10 +36,7 @@ from constants import (
     TASK_OPENING,
     TASK_SOCIAL,
 )
-from cash_service import (
-    build_cash_breakdown_from_quantities,
-    build_cash_summary,
-)
+from cash_service import build_cash_breakdown_from_quantities, build_cash_summary
 from database import get_manager_phone, save_db
 from pdf_generator import create_downloadable_pdf
 from printer_service import calculate_printer_difference, get_printers
@@ -90,7 +88,7 @@ def get_current_user_record(db: dict) -> dict:
     return db.get("users", {}).get(username, {})
 
 
-def get_current_role(db: dict) -> str:
+def get_current_role(_: dict) -> str:
     return get_normalized_current_role()
 
 
@@ -133,12 +131,29 @@ def get_selected_shift() -> str:
 
 
 # =====================================================
+# Generic Render Helpers
+# =====================================================
+def render_task_checklist(tasks: list[str], key_prefix: str) -> None:
+    for idx, task in enumerate(tasks):
+        st.checkbox(task, key=f"{key_prefix}_{idx}_{task}")
+
+
+def render_notes_area(label: str, key: str, placeholder: str, height: int = 140) -> None:
+    st.text_area(
+        label,
+        key=key,
+        height=height,
+        placeholder=placeholder,
+    )
+
+
+# =====================================================
 # Cash Helpers
 # =====================================================
 def render_cash_counter(section_prefix: str, title_suffix: str = "") -> tuple[float, dict]:
     quantities = {}
 
-    for denomination in [200, 100, 50, 20, 10, 5]:
+    for denomination in CASH_DENOMINATIONS:
         qty = st.number_input(
             f"{denomination} LE{title_suffix}",
             min_value=0,
@@ -157,7 +172,7 @@ def render_cash_counter(section_prefix: str, title_suffix: str = "") -> tuple[fl
     quantities["coins"] = coins
 
     breakdown = build_cash_breakdown_from_quantities(quantities)
-    total = breakdown["_meta"]["grand_total"]
+    total = breakdown.get("_meta", {}).get("grand_total", 0.0)
     return total, breakdown
 
 
@@ -217,10 +232,7 @@ def render_printer_start_inputs() -> None:
             key=f"{printer_name}_start_total_{idx}",
         )
 
-        printer_start[printer_name] = {
-            "Total": total,
-        }
-
+        printer_start[printer_name] = {"Total": total}
         st.divider()
 
     st.session_state[SESSION_PRINTER_START] = printer_start
@@ -280,7 +292,7 @@ def render_printer_end_inputs() -> None:
 
 
 # =====================================================
-# Report/Archive Helpers
+# Report / Archive Helpers
 # =====================================================
 def get_shift_report_data(db: dict) -> dict:
     return build_role_report_data(db, st.session_state)
@@ -330,13 +342,11 @@ def archive_shift(db: dict) -> None:
 
 
 # =====================================================
-# Opening Tab
+# Opening
 # =====================================================
 def render_opening_tab(db: dict) -> None:
     st.subheader("🌅 Opening Tasks")
-
-    for idx, task in enumerate(db.get("tasks", {}).get(TASK_OPENING, [])):
-        st.checkbox(task, key=f"open_task_{idx}_{task}")
+    render_task_checklist(db.get("tasks", {}).get(TASK_OPENING, []), "open_task")
 
     st.divider()
 
@@ -347,6 +357,7 @@ def render_opening_tab(db: dict) -> None:
     st.session_state["opening_cash_breakdown"] = opening_breakdown
 
     st.divider()
+
     st.subheader("💳 Digital Opening")
     render_digital_inputs("open")
 
@@ -355,23 +366,30 @@ def render_opening_tab(db: dict) -> None:
 
 
 # =====================================================
-# Closing Tab
+# Closing
 # =====================================================
 def render_expenses_section(db: dict) -> float:
     st.divider()
     st.subheader("💸 Expenses")
 
-    expense_categories = db.get("expense_categories", [])
-    if not expense_categories:
-        expense_categories = ["General Expense"]
+    expense_categories = db.get("expense_categories", []) or ["General Expense"]
 
     col1, col2 = st.columns(2)
 
     with col1:
-        selected_expense = st.selectbox("Expense Type", expense_categories, key="expense_type_select")
+        selected_expense = st.selectbox(
+            "Expense Type",
+            expense_categories,
+            key="expense_type_select",
+        )
 
     with col2:
-        expense_value = st.number_input("Amount", min_value=0.0, step=1.0, key="expense_value_input")
+        expense_value = st.number_input(
+            "Amount",
+            min_value=0.0,
+            step=1.0,
+            key="expense_value_input",
+        )
 
     if st.button("➕ Add Expense"):
         st.session_state[SESSION_SHIFT_EXPENSES].append(
@@ -400,14 +418,15 @@ def render_expenses_section(db: dict) -> float:
             st.session_state[SESSION_SHIFT_EXPENSES] = []
             st.rerun()
 
-    return sum(float(item.get("amount", 0) or 0) for item in st.session_state[SESSION_SHIFT_EXPENSES])
+    return sum(
+        float(item.get("amount", 0) or 0)
+        for item in st.session_state[SESSION_SHIFT_EXPENSES]
+    )
 
 
 def render_closing_tab(db: dict) -> None:
     st.subheader("🌇 Closing Tasks")
-
-    for idx, task in enumerate(db.get("tasks", {}).get(TASK_CLOSING, [])):
-        st.checkbox(task, key=f"close_task_{idx}_{task}")
+    render_task_checklist(db.get("tasks", {}).get(TASK_CLOSING, []), "close_task")
 
     st.divider()
     st.subheader("💰 Closing Section")
@@ -465,61 +484,49 @@ def render_closing_tab(db: dict) -> None:
 
 
 # =====================================================
-# Interaction / Social / Special Tabs
+# Interaction / Social / Special
 # =====================================================
 def render_interaction_section(db: dict) -> None:
     st.subheader("🤝 Interaction Tasks")
+    render_task_checklist(db.get("tasks", {}).get(TASK_INTERACTION, []), "interaction_task")
 
-    for idx, task in enumerate(db.get("tasks", {}).get(TASK_INTERACTION, [])):
-        st.checkbox(task, key=f"interaction_task_{idx}_{task}")
-
-    st.text_area(
+    render_notes_area(
         "Interaction Notes",
-        key="interaction_notes",
-        height=140,
-        placeholder="Write customer interaction notes, complaint handling, follow-up status...",
+        "interaction_notes",
+        "Write customer interaction notes, complaint handling, follow-up status...",
     )
 
 
 def render_social_section(db: dict) -> None:
     st.subheader("📱 Social Tasks")
+    render_task_checklist(db.get("tasks", {}).get(TASK_SOCIAL, []), "social_task")
 
-    for idx, task in enumerate(db.get("tasks", {}).get(TASK_SOCIAL, [])):
-        st.checkbox(task, key=f"social_{idx}_{task}")
-
-    st.text_area(
+    render_notes_area(
         "Social Notes",
-        key="social_notes",
-        height=140,
-        placeholder="Write social media updates, responses, stories, inbox follow-up...",
+        "social_notes",
+        "Write social media updates, responses, stories, inbox follow-up...",
     )
 
 
 def render_cleaning_section(db: dict) -> None:
     st.subheader("🧹 Cleaning Tasks")
+    render_task_checklist(db.get("tasks", {}).get(TASK_CLEANING, []), "cleaning_task")
 
-    for idx, task in enumerate(db.get("tasks", {}).get(TASK_CLEANING, [])):
-        st.checkbox(task, key=f"cleaning_{idx}_{task}")
-
-    st.text_area(
+    render_notes_area(
         "Cleaning Notes",
-        key="special_notes",
-        height=140,
-        placeholder="Write cleaning status, sanitation notes, supplies needed...",
+        "special_notes",
+        "Write cleaning status, sanitation notes, supplies needed...",
     )
 
 
 def render_design_section(db: dict) -> None:
     st.subheader("🎨 Design Tasks")
+    render_task_checklist(db.get("tasks", {}).get(TASK_DESIGN, []), "design_task")
 
-    for idx, task in enumerate(db.get("tasks", {}).get(TASK_DESIGN, [])):
-        st.checkbox(task, key=f"design_{idx}_{task}")
-
-    st.text_area(
+    render_notes_area(
         "Design Notes",
-        key="special_notes",
-        height=140,
-        placeholder="Write design jobs, pending mockups, export notes, customer approvals...",
+        "special_notes",
+        "Write design jobs, pending mockups, export notes, customer approvals...",
     )
 
 
@@ -532,16 +539,15 @@ def render_role_specific_section(db: dict) -> None:
         render_design_section(db)
     else:
         st.subheader("📝 Special Notes")
-        st.text_area(
+        render_notes_area(
             "Special Notes",
-            key="special_notes",
-            height=140,
-            placeholder="Write role-specific notes...",
+            "special_notes",
+            "Write role-specific notes...",
         )
 
 
 # =====================================================
-# Report Tab
+# Report
 # =====================================================
 def render_report_tab(db: dict) -> None:
     st.subheader("📦 Archive & Reporting")
@@ -591,8 +597,6 @@ def render_report_tab(db: dict) -> None:
             )
 
         manager_phone = get_manager_phone()
-
-        # Forced role-based WhatsApp builder
         wa_text = build_role_whatsapp_text(db, st.session_state)
 
         with st.expander("🔍 WhatsApp Preview", expanded=False):
