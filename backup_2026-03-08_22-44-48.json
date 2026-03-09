@@ -1,0 +1,753 @@
+{
+  "logo": null,
+  "manager_phone": "+971522045638",
+  "branches": [
+    "M. Nagib",
+    "Tram"
+  ],
+  "expense_categories": [
+    "Opay",
+    "InstaPay",
+    "Electricity",
+    "Water",
+    "Paper",
+    "NBE Wallet",
+    "Maintenance",
+    "Fawry",
+    "Internet",
+    "Landline",
+    "Salary Advance",
+    "Transportation Allowance",
+    "Stationery",
+    "Supplies & Consumables"
+  ],
+  "users": {
+    "admin": {
+      "pass": "123",
+      "role": "admin",
+      "full_name": "admin",
+      "photo": null,
+      "id_card": null,
+      "phone": "+974522045638",
+      "email": "rr",
+      "national_id": "rr",
+      "address": "rr",
+      "qualification": "rr",
+      "hiring_date": "2024-01-01",
+      "salary": 0.0,
+      "bonus": [
+        {
+          "date": "2026-03-08",
+          "amount": 0.0,
+          "note": ""
+        }
+      ],
+      "deductions": [],
+      "overtime": [],
+      "extra_leaves": [],
+      "job_title": "Admin"
+    },
+    "Office Boy": {
+      "pass": "111",
+      "role": "cleaner",
+      "full_name": "Office Boy",
+      "job_title": "Cleaner",
+      "photo": null,
+      "id_card": null,
+      "phone": "",
+      "email": "",
+      "national_id": "",
+      "address": "",
+      "qualification": "",
+      "hiring_date": "2024-01-01",
+      "salary": 0.0,
+      "bonus": [],
+      "deductions": [],
+      "overtime": [],
+      "extra_leaves": []
+    },
+    "Mina Gad": {
+      "pass": "123",
+      "role": "employee",
+      "full_name": "Mena Gad",
+      "job_title": "Employee",
+      "photo": null,
+      "id_card": null,
+      "phone": "",
+      "email": "",
+      "national_id": "",
+      "address": "",
+      "qualification": "",
+      "hiring_date": "2024-01-01",
+      "salary": 0.0,
+      "bonus": [],
+      "deductions": [],
+      "overtime": [],
+      "extra_leaves": []
+    },
+    "Youstina Ashraf": {
+      "pass": "2372002",
+      "role": "employee",
+      "full_name": "Youstina Ashraf",
+      "job_title": "Customer Service",
+      "photo": null,
+      "id_card": null,
+      "phone": "01204519903",
+      "email": "minamessim@gmail.com",
+      "national_id": "30207230203545",
+      "address": "ش 30 متفرع من ش 45 عصافرة قبلي",
+      "qualification": "كلية اداب قسم جغرافيا شعبة GIS",
+      "hiring_date": "2026-01-23",
+      "salary": 3500.0,
+      "bonus": [],
+      "deductions": [],
+      "overtime": [],
+      "extra_leaves": []
+    },
+    "Fatma Shraf": {
+      "pass": "fatma852",
+      "role": "employee",
+      "full_name": "Fatma Shraf",
+      "job_title": "Customer Service",
+      "photo": null,
+      "id_card": null,
+      "phone": "01553137591",
+      "email": "fatma20sherif06@gmail.com",
+      "national_id": "30603150201161",
+      "address": "29 ش مسجد سيدي بشر",
+      "qualification": "معهد فني تجاري",
+      "hiring_date": "2025-07-01",
+      "salary": 3500.0,
+      "bonus": [],
+      "deductions": [],
+      "overtime": [],
+      "extra_leaves": []
+    },
+    "Mira Ibrahim": {
+      "pass": "12345",
+      "role": "graphic_designer",
+      "full_name": "Mira Ibrahim",
+      "job_title": "Graphic Designer",
+      "photo": null,
+      "id_card": null,
+      "phone": "",
+      "email": "",
+      "national_id": "",
+      "address": "",
+      "qualification": "",
+      "hiring_date": "2024-01-01",
+      "salary": 1750.0,
+      "bonus": [],
+      "deductions": [],
+      "overtime": [],
+      "extra_leaves": []
+    },
+    "Dr. Jackleen": {
+      "pass": "123456",
+      "role": "accounts",
+      "full_name": "Dr. Jackleen",
+      "job_title": "Account Manager",
+      "photo": null,
+      "id_card": null,
+      "phone": "",
+      "email": "",
+      "national_id": "",
+      "address": "",
+      "qualification": "",
+      "hiring_date": "2024-01-01",
+      "salary": 0.0,
+      "bonus": [],
+      "deductions": [],
+      "overtime": [],
+      "extra_leaves": []
+    },
+    "Miss. Marina": {
+      "pass": "wordP@55",
+      "role": "hr",
+      "full_name": "Marian Malak",
+      "job_title": "HR Manager",
+      "photo": null,
+      "id_card": null,
+      "phone": "",
+      "email": "",
+      "national_id": "",
+      "address": "",
+      "qualification": "",
+      "hiring_date": "2024-01-01",
+      "salary": 0.0,
+      "bonus": [],
+      "deductions": [],
+      "overtime": [],
+      "extra_leaves": []
+    },
+    "Mr. Mina": {
+      "pass": "wordP@55",
+      "role": "admin",
+      "full_name": "Mina NMS",
+      "job_title": "CEO",
+      "photo": null,
+      "id_card": null,
+      "phone": "",
+      "email": "",
+      "national_id": "",
+      "address": "",
+      "qualification": "",
+      "hiring_date": "2024-01-01",
+      "salary": 0.0,
+      "bonus": [],
+      "deductions": [],
+      "overtime": [],
+      "extra_leaves": []
+    }
+  },
+  "tasks": {
+    "opening": [
+      "Power On Devices 🔌",
+      "Uniform & Name Tag 👔",
+      "Music & Ambience 🎶",
+      "Paper Loaded 📄",
+      "Cash Counted 💵",
+      "Clean Windows & Counters 🧹",
+      "Check Internet Connection 🌐",
+      "Check Supplies Inventory 📦",
+      "Picture Check-up 📸",
+      "Print N' Go 👍🏼",
+      "Fingerprint Attendance 👆"
+    ],
+    "closing": [
+      "Save WhatsApp Contacts 📱",
+      "Cleaning Workplace 🧹",
+      "Power Off Devices 🔌",
+      "Trash Removed 🗑️",
+      "Fingerprint Sign-out 👆",
+      "Out-Side setup ⛓️🚧",
+      "Daily Report Sent 📩",
+      "Safe Locked 🔒",
+      "Lights/Devices Off 💡"
+    ],
+    "social": [
+      "Canva Design 1 🎨",
+      "Canva Design 2 🎨",
+      "WhatsApp Story 🟢",
+      "WhatsApp Channel 📢",
+      "Facebook Account Story 🔵",
+      "Facebook Account Post/Reel 🎬",
+      "Facebook Account Group 👥",
+      "Facebook Page Story 📄",
+      "Facebook Page Post/Reel 🎬",
+      "Threads Post 🧵",
+      "Instagram Story 📸",
+      "Instagram Post/Reel 🎥",
+      "TikTok Story 🎵",
+      "TikTok Post 🕺",
+      "Telegram Story ✈️",
+      "Telegram Channel 📢",
+      "LinkedIn Post 💼"
+    ],
+    "interaction": [
+      "Like 👍",
+      "Love ❤️",
+      "Care 🤗",
+      "Share 🔗",
+      "Comment 💬",
+      "Reply to Messages 📩",
+      "Join Groups 👥"
+    ],
+    "cleaning": [
+      "Clean floors",
+      "Clean reception desk",
+      "Clean printer area",
+      "Empty trash bins",
+      "Clean Glass",
+      "Clean Buffet",
+      "Clean Storage"
+    ],
+    "design": [
+      "Review pending design orders",
+      "Check brand consistency",
+      "Export final approved files",
+      "Coordinate with printing team",
+      "Social Media Content",
+      "Advertising Materials",
+      "Reviewing Briefs",
+      "Brainstorming"
+    ]
+  },
+  "history": [
+    {
+      "date": "2026-03-08",
+      "branch": "qq",
+      "shift": "Morning",
+      "staff": "Minarr",
+      "staff_username": "admin",
+      "sales": 0.0,
+      "expenses": 0,
+      "expenses_list": [],
+      "exp_note": "No Expenses Recorded",
+      "diff": 0.0,
+      "t_open": 0.0,
+      "t_close": 0.0,
+      "opay_open": 0.0,
+      "opay_close": 0.0,
+      "opay_diff": 0.0,
+      "debit_open": 0.0,
+      "debit_close": 0.0,
+      "debit_diff": 0.0,
+      "nbe_open": 0.0,
+      "nbe_close": 0.0,
+      "nbe_diff": 0.0,
+      "printer_diff": {},
+      "cash_breakdown": {},
+      "closing_cash_breakdown": {},
+      "interaction_notes": [],
+      "social_notes": [],
+      "role": ""
+    },
+    {
+      "date": "2026-03-08",
+      "branch": "qq",
+      "shift": "Morning",
+      "staff": "عامل",
+      "staff_username": "Office Boy",
+      "role": "cleaner",
+      "job_title": "Cleaner",
+      "report_type": "cleaning",
+      "sales": 0.0,
+      "expenses": 0,
+      "expenses_list": [],
+      "exp_note": "No Expenses Recorded",
+      "diff": 0.0,
+      "t_open": 0.0,
+      "t_close": 0.0,
+      "cash_breakdown": {},
+      "closing_cash_breakdown": {},
+      "opay_open": 0.0,
+      "opay_close": 0.0,
+      "opay_diff": 0.0,
+      "debit_open": 0.0,
+      "debit_close": 0.0,
+      "debit_diff": 0.0,
+      "nbe_open": 0.0,
+      "nbe_close": 0.0,
+      "nbe_diff": 0.0,
+      "printer_diff": {},
+      "social_notes": "No Social Notes",
+      "interaction_notes": "No Interaction Notes",
+      "special_notes": "٢١٣١٢٣",
+      "visible_sections": [
+        "identity",
+        "special_notes"
+      ]
+    }
+  ],
+  "drafts": {
+    "admin": {
+      "open_10": 0,
+      "open_200": 0,
+      "open_coins": 0.0,
+      "opay_close": 0.0,
+      "expense_value_input": 0.0,
+      "open_50": 0,
+      "opening_cash_breakdown": {
+        "200": {
+          "qty": 0,
+          "total": 0
+        },
+        "100": {
+          "qty": 0,
+          "total": 0
+        },
+        "50": {
+          "qty": 0,
+          "total": 0
+        },
+        "20": {
+          "qty": 0,
+          "total": 0
+        },
+        "10": {
+          "qty": 0,
+          "total": 0
+        },
+        "5": {
+          "qty": 0,
+          "total": 0
+        },
+        "coins": {
+          "qty": 0.0,
+          "total": 0.0
+        },
+        "_meta": {
+          "grand_total": 0.0
+        }
+      },
+      "expense_type_select": "qqaa",
+      "open_task_11": false,
+      "open_20": 0,
+      "opay_open": 0.0,
+      "open_5": 0,
+      "open_100": 0,
+      "open_task_0_11": false,
+      "c_sys_sales": 0.0
+    },
+    "حح": {
+      "open_10": 0,
+      "open_200": 0,
+      "open_coins": 0.0,
+      "open_task_11": false,
+      "opay_close": 0.0,
+      "open_50": 0,
+      "opening_cash_breakdown": {
+        "200": {
+          "qty": 0,
+          "total": 0
+        },
+        "100": {
+          "qty": 0,
+          "total": 0
+        },
+        "50": {
+          "qty": 0,
+          "total": 0
+        },
+        "20": {
+          "qty": 0,
+          "total": 0
+        },
+        "10": {
+          "qty": 0,
+          "total": 0
+        },
+        "5": {
+          "qty": 0,
+          "total": 0
+        },
+        "coins": {
+          "qty": 0.0,
+          "total": 0.0
+        }
+      },
+      "open_20": 0,
+      "opay_open": 0.0,
+      "open_5": 0,
+      "open_100": 0,
+      "c_sys_sales": 0.0
+    },
+    "Office Boy": {
+      "opay_close": 0.0,
+      "opay_open": 0.0,
+      "opening_cash_breakdown": {},
+      "c_sys_sales": 0.0
+    },
+    "Mina Gad": {
+      "open_10": 0,
+      "open_200": 0,
+      "open_coins": 0.0,
+      "opay_close": 0.0,
+      "open_50": 0,
+      "opening_cash_breakdown": {
+        "200": {
+          "qty": 0,
+          "total": 0
+        },
+        "100": {
+          "qty": 0,
+          "total": 0
+        },
+        "50": {
+          "qty": 0,
+          "total": 0
+        },
+        "20": {
+          "qty": 0,
+          "total": 0
+        },
+        "10": {
+          "qty": 0,
+          "total": 0
+        },
+        "5": {
+          "qty": 0,
+          "total": 0
+        },
+        "coins": {
+          "qty": 0.0,
+          "total": 0.0
+        }
+      },
+      "open_task_11": false,
+      "open_20": 0,
+      "opay_open": 0.0,
+      "open_5": 0,
+      "open_100": 0,
+      "open_task_0_11": false,
+      "c_sys_sales": 0.0
+    },
+    "Mira Ibrahim": {
+      "opay_close": 0.0,
+      "opay_open": 0.0,
+      "opening_cash_breakdown": {},
+      "c_sys_sales": 0.0
+    },
+    "Miss. Marina": {
+      "opay_close": 0.0,
+      "opay_open": 0.0,
+      "opening_cash_breakdown": {},
+      "c_sys_sales": 0.0
+    }
+  },
+  "logs": [
+    {
+      "user": "admin",
+      "time": "2026-03-08 19:36:51",
+      "action": "Login"
+    },
+    {
+      "user": "admin",
+      "time": "2026-03-08 20:14:02",
+      "action": "Login"
+    },
+    {
+      "user": "admin",
+      "time": "2026-03-08 20:16:29",
+      "action": "Logout"
+    },
+    {
+      "user": "Mina Gad",
+      "time": "2026-03-08 20:16:33",
+      "action": "Login"
+    },
+    {
+      "user": "Mina Gad",
+      "time": "2026-03-08 20:16:59",
+      "action": "Logout"
+    },
+    {
+      "user": "admin",
+      "time": "2026-03-08 20:17:02",
+      "action": "Login"
+    },
+    {
+      "user": "admin",
+      "time": "2026-03-08 20:18:29",
+      "action": "Logout"
+    },
+    {
+      "user": "Miss. Marina",
+      "time": "2026-03-08 20:18:35",
+      "action": "Login"
+    },
+    {
+      "user": "admin",
+      "time": "2026-03-08 20:25:15",
+      "action": "Login"
+    },
+    {
+      "user": "admin",
+      "time": "2026-03-08 20:28:16",
+      "action": "Logout"
+    },
+    {
+      "user": "Miss. Marina",
+      "time": "2026-03-08 20:28:22",
+      "action": "Login"
+    },
+    {
+      "user": "Miss. Marina",
+      "time": "2026-03-08 20:28:34",
+      "action": "Logout"
+    },
+    {
+      "user": "حح",
+      "time": "2026-03-08 20:28:39",
+      "action": "Login"
+    },
+    {
+      "user": "حح",
+      "time": "2026-03-08 20:28:52",
+      "action": "Logout"
+    },
+    {
+      "user": "Office Boy",
+      "time": "2026-03-08 20:28:58",
+      "action": "Login"
+    },
+    {
+      "user": "Office Boy",
+      "time": "2026-03-08 20:29:50",
+      "action": "Logout"
+    },
+    {
+      "user": "Mira Ibrahim",
+      "time": "2026-03-08 20:29:55",
+      "action": "Login"
+    },
+    {
+      "user": "Mira Ibrahim",
+      "time": "2026-03-08 21:02:31",
+      "action": "Logout"
+    },
+    {
+      "user": "admin",
+      "time": "2026-03-08 21:02:37",
+      "action": "Login"
+    },
+    {
+      "user": "admin",
+      "time": "2026-03-08 21:07:03",
+      "action": "Logout"
+    },
+    {
+      "user": "Miss. Marina",
+      "time": "2026-03-08 21:07:09",
+      "action": "Login"
+    },
+    {
+      "user": "Miss. Marina",
+      "time": "2026-03-08 21:07:56",
+      "action": "Logout"
+    },
+    {
+      "user": "admin",
+      "time": "2026-03-08 21:08:04",
+      "action": "Login"
+    },
+    {
+      "user": "admin",
+      "time": "2026-03-08 21:09:43",
+      "action": "Logout"
+    },
+    {
+      "user": "Mina Gad",
+      "time": "2026-03-08 21:09:47",
+      "action": "Login"
+    },
+    {
+      "user": "Mina Gad",
+      "time": "2026-03-08 21:11:16",
+      "action": "Logout"
+    },
+    {
+      "user": "Mira Ibrahim",
+      "time": "2026-03-08 21:11:22",
+      "action": "Login"
+    },
+    {
+      "user": "Mira Ibrahim",
+      "time": "2026-03-08 21:12:23",
+      "action": "Logout"
+    },
+    {
+      "user": "Office Boy",
+      "time": "2026-03-08 21:12:27",
+      "action": "Login"
+    },
+    {
+      "user": "Mira Ibrahim",
+      "time": "2026-03-08 21:18:28",
+      "action": "Login"
+    },
+    {
+      "user": "Mira Ibrahim",
+      "time": "2026-03-08 21:26:48",
+      "action": "Logout"
+    },
+    {
+      "user": "Mina Gad",
+      "time": "2026-03-08 21:26:52",
+      "action": "Login"
+    },
+    {
+      "user": "Mina Gad",
+      "time": "2026-03-08 21:27:23",
+      "action": "Logout"
+    },
+    {
+      "user": "Miss. Marina",
+      "time": "2026-03-08 21:27:28",
+      "action": "Login"
+    },
+    {
+      "user": "Miss. Marina",
+      "time": "2026-03-08 21:27:44",
+      "action": "Logout"
+    },
+    {
+      "user": "Office Boy",
+      "time": "2026-03-08 21:27:52",
+      "action": "Login"
+    },
+    {
+      "user": "Office Boy",
+      "time": "2026-03-08 21:28:47",
+      "action": "Logout"
+    },
+    {
+      "user": "admin",
+      "time": "2026-03-08 21:28:52",
+      "action": "Login"
+    },
+    {
+      "user": "admin",
+      "time": "2026-03-08 21:35:18",
+      "action": "Logout"
+    },
+    {
+      "user": "Mira Ibrahim",
+      "time": "2026-03-08 21:35:23",
+      "action": "Login"
+    },
+    {
+      "user": "Mira Ibrahim",
+      "time": "2026-03-08 21:36:29",
+      "action": "Logout"
+    },
+    {
+      "user": "Office Boy",
+      "time": "2026-03-08 21:36:38",
+      "action": "Login"
+    },
+    {
+      "user": "Office Boy",
+      "time": "2026-03-08 21:38:53",
+      "action": "Logout"
+    },
+    {
+      "user": "admin",
+      "time": "2026-03-08 21:39:00",
+      "action": "Login"
+    },
+    {
+      "user": "admin",
+      "time": "2026-03-08 22:03:07",
+      "action": "Logout"
+    },
+    {
+      "user": "Office Boy",
+      "time": "2026-03-08 22:03:15",
+      "action": "Login"
+    },
+    {
+      "user": "Office Boy",
+      "time": "2026-03-08 22:03:19",
+      "action": "Logout"
+    },
+    {
+      "user": "Mr. Mina",
+      "time": "2026-03-08 22:03:38",
+      "action": "Login"
+    }
+  ],
+  "printers": {
+    "Copy": "192.168.1.120",
+    "Color": "192.168.1.65",
+    "Services": "192.168.1.126",
+    "Print N' Go": "192.168.1.125"
+  },
+  "training_records": {
+    "admin": {
+      "date": "2026-03-08",
+      "status": "completed"
+    }
+  }
+}
