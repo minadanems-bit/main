@@ -29,7 +29,7 @@ from constants import (
     SESSION_USER,
     TASK_CATEGORIES,
 )
-from database import load_db, save_db
+from database import get_supabase, load_db, save_db
 from operations_service import daily_operations_ui
 from printer_service import printer_management_ui
 
@@ -43,6 +43,11 @@ db = load_db()
 # =========================
 # Helpers
 # =========================
+def refresh_db() -> None:
+    global db
+    db = load_db()
+
+
 def ensure_db_defaults() -> None:
     defaults = {
         "users": {},
@@ -71,6 +76,7 @@ def ensure_db_defaults() -> None:
 
     if changed:
         save_db(db)
+        refresh_db()
 
 
 def get_current_user() -> dict:
@@ -151,8 +157,8 @@ def render_self_service(user_info: dict) -> None:
 # =========================
 def render_hr_module() -> None:
     from hr_service import hr_management_ui
-
     hr_management_ui(db)
+    refresh_db()
 
 
 def render_payroll_module() -> None:
@@ -184,6 +190,7 @@ def render_payroll_module() -> None:
         db["users"][target]["salary"] = salary
         db["users"][target]["hiring_date"] = str(hiring_date)
         save_db(db)
+        refresh_db()
         st.success("Contract Updated")
         st.rerun()
 
@@ -209,6 +216,7 @@ def render_payroll_module() -> None:
             }
         )
         save_db(db)
+        refresh_db()
         st.success("Added to HR Record")
         st.rerun()
 
@@ -216,26 +224,53 @@ def render_payroll_module() -> None:
 def render_tasks_module() -> None:
     st.info("Manage operational tasks and checklists")
 
-    category = st.selectbox("Category", TASK_CATEGORIES)
-    db.setdefault("tasks", {})
-    db["tasks"].setdefault(category, [])
+    category = st.selectbox("Category", TASK_CATEGORIES, key="tasks_category_select")
+    supabase = get_supabase()
 
-    for index, task in enumerate(db["tasks"][category]):
-        c1, c2 = st.columns([5, 1])
-        with c1:
-            st.text(f"📌 {task}")
-        with c2:
-            if st.button("🗑️", key=f"del_t_{category}_{index}"):
-                db["tasks"][category].pop(index)
-                save_db(db)
-                st.rerun()
+    try:
+        result = (
+            supabase.table("tasks")
+            .select("id, category, task_text")
+            .eq("category", category)
+            .order("created_at")
+            .execute()
+        )
+        task_rows = result.data or []
+    except Exception as e:
+        st.error(f"Failed to load tasks: {e}")
+        return
 
-    new_task = st.text_input("New Task")
+    if task_rows:
+        for row in task_rows:
+            c1, c2 = st.columns([5, 1])
+            with c1:
+                st.text(f"📌 {row.get('task_text', '')}")
+            with c2:
+                if st.button("🗑️", key=f"del_task_{row['id']}"):
+                    try:
+                        supabase.table("tasks").delete().eq("id", row["id"]).execute()
+                        refresh_db()
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Failed to delete task: {e}")
+    else:
+        st.info("No tasks found in this category.")
+
+    new_task = st.text_input("New Task", key="new_task_text")
     if st.button("➕ Add Task"):
         if new_task.strip():
-            db["tasks"][category].append(new_task.strip())
-            save_db(db)
-            st.rerun()
+            try:
+                supabase.table("tasks").insert(
+                    {
+                        "category": category,
+                        "task_text": new_task.strip(),
+                    }
+                ).execute()
+                refresh_db()
+                st.success("Task added successfully.")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Failed to add task: {e}")
 
 
 def render_branches_expenses_module() -> None:
@@ -255,6 +290,7 @@ def render_branches_expenses_module() -> None:
                     idx = branches.index(branch_selected)
                     branches[idx] = new_branch_name.strip()
                     save_db(db)
+                    refresh_db()
                     st.success("Renamed!")
                     st.rerun()
 
@@ -262,6 +298,7 @@ def render_branches_expenses_module() -> None:
             if st.button("🗑️ Delete Branch", type="primary"):
                 branches.remove(branch_selected)
                 save_db(db)
+                refresh_db()
                 st.warning("Deleted!")
                 st.rerun()
     else:
@@ -272,6 +309,7 @@ def render_branches_expenses_module() -> None:
         if new_branch.strip():
             branches.append(new_branch.strip())
             save_db(db)
+            refresh_db()
             st.rerun()
 
     st.divider()
@@ -286,6 +324,7 @@ def render_branches_expenses_module() -> None:
             if st.button("✖️", key=f"del_ex_{index}"):
                 db["expense_categories"].pop(index)
                 save_db(db)
+                refresh_db()
                 st.rerun()
 
     new_expense = st.text_input("New Expense Category")
@@ -293,6 +332,7 @@ def render_branches_expenses_module() -> None:
         if new_expense.strip():
             db["expense_categories"].append(new_expense.strip())
             save_db(db)
+            refresh_db()
             st.rerun()
 
 
@@ -374,6 +414,7 @@ def render_archive_history_module() -> None:
         if confirm_check and st.button("🚨 Permanently Clear All History"):
             db["history"] = []
             save_db(db)
+            refresh_db()
             st.success("History Cleared!")
             st.rerun()
 
@@ -537,6 +578,7 @@ def render_training_module() -> None:
                 "status": "completed",
             }
             save_db(db)
+            refresh_db()
             st.success(f"Training Completed ✔ Recorded for {get_current_username()}")
             st.balloons()
         else:
@@ -545,6 +587,7 @@ def render_training_module() -> None:
 
 def render_printer_management_module() -> None:
     printer_management_ui(db)
+    refresh_db()
 
 
 def render_admin_panel() -> None:
@@ -641,6 +684,7 @@ def render_backup_manager() -> None:
         db.clear()
         db.update(restored_data)
         save_db(db)
+        refresh_db()
         st.success("✅ تم استرجاع النسخة بنجاح")
         st.rerun()
 
