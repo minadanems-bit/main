@@ -53,6 +53,16 @@ def _has_section(visible_sections: list | None, section_name: str) -> bool:
     return section_name in visible_sections
 
 
+def _get_special_notes_title(report_type: str) -> str:
+    if report_type == "hr":
+        return "HR Notes"
+    if report_type == "cleaning":
+        return "Cleaning Notes"
+    if report_type == "design":
+        return "Design Notes"
+    return "Special Notes"
+
+
 # =====================================================
 # Builders
 # =====================================================
@@ -63,6 +73,7 @@ def _build_header(
     shift: str,
     staff_role: str,
     job_title: str,
+    report_type: str,
     styles,
     db: dict,
 ):
@@ -93,8 +104,10 @@ def _build_header(
 
     staff_img = _safe_image_from_base64(staff_photo_b64, 1.0 * inch, 1.0 * inch)
 
+    report_title = f"NMS {(_safe_text(report_type, 'operations')).upper()} REPORT"
+
     header_table = Table(
-        [[logo_img, Paragraph(f"<b>NMS SHIFT REPORT</b><br/>{_safe_text(branch)}", title_style), staff_img]],
+        [[logo_img, Paragraph(f"<b>{report_title}</b><br/>{_safe_text(branch)}", title_style), staff_img]],
         colWidths=[2 * inch, 6 * inch, 2 * inch],
     )
     header_table.setStyle(
@@ -113,6 +126,36 @@ def _build_header(
     )
 
     return [header_table, Spacer(1, 10), meta, Spacer(1, 18)]
+
+
+def _build_identity_block(styles, staff_name, staff_role, job_title, branch, shift, date_str):
+    info_text = (
+        f"Staff: {_safe_text(staff_name)}<br/>"
+        f"Role: {_safe_text(staff_role)}<br/>"
+        f"Job Title: {_safe_text(job_title)}<br/>"
+        f"Branch: {_safe_text(branch)}<br/>"
+        f"Shift: {_safe_text(shift)}<br/>"
+        f"Date: {_safe_text(date_str)}"
+    )
+
+    table = Table(
+        [["Identity Information"], [Paragraph(info_text, styles["Normal"])]],
+        colWidths=[9 * inch],
+    )
+    table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#EAF2F8")),
+                ("GRID", (0, 0), (-1, -1), 1, colors.black),
+                ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                ("TOPPADDING", (0, 0), (-1, -1), 8),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+            ]
+        )
+    )
+
+    return [Paragraph("Identity", styles["Heading2"]), Spacer(1, 10), table, Spacer(1, 18)]
 
 
 def _build_info_table(styles, sales, expenses, diff, opening_cash, closing_cash):
@@ -345,10 +388,24 @@ def create_downloadable_pdf(
             shift=shift,
             staff_role=staff_role,
             job_title=job_title,
+            report_type=report_type,
             styles=styles,
             db=db,
         )
     )
+
+    if _has_section(visible_sections, "identity"):
+        elements.extend(
+            _build_identity_block(
+                styles=styles,
+                staff_name=staff_name,
+                staff_role=staff_role,
+                job_title=job_title,
+                branch=branch,
+                shift=shift,
+                date_str=date_str,
+            )
+        )
 
     if _has_section(visible_sections, "summary"):
         elements.extend(
@@ -419,24 +476,13 @@ def create_downloadable_pdf(
         elements.extend(
             _build_notes_section(
                 styles,
-                "Special Notes",
+                _get_special_notes_title(report_type),
                 special_notes or "No Special Notes",
             )
         )
 
     if _has_section(visible_sections, "printers"):
         elements.extend(_build_printer_table(printer_diff or {}, styles))
-
-    if _has_section(visible_sections, "identity") and not any(
-        _has_section(visible_sections, name) for name in ["summary", "digital", "expenses", "cash_breakdown"]
-    ):
-        elements.extend(
-            _build_notes_section(
-                styles,
-                "Employee / Role Information",
-                f"Staff: {_safe_text(staff_name)}\nRole: {_safe_text(staff_role)}\nJob Title: {_safe_text(job_title)}\nBranch: {_safe_text(branch)}\nShift: {_safe_text(shift)}",
-            )
-        )
 
     doc.build(elements)
     return buffer.getvalue()
