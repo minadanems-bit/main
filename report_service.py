@@ -30,6 +30,48 @@ def join_non_empty_sections(sections: list[str]) -> str:
 
 
 # =====================================================
+# Task Helpers
+# =====================================================
+def extract_task_status(task_list: list, key_prefix: str, session_state) -> dict:
+    completed = []
+    pending = []
+
+    for idx, task in enumerate(task_list or []):
+        key = f"{key_prefix}_{idx}_{task}"
+        is_done = bool(session_state.get(key, False))
+
+        if is_done:
+            completed.append(task)
+        else:
+            pending.append(task)
+
+    return {
+        "completed": completed,
+        "pending": pending,
+    }
+
+
+def build_task_lines(title: str, completed: list, pending: list) -> str:
+    lines = [title]
+
+    if completed:
+        lines.append("Completed Tasks:")
+        lines.extend([f"- {task}" for task in completed])
+    else:
+        lines.append("Completed Tasks: None")
+
+    lines.append("")
+
+    if pending:
+        lines.append("Pending Tasks:")
+        lines.extend([f"- {task}" for task in pending])
+    else:
+        lines.append("Pending Tasks: None")
+
+    return "\n".join(lines)
+
+
+# =====================================================
 # Data Builders
 # =====================================================
 def calculate_total_expenses(expenses: list) -> float:
@@ -116,6 +158,20 @@ def build_base_report_data(db: dict, session_state) -> dict:
     closing_cash_breakdown = session_state.get("closing_cash_breakdown", {})
     printer_diff = session_state.get("printer_diff", {})
 
+    opening_tasks = db.get("tasks", {}).get("opening", [])
+    closing_tasks = db.get("tasks", {}).get("closing", [])
+    interaction_tasks = db.get("tasks", {}).get("interaction", [])
+    social_tasks = db.get("tasks", {}).get("social", [])
+    cleaning_tasks = db.get("tasks", {}).get("cleaning", [])
+    design_tasks = db.get("tasks", {}).get("design", [])
+
+    opening_status = extract_task_status(opening_tasks, "open_task", session_state)
+    closing_status = extract_task_status(closing_tasks, "close_task", session_state)
+    interaction_status = extract_task_status(interaction_tasks, "interaction_task", session_state)
+    social_status = extract_task_status(social_tasks, "social_task", session_state)
+    cleaning_status = extract_task_status(cleaning_tasks, "cleaning_task", session_state)
+    design_status = extract_task_status(design_tasks, "design_task", session_state)
+
     return {
         "date": str(date.today()),
         "branch": session_state.get("branch", "-"),
@@ -150,6 +206,18 @@ def build_base_report_data(db: dict, session_state) -> dict:
         "social_notes": safe_text(session_state.get("social_notes", ""), "No Social Notes"),
         "interaction_notes": safe_text(session_state.get("interaction_notes", ""), "No Interaction Notes"),
         "special_notes": safe_text(session_state.get("special_notes", ""), "No Special Notes"),
+        "opening_tasks_completed": opening_status["completed"],
+        "opening_tasks_pending": opening_status["pending"],
+        "closing_tasks_completed": closing_status["completed"],
+        "closing_tasks_pending": closing_status["pending"],
+        "interaction_tasks_completed": interaction_status["completed"],
+        "interaction_tasks_pending": interaction_status["pending"],
+        "social_tasks_completed": social_status["completed"],
+        "social_tasks_pending": social_status["pending"],
+        "cleaning_tasks_completed": cleaning_status["completed"],
+        "cleaning_tasks_pending": cleaning_status["pending"],
+        "design_tasks_completed": design_status["completed"],
+        "design_tasks_pending": design_status["pending"],
     }
 
 
@@ -158,13 +226,17 @@ def build_base_report_data(db: dict, session_state) -> dict:
 # =====================================================
 def get_visible_sections(report_type: str) -> list[str]:
     if report_type == "financial":
-        return ["identity", "summary", "cash_breakdown", "digital", "expenses"]
+        return ["identity", "summary", "cash_breakdown", "digital", "expenses", "tasks", "printers"]
+
     if report_type == "hr":
-        return ["identity", "interaction_notes", "special_notes"]
+        return ["identity", "interaction_notes", "special_notes", "tasks"]
+
     if report_type == "cleaning":
-        return ["identity", "special_notes"]
+        return ["identity", "special_notes", "tasks"]
+
     if report_type == "design":
-        return ["identity", "social_notes", "special_notes"]
+        return ["identity", "social_notes", "special_notes", "tasks"]
+
     if report_type == "full":
         return [
             "identity",
@@ -172,12 +244,25 @@ def get_visible_sections(report_type: str) -> list[str]:
             "cash_breakdown",
             "digital",
             "expenses",
+            "tasks",
             "interaction_notes",
             "social_notes",
             "special_notes",
             "printers",
         ]
-    return ["identity", "summary", "interaction_notes", "social_notes", "special_notes"]
+
+    return [
+        "identity",
+        "summary",
+        "cash_breakdown",
+        "digital",
+        "expenses",
+        "tasks",
+        "interaction_notes",
+        "social_notes",
+        "special_notes",
+        "printers",
+    ]
 
 
 def build_role_report_data(db: dict, session_state) -> dict:
@@ -197,6 +282,7 @@ def build_identity_section(report: dict) -> str:
             f"Shift: {report['shift']}",
             f"Staff: {report['staff']}",
             f"Role: {report['role']}",
+            f"Job Title: {report['job_title'] or '-'}",
         ]
     )
 
@@ -246,6 +332,69 @@ def build_expenses_section(report: dict) -> str:
             report["expense_lines"],
         ]
     )
+
+
+def build_tasks_section(report: dict) -> str:
+    sections = []
+
+    if report.get("opening_tasks_completed") or report.get("opening_tasks_pending"):
+        sections.append(
+            build_task_lines(
+                "OPENING TASKS",
+                report.get("opening_tasks_completed", []),
+                report.get("opening_tasks_pending", []),
+            )
+        )
+
+    if report.get("closing_tasks_completed") or report.get("closing_tasks_pending"):
+        sections.append(
+            build_task_lines(
+                "CLOSING TASKS",
+                report.get("closing_tasks_completed", []),
+                report.get("closing_tasks_pending", []),
+            )
+        )
+
+    if report.get("interaction_tasks_completed") or report.get("interaction_tasks_pending"):
+        sections.append(
+            build_task_lines(
+                "INTERACTION TASKS",
+                report.get("interaction_tasks_completed", []),
+                report.get("interaction_tasks_pending", []),
+            )
+        )
+
+    if report.get("social_tasks_completed") or report.get("social_tasks_pending"):
+        sections.append(
+            build_task_lines(
+                "SOCIAL TASKS",
+                report.get("social_tasks_completed", []),
+                report.get("social_tasks_pending", []),
+            )
+        )
+
+    if report.get("cleaning_tasks_completed") or report.get("cleaning_tasks_pending"):
+        sections.append(
+            build_task_lines(
+                "CLEANING TASKS",
+                report.get("cleaning_tasks_completed", []),
+                report.get("cleaning_tasks_pending", []),
+            )
+        )
+
+    if report.get("design_tasks_completed") or report.get("design_tasks_pending"):
+        sections.append(
+            build_task_lines(
+                "DESIGN TASKS",
+                report.get("design_tasks_completed", []),
+                report.get("design_tasks_pending", []),
+            )
+        )
+
+    if not sections:
+        return "TASKS\nNo Tasks Found"
+
+    return join_non_empty_sections(sections)
 
 
 def build_interaction_notes_section(report: dict) -> str:
@@ -306,6 +455,8 @@ def build_section_text(section_name: str, report: dict) -> str:
         return build_digital_section(report)
     if section_name == "expenses":
         return build_expenses_section(report)
+    if section_name == "tasks":
+        return build_tasks_section(report)
     if section_name == "interaction_notes":
         return build_interaction_notes_section(report)
     if section_name == "social_notes":
