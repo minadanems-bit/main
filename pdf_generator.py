@@ -336,6 +336,38 @@ def _build_printer_table(printer_diff: dict, styles):
     return [Paragraph("Printer Analysis", styles["Heading2"]), Spacer(1, 10), table, Spacer(1, 20)]
 
 
+def _build_task_status_table(styles, title: str, completed: list, pending: list):
+    rows = [["Status", "Task"]]
+
+    if completed:
+        for task in completed:
+            rows.append(["Completed", _safe_text(task)])
+
+    if pending:
+        for task in pending:
+            rows.append(["Pending", _safe_text(task)])
+
+    if len(rows) == 1:
+        rows.append(["-", "No Tasks"])
+
+    table = Table(rows, colWidths=[2 * inch, 7 * inch], repeatRows=1)
+    table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#D9EAF7")),
+                ("GRID", (0, 0), (-1, -1), 1, colors.black),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                ("TOPPADDING", (0, 0), (-1, -1), 6),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+            ]
+        )
+    )
+
+    return [Paragraph(title, styles["Heading2"]), Spacer(1, 8), table, Spacer(1, 16)]
+
+
 # =====================================================
 # Main PDF Generator
 # =====================================================
@@ -364,6 +396,18 @@ def create_downloadable_pdf(
     report_type="operations",
     visible_sections=None,
     job_title="",
+    opening_tasks_completed=None,
+    opening_tasks_pending=None,
+    closing_tasks_completed=None,
+    closing_tasks_pending=None,
+    interaction_tasks_completed=None,
+    interaction_tasks_pending=None,
+    social_tasks_completed=None,
+    social_tasks_pending=None,
+    cleaning_tasks_completed=None,
+    cleaning_tasks_pending=None,
+    design_tasks_completed=None,
+    design_tasks_pending=None,
 ):
     db = load_db()
     buffer = io.BytesIO()
@@ -451,6 +495,56 @@ def create_downloadable_pdf(
                 styles=styles,
                 title="Closing Cash Breakdown",
                 breakdown_text=closing_cash_text,
+            )
+        )
+
+    if _has_section(visible_sections, "tasks"):
+        elements.extend(
+            _build_task_status_table(
+                styles,
+                "Opening Tasks",
+                opening_tasks_completed or [],
+                opening_tasks_pending or [],
+            )
+        )
+        elements.extend(
+            _build_task_status_table(
+                styles,
+                "Closing Tasks",
+                closing_tasks_completed or [],
+                closing_tasks_pending or [],
+            )
+        )
+        elements.extend(
+            _build_task_status_table(
+                styles,
+                "Interaction Tasks",
+                interaction_tasks_completed or [],
+                interaction_tasks_pending or [],
+            )
+        )
+        elements.extend(
+            _build_task_status_table(
+                styles,
+                "Social Tasks",
+                social_tasks_completed or [],
+                social_tasks_pending or [],
+            )
+        )
+        elements.extend(
+            _build_task_status_table(
+                styles,
+                "Cleaning Tasks",
+                cleaning_tasks_completed or [],
+                cleaning_tasks_pending or [],
+            )
+        )
+        elements.extend(
+            _build_task_status_table(
+                styles,
+                "Design Tasks",
+                design_tasks_completed or [],
+                design_tasks_pending or [],
             )
         )
 
