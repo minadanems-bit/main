@@ -37,7 +37,7 @@ from constants import (
     TASK_SOCIAL,
 )
 from cash_service import build_cash_breakdown_from_quantities, build_cash_summary
-from database import get_manager_phone, save_db
+from database import get_manager_phone, get_supabase
 from pdf_generator import create_downloadable_pdf
 from printer_service import calculate_printer_difference, get_printers
 from report_service import (
@@ -300,45 +300,43 @@ def get_shift_report_data(db: dict) -> dict:
 
 def archive_shift(db: dict) -> None:
     report = get_shift_report_data(db)
+    supabase = get_supabase()
 
-    db.setdefault("history", [])
-    db["history"].append(
-        {
-            "date": report["date"],
-            "branch": report["branch"],
-            "shift": report["shift"],
-            "staff": report["staff"],
-            "staff_username": report["staff_username"],
-            "role": report["role"],
-            "job_title": report.get("job_title", ""),
-            "report_type": report.get("report_type", ""),
-            "sales": report["sales"],
-            "expenses": report["total_expenses"],
-            "expenses_list": report["expenses_list"],
-            "exp_note": report["expense_lines"],
-            "diff": report["cash_diff"],
-            "t_open": report["t_open"],
-            "t_close": report["t_close"],
-            "cash_breakdown": report["opening_cash_breakdown"],
-            "closing_cash_breakdown": report["closing_cash_breakdown"],
-            "opay_open": report["opay_open"],
-            "opay_close": report["opay_close"],
-            "opay_diff": report["opay_diff"],
-            "debit_open": report["debit_open"],
-            "debit_close": report["debit_close"],
-            "debit_diff": report["debit_diff"],
-            "nbe_open": report["nbe_open"],
-            "nbe_close": report["nbe_close"],
-            "nbe_diff": report["nbe_diff"],
-            "printer_diff": report["printer_diff"],
-            "social_notes": report["social_notes"],
-            "interaction_notes": report["interaction_notes"],
-            "special_notes": report["special_notes"],
-            "visible_sections": report.get("visible_sections", []),
-        }
-    )
+    row = {
+        "report_date": report["date"],
+        "branch": report["branch"],
+        "shift": report["shift"],
+        "staff": report["staff"],
+        "staff_username": report["staff_username"],
+        "role": report["role"],
+        "job_title": report.get("job_title", ""),
+        "report_type": report.get("report_type", ""),
+        "sales": float(report["sales"] or 0),
+        "expenses": float(report["total_expenses"] or 0),
+        "expenses_list": report.get("expenses_list", []),
+        "exp_note": report.get("expense_lines", ""),
+        "diff": float(report["cash_diff"] or 0),
+        "t_open": float(report["t_open"] or 0),
+        "t_close": float(report["t_close"] or 0),
+        "cash_breakdown": report.get("opening_cash_breakdown", {}),
+        "closing_cash_breakdown": report.get("closing_cash_breakdown", {}),
+        "opay_open": float(report["opay_open"] or 0),
+        "opay_close": float(report["opay_close"] or 0),
+        "opay_diff": float(report["opay_diff"] or 0),
+        "debit_open": float(report["debit_open"] or 0),
+        "debit_close": float(report["debit_close"] or 0),
+        "debit_diff": float(report["debit_diff"] or 0),
+        "nbe_open": float(report["nbe_open"] or 0),
+        "nbe_close": float(report["nbe_close"] or 0),
+        "nbe_diff": float(report["nbe_diff"] or 0),
+        "printer_diff": report.get("printer_diff", {}),
+        "social_notes": report.get("social_notes", ""),
+        "interaction_notes": report.get("interaction_notes", ""),
+        "special_notes": report.get("special_notes", ""),
+        "visible_sections": report.get("visible_sections", []),
+    }
 
-    save_db(db)
+    supabase.table("shift_history").insert(row).execute()
 
 
 # =====================================================
@@ -556,8 +554,11 @@ def render_report_tab(db: dict) -> None:
 
     with col1:
         if st.button("💾 Archive Shift", use_container_width=True):
-            archive_shift(db)
-            st.success("Archived Successfully ✅")
+            try:
+                archive_shift(db)
+                st.success("Archived Successfully ✅")
+            except Exception as e:
+                st.error(f"Archive failed: {e}")
 
     with col2:
         report = get_shift_report_data(db)
@@ -588,6 +589,18 @@ def render_report_tab(db: dict) -> None:
                 report_type=report.get("report_type", "operations"),
                 visible_sections=report.get("visible_sections", []),
                 job_title=report.get("job_title", ""),
+                opening_tasks_completed=report.get("opening_tasks_completed", []),
+                opening_tasks_pending=report.get("opening_tasks_pending", []),
+                closing_tasks_completed=report.get("closing_tasks_completed", []),
+                closing_tasks_pending=report.get("closing_tasks_pending", []),
+                interaction_tasks_completed=report.get("interaction_tasks_completed", []),
+                interaction_tasks_pending=report.get("interaction_tasks_pending", []),
+                social_tasks_completed=report.get("social_tasks_completed", []),
+                social_tasks_pending=report.get("social_tasks_pending", []),
+                cleaning_tasks_completed=report.get("cleaning_tasks_completed", []),
+                cleaning_tasks_pending=report.get("cleaning_tasks_pending", []),
+                design_tasks_completed=report.get("design_tasks_completed", []),
+                design_tasks_pending=report.get("design_tasks_pending", []),
             )
 
             st.download_button(
