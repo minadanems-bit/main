@@ -108,7 +108,7 @@ ROLE_REPORT_TYPE = {
     ROLE_ADMIN: "full",
     ROLE_MANAGER: "full",
     ROLE_ACCOUNTS: "financial",
-    ROLE_EMPLOYEE: "operations",
+    ROLE_EMPLOYEE: "full",
     ROLE_HR: "hr",
     ROLE_CLEANER: "cleaning",
     ROLE_GRAPHIC_DESIGNER: "design",
