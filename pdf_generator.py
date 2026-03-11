@@ -190,15 +190,63 @@ def _build_info_table(styles, sales, expenses, diff, opening_cash, closing_cash)
     return [Paragraph("Shift Summary", styles["Heading2"]), Spacer(1, 10), table, Spacer(1, 18)]
 
 
-def _build_digital_table(styles, opay_move, debit_v22, nbe_move):
+def _build_digital_table(
+    styles,
+    opay_open,
+    opay_close,
+    opay_diff,
+    debit_open,
+    debit_close,
+    debit_diff,
+    nbe_open,
+    nbe_close,
+    nbe_diff,
+    qnb_open,
+    qnb_close,
+    qnb_diff,
+    fawry_open,
+    fawry_close,
+    fawry_diff,
+):
     table_data = [
-        ["Channel", "Movement"],
-        ["Opay", f"{_safe_number(opay_move):,.2f} LE"],
-        ["Debit", f"{_safe_number(debit_v22):,.2f} LE"],
-        ["NBE Wallet", f"{_safe_number(nbe_move):,.2f} LE"],
+        ["Channel", "Open", "Close", "Diff"],
+        [
+            "Opay",
+            f"{_safe_number(opay_open):,.2f} LE",
+            f"{_safe_number(opay_close):,.2f} LE",
+            f"{_safe_number(opay_diff):,.2f} LE",
+        ],
+        [
+            "Customer Debit",
+            f"{_safe_number(debit_open):,.2f} LE",
+            f"{_safe_number(debit_close):,.2f} LE",
+            f"{_safe_number(debit_diff):,.2f} LE",
+        ],
+        [
+            "NBE Wallet",
+            f"{_safe_number(nbe_open):,.2f} LE",
+            f"{_safe_number(nbe_close):,.2f} LE",
+            f"{_safe_number(nbe_diff):,.2f} LE",
+        ],
+        [
+            "QNB / InstaPay",
+            f"{_safe_number(qnb_open):,.2f} LE",
+            f"{_safe_number(qnb_close):,.2f} LE",
+            f"{_safe_number(qnb_diff):,.2f} LE",
+        ],
+        [
+            "Fawry",
+            f"{_safe_number(fawry_open):,.2f} LE",
+            f"{_safe_number(fawry_close):,.2f} LE",
+            f"{_safe_number(fawry_diff):,.2f} LE",
+        ],
     ]
 
-    table = Table(table_data, colWidths=[4.5 * inch, 4.5 * inch], repeatRows=1)
+    table = Table(
+        table_data,
+        colWidths=[3 * inch, 2 * inch, 2 * inch, 2 * inch],
+        repeatRows=1,
+    )
     table.setStyle(
         TableStyle(
             [
@@ -215,7 +263,54 @@ def _build_digital_table(styles, opay_move, debit_v22, nbe_move):
         )
     )
 
-    return [Paragraph("Digital Payments Movement", styles["Heading2"]), Spacer(1, 10), table, Spacer(1, 18)]
+    return [Paragraph("Digital Balances", styles["Heading2"]), Spacer(1, 10), table, Spacer(1, 18)]
+
+
+def _build_customer_debts_table(styles, customer_debts: list, total_customer_debts: float):
+    table_data = [["Customer Name", "Phone", "Debt Amount"]]
+
+    if customer_debts:
+        for item in customer_debts:
+            table_data.append(
+                [
+                    _safe_text(item.get("customer_name", "-")),
+                    _safe_text(item.get("customer_phone", "-")),
+                    f"{_safe_number(item.get('debt_amount', 0)):,.2f} LE",
+                ]
+            )
+    else:
+        table_data.append(["No Customer Debts", "-", "-"])
+
+    table = Table(table_data, colWidths=[4 * inch, 2.5 * inch, 2.5 * inch], repeatRows=1)
+    table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#FDEBD0")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.black),
+                ("GRID", (0, 0), (-1, -1), 1, colors.black),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                ("TOPPADDING", (0, 0), (-1, -1), 6),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+            ]
+        )
+    )
+
+    total_para = Paragraph(
+        f"<b>Total Customer Debts:</b> {_safe_number(total_customer_debts):,.2f} LE",
+        styles["Normal"],
+    )
+
+    return [
+        Paragraph("Customer Debts", styles["Heading2"]),
+        Spacer(1, 10),
+        table,
+        Spacer(1, 8),
+        total_para,
+        Spacer(1, 18),
+    ]
 
 
 def _build_expenses_table(styles, expenses_list: list, exp_note: str):
@@ -396,6 +491,18 @@ def create_downloadable_pdf(
     report_type="operations",
     visible_sections=None,
     job_title="",
+    opay_open=0,
+    opay_close=0,
+    debit_open=0,
+    debit_close=0,
+    nbe_open=0,
+    nbe_close=0,
+    qnb_open=0,
+    qnb_close=0,
+    fawry_open=0,
+    fawry_close=0,
+    customer_debts=None,
+    total_customer_debts=0,
     opening_tasks_completed=None,
     opening_tasks_pending=None,
     closing_tasks_completed=None,
@@ -467,9 +574,30 @@ def create_downloadable_pdf(
         elements.extend(
             _build_digital_table(
                 styles=styles,
-                opay_move=opay_move,
-                debit_v22=debit_v22,
-                nbe_move=nbe_move,
+                opay_open=opay_open,
+                opay_close=opay_close,
+                opay_diff=opay_move,
+                debit_open=debit_open,
+                debit_close=debit_close,
+                debit_diff=debit_v22,
+                nbe_open=nbe_open,
+                nbe_close=nbe_close,
+                nbe_diff=nbe_move,
+                qnb_open=qnb_open,
+                qnb_close=qnb_close,
+                qnb_diff=qnb_close - qnb_open,
+                fawry_open=fawry_open,
+                fawry_close=fawry_close,
+                fawry_diff=fawry_close - fawry_open,
+            )
+        )
+
+    if _has_section(visible_sections, "customer_debts"):
+        elements.extend(
+            _build_customer_debts_table(
+                styles=styles,
+                customer_debts=customer_debts or [],
+                total_customer_debts=total_customer_debts,
             )
         )
 
