@@ -6,18 +6,15 @@ from datetime import datetime
 
 import streamlit as st
 
-
-# =====================================================
-# Shift rules
-# =====================================================
-SHIFT_START_RULES = {
-    "Morning": {"hour": 8, "minute": 0},
-    "Between": {"hour": 12, "minute": 0},
-    "Night": {"hour": 15, "minute": 0},
-}
-
-LATE_GRACE_MINUTES = 5
-MAX_LATE_BEFORE_BLOCK = 4
+from constants import (
+    DEFAULT_HIRING_DATE,
+    MONTHLY_LATE_BLOCK_AT,
+    ROLE_ADMIN,
+    ROLE_MANAGER,
+    SHIFT_GRACE_MINUTES,
+    SHIFT_START_TIMES,
+)
+from database import save_db
 
 
 # =====================================================
@@ -40,7 +37,7 @@ def get_current_role() -> str | None:
 
 
 def is_admin() -> bool:
-    return get_current_role() == "admin"
+    return get_current_role() == ROLE_ADMIN
 
 
 def require_login() -> bool:
@@ -52,10 +49,6 @@ def require_admin() -> bool:
 
 
 def log_auth_event(db: dict, username: str, action: str) -> None:
-    """
-    Temporary safe logger:
-    keep auth logs in memory only, without saving the whole database.
-    """
     try:
         db.setdefault("logs", []).append(
             {
@@ -73,8 +66,8 @@ def get_current_month_key() -> str:
 
 
 def get_shift_start_total_minutes(shift_name: str) -> int:
-    shift_data = SHIFT_START_RULES.get(shift_name, SHIFT_START_RULES["Morning"])
-    return (shift_data["hour"] * 60) + shift_data["minute"]
+    shift_data = SHIFT_START_TIMES.get(shift_name, SHIFT_START_TIMES["Morning"])
+    return (int(shift_data["hour"]) * 60) + int(shift_data["minute"])
 
 
 def get_arrival_total_minutes(hour_value: int, minute_value: int) -> int:
@@ -83,7 +76,7 @@ def get_arrival_total_minutes(hour_value: int, minute_value: int) -> int:
 
 def calculate_late_minutes(shift_name: str, arrival_hour: int, arrival_minute: int) -> int:
     shift_start = get_shift_start_total_minutes(shift_name)
-    allowed_latest = shift_start + LATE_GRACE_MINUTES
+    allowed_latest = shift_start + int(SHIFT_GRACE_MINUTES)
     arrival_total = get_arrival_total_minutes(arrival_hour, arrival_minute)
     return max(0, arrival_total - allowed_latest)
 
@@ -92,6 +85,12 @@ def ensure_attendance_defaults(db: dict) -> None:
     db.setdefault("attendance_records", {})
     db.setdefault("late_tracking", {})
     db.setdefault("blocked_users", {})
+    db.setdefault("users", {})
+
+
+def is_management_user(user_record: dict) -> bool:
+    role_value = str(user_record.get("role", "") or "").strip().lower()
+    return role_value in [ROLE_ADMIN, ROLE_MANAGER]
 
 
 def get_user_month_late_count(db: dict, username: str) -> int:
@@ -145,31 +144,82 @@ def append_attendance_record(
     )
 
 
+def add_user_warning(db: dict, username: str, note: str) -> None:
+    db.setdefault("users", {})
+    user_record = db["users"].get(username, {})
+    user_record.setdefault("warnings", [])
+    user_record["warnings"].append(
+        {
+            "date": datetime.now().strftime("%Y-%m-%d"),
+            "note": note,
+        }
+    )
+
+
+def has_late_penalty_this_month(user_record: dict, month_key: str) -> bool:
+    penalties = user_record.get("late_penalties", [])
+    for item in penalties:
+        item_date = str(item.get("date", "") or "")
+        if item_date.startswith(month_key):
+            note = str(item.get("note", "") or "").lower()
+            if "late" in note or "تأخير" in note:
+                return True
+    return False
+
+
+def add_monthly_late_penalty_if_needed(db: dict, username: str) -> None:
+    db.setdefault("users", {})
+    user_record = db["users"].get(username, {})
+    user_record.setdefault("late_penalties", [])
+
+    month_key = get_current_month_key()
+    if has_late_penalty_this_month(user_record, month_key):
+        return
+
+    monthly_salary = float(user_record.get("salary", 0) or 0)
+    penalty_amount = round(monthly_salary / 30, 2) if monthly_salary > 0 else 0.0
+
+    user_record["late_penalties"].append(
+        {
+            "date": datetime.now().strftime("%Y-%m-%d"),
+            "amount": penalty_amount,
+            "note": "خصم يوم بسبب 3 مرات تأخير خلال نفس الشهر",
+        }
+    )
+
+
+def persist_auth_changes(db: dict) -> None:
+    try:
+        save_db(db)
+    except Exception:
+        pass
+
+
 def get_late_warning_message(late_count: int, late_minutes: int) -> str:
-    if late_count <= 1:
+    if late_count == 1:
         return (
             f"⚠️ أنت متأخر اليوم بمقدار {late_minutes} دقيقة بعد فترة السماح.\n\n"
-            f"التأخير أكثر من 3 مرات خلال نفس الشهر يساوي خصم يوم من الراتب."
+            "التأخير أكثر من 3 مرات خلال نفس الشهر يساوي خصم يوم من الراتب."
         )
 
     if late_count == 2:
         return (
             f"⚠️ هذا هو التأخير رقم 2 خلال هذا الشهر.\n\n"
             f"أنت متأخر اليوم بمقدار {late_minutes} دقيقة.\n"
-            f"يجب الاحتراس حتى لا يتم تطبيق الخصم."
+            "يجب الاحتراس حتى لا يتم تطبيق الخصم."
         )
 
     if late_count == 3:
         return (
             f"⚠️ هذا هو التأخير رقم 3 خلال هذا الشهر.\n\n"
             f"أنت متأخر اليوم بمقدار {late_minutes} دقيقة.\n"
-            f"سيتم احتساب خصم يوم من الراتب طبقًا للائحة."
+            "سيتم احتساب خصم يوم من الراتب طبقًا للائحة."
         )
 
     return (
         f"⛔ هذا هو التأخير رقم {late_count} خلال هذا الشهر.\n\n"
         f"أنت متأخر اليوم بمقدار {late_minutes} دقيقة.\n"
-        f"تم إيقاف دخول التشغيل اليومي لحين تصريح المدير."
+        "تم إيقاف دخول التشغيل اليومي لحين تصريح المدير."
     )
 
 
@@ -201,10 +251,6 @@ def get_draft_prefixes() -> tuple[str, ...]:
 
 
 def sync_user_drafts(db: dict) -> None:
-    """
-    Temporary safe draft sync:
-    store drafts in runtime memory only, without calling save_db(db).
-    """
     if not is_logged_in():
         return
 
@@ -268,7 +314,8 @@ def login_user(
     if not verify_password(user_record, password):
         return False, "Invalid password."
 
-    if is_user_blocked_for_month(db, username):
+    # المدير والأدمن لا يتم منعهم من الدخول بسبب الحظر الشهري
+    if is_user_blocked_for_month(db, username) and not is_management_user(user_record):
         st.session_state["login_blocked_message"] = (
             "⛔ تم إيقاف دخول التشغيل اليومي لهذا الموظف خلال هذا الشهر.\n"
             "يرجى مراجعة المدير للحصول على تصريح."
@@ -294,7 +341,19 @@ def login_user(
     if late_minutes > 0:
         set_user_month_late_count(db, username, next_late_count)
 
-        if next_late_count >= MAX_LATE_BEFORE_BLOCK:
+        add_user_warning(
+            db,
+            username,
+            (
+                f"تأخير رقم {next_late_count} خلال شهر {get_current_month_key()} "
+                f"بمقدار {late_minutes} دقيقة في شفت {shift_name}"
+            ),
+        )
+
+        if next_late_count == 3:
+            add_monthly_late_penalty_if_needed(db, username)
+
+        if next_late_count >= int(MONTHLY_LATE_BLOCK_AT):
             set_user_blocked_for_month(db, username, True)
             append_attendance_record(
                 db=db,
@@ -305,6 +364,7 @@ def login_user(
                 late_minutes=late_minutes,
                 status="blocked_after_late",
             )
+            persist_auth_changes(db)
             st.session_state["login_blocked_message"] = get_late_warning_message(next_late_count, late_minutes)
             return False, "Daily operations access is blocked."
 
@@ -317,6 +377,8 @@ def login_user(
             late_minutes=late_minutes,
             status="late",
         )
+        persist_auth_changes(db)
+
     else:
         append_attendance_record(
             db=db,
@@ -327,6 +389,7 @@ def login_user(
             late_minutes=0,
             status="on_time",
         )
+        persist_auth_changes(db)
 
     st.session_state["logged_in"] = True
     st.session_state["user"] = username
@@ -349,6 +412,7 @@ def logout_user(db: dict) -> None:
 
     sync_user_drafts(db)
     log_auth_event(db, username, "Logout")
+    persist_auth_changes(db)
 
     clear_user_session()
 
@@ -380,7 +444,9 @@ def render_login_screen(db: dict) -> None:
         password = st.text_input("Enter Password", type="password")
 
         st.write("### 🕒 Attendance Confirmation")
-        shift_name = st.selectbox("Select Shift", list(SHIFT_START_RULES.keys()))
+        shift_name = st.selectbox("Select Shift", list(SHIFT_START_TIMES.keys()))
+
+        shift_defaults = SHIFT_START_TIMES.get(shift_name, SHIFT_START_TIMES["Morning"])
 
         h1, h2 = st.columns(2)
         with h1:
@@ -388,7 +454,7 @@ def render_login_screen(db: dict) -> None:
                 "Arrival Hour",
                 min_value=0,
                 max_value=23,
-                value=8,
+                value=int(shift_defaults["hour"]),
                 step=1,
             )
         with h2:
@@ -396,7 +462,7 @@ def render_login_screen(db: dict) -> None:
                 "Arrival Minute",
                 min_value=0,
                 max_value=59,
-                value=0,
+                value=int(shift_defaults["minute"]),
                 step=1,
             )
 
