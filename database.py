@@ -21,6 +21,18 @@ from constants import (
 
 
 # =====================================================
+# Extra financial record keys
+# =====================================================
+EXTRA_FINANCIAL_RECORD_KEYS = [
+    "advances",
+    "late_penalties",
+    "absence_penalties",
+]
+
+ALL_FINANCIAL_RECORD_KEYS = list(HR_RECORD_KEYS) + EXTRA_FINANCIAL_RECORD_KEYS
+
+
+# =====================================================
 # Connection
 # =====================================================
 @st.cache_resource(show_spinner=False)
@@ -92,6 +104,13 @@ def normalize_user_row(row: dict) -> dict:
             "wallet_number": row.get("wallet_number", ""),
             "payout_method": row.get("payout_method", "bank"),
             "warnings": safe_list(row.get("warnings")),
+            "bonus": [],
+            "deductions": [],
+            "overtime": [],
+            "extra_leaves": [],
+            "advances": [],
+            "late_penalties": [],
+            "absence_penalties": [],
         }
     )
 
@@ -99,7 +118,7 @@ def normalize_user_row(row: dict) -> dict:
 
 
 def attach_financial_records(users: dict, financial_rows: list) -> dict:
-    valid_record_types = set(HR_RECORD_KEYS)
+    valid_record_types = set(ALL_FINANCIAL_RECORD_KEYS)
 
     for item in financial_rows:
         username = item.get("username")
@@ -436,7 +455,7 @@ def _write_users(supabase: Client, users: dict) -> None:
             }
         )
 
-        for record_type in HR_RECORD_KEYS:
+        for record_type in ALL_FINANCIAL_RECORD_KEYS:
             for item in safe_list(user.get(record_type)):
                 financial_rows.append(
                     {
@@ -703,6 +722,25 @@ def create_user(
             "full_name": full_name,
             "job_title": job_title.strip() or role.replace("_", " ").title(),
             "employee_code": username.upper(),
+            "birth_date": DEFAULT_BIRTH_DATE,
+            "hiring_date": DEFAULT_HIRING_DATE,
+            "salary": 0.0,
+            "salary_basic": 0.0,
+            "transport_allowance": 0.0,
+            "communication_allowance": 0.0,
+            "other_allowance": 0.0,
+            "bank_name": "",
+            "bank_account_number": "",
+            "wallet_number": "",
+            "payout_method": "bank",
+            "warnings": [],
+            "bonus": [],
+            "deductions": [],
+            "overtime": [],
+            "extra_leaves": [],
+            "advances": [],
+            "late_penalties": [],
+            "absence_penalties": [],
         }
     )
 
