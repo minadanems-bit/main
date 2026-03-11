@@ -9,11 +9,15 @@ import streamlit as st
 
 from constants import (
     CASH_DENOMINATIONS,
+    DEFAULT_CUSTOMER_DEBT_ITEM,
     SESSION_BRANCH,
     SESSION_CASH_DIFF,
     SESSION_CLOSE_TOTAL,
+    SESSION_CUSTOMER_DEBTS,
     SESSION_DEBIT_CLOSE,
     SESSION_DEBIT_OPEN,
+    SESSION_FAWRY_CLOSE,
+    SESSION_FAWRY_OPEN,
     SESSION_LOGGED_IN,
     SESSION_NBE_CLOSE,
     SESSION_NBE_OPEN,
@@ -23,6 +27,8 @@ from constants import (
     SESSION_PRINTER_DIFF,
     SESSION_PRINTER_END,
     SESSION_PRINTER_START,
+    SESSION_QNB_CLOSE,
+    SESSION_QNB_OPEN,
     SESSION_SHIFT,
     SESSION_SHIFT_EXPENSES,
     SESSION_SYSTEM_SALES,
@@ -68,6 +74,11 @@ def ensure_session_defaults() -> None:
         SESSION_DEBIT_CLOSE: 0.0,
         SESSION_NBE_OPEN: 0.0,
         SESSION_NBE_CLOSE: 0.0,
+        SESSION_QNB_OPEN: 0.0,
+        SESSION_QNB_CLOSE: 0.0,
+        SESSION_FAWRY_OPEN: 0.0,
+        SESSION_FAWRY_CLOSE: 0.0,
+        SESSION_CUSTOMER_DEBTS: [],
         "opening_cash_breakdown": {},
         "closing_cash_breakdown": {},
         "social_notes": "",
@@ -179,10 +190,12 @@ def render_cash_counter(section_prefix: str, title_suffix: str = "") -> tuple[fl
 # =====================================================
 # Other Inputs
 # =====================================================
-def render_digital_inputs(mode: str) -> tuple[float, float, float]:
+def render_digital_inputs(mode: str) -> tuple[float, float, float, float, float]:
     opay_key = f"opay_{mode}"
     debit_key = f"debit_{mode}"
     nbe_key = f"nbe_{mode}"
+    qnb_key = f"qnb_{mode}"
+    fawry_key = f"fawry_{mode}"
 
     st.session_state[opay_key] = st.number_input(
         f"💳 Opay {mode.capitalize()}",
@@ -192,7 +205,7 @@ def render_digital_inputs(mode: str) -> tuple[float, float, float]:
     )
 
     st.session_state[debit_key] = st.number_input(
-        f"💳 Debit {mode.capitalize()}",
+        f"📒 Customer Debit {mode.capitalize()}",
         min_value=0.0,
         step=1.0,
         value=float(st.session_state.get(debit_key, 0.0)),
@@ -205,11 +218,86 @@ def render_digital_inputs(mode: str) -> tuple[float, float, float]:
         value=float(st.session_state.get(nbe_key, 0.0)),
     )
 
+    st.session_state[qnb_key] = st.number_input(
+        f"🏦 QNB / InstaPay {mode.capitalize()}",
+        min_value=0.0,
+        step=1.0,
+        value=float(st.session_state.get(qnb_key, 0.0)),
+    )
+
+    st.session_state[fawry_key] = st.number_input(
+        f"💠 Fawry {mode.capitalize()}",
+        min_value=0.0,
+        step=1.0,
+        value=float(st.session_state.get(fawry_key, 0.0)),
+    )
+
     return (
         float(st.session_state[opay_key]),
         float(st.session_state[debit_key]),
         float(st.session_state[nbe_key]),
+        float(st.session_state[qnb_key]),
+        float(st.session_state[fawry_key]),
     )
+
+
+def render_customer_debts_section() -> None:
+    st.divider()
+    st.subheader("📒 Customer Debts")
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        customer_name = st.text_input("Customer Name", key="debt_customer_name")
+
+    with col2:
+        customer_phone = st.text_input("Customer Phone", key="debt_customer_phone")
+
+    with col3:
+        debt_amount = st.number_input(
+            "Debt Amount",
+            min_value=0.0,
+            step=1.0,
+            key="debt_customer_amount",
+        )
+
+    if st.button("➕ Add Customer Debt"):
+        if customer_name.strip():
+            st.session_state[SESSION_CUSTOMER_DEBTS].append(
+                {
+                    "customer_name": customer_name.strip(),
+                    "customer_phone": customer_phone.strip(),
+                    "debt_amount": float(debt_amount or 0),
+                }
+            )
+            st.rerun()
+        else:
+            st.warning("Customer name is required.")
+
+    current_debts = st.session_state.get(SESSION_CUSTOMER_DEBTS, [])
+
+    if current_debts:
+        st.markdown("#### Current Customer Debts")
+        for index, item in enumerate(current_debts):
+            c1, c2 = st.columns([8, 1])
+            with c1:
+                st.write(
+                    f"• {item.get('customer_name', '-')}"
+                    f" | {item.get('customer_phone', '-')}"
+                    f" | {float(item.get('debt_amount', 0) or 0):,.2f} LE"
+                )
+            with c2:
+                if st.button("✖️", key=f"remove_debt_{index}"):
+                    st.session_state[SESSION_CUSTOMER_DEBTS].pop(index)
+                    st.rerun()
+
+        total_customer_debt = sum(
+            float(item.get("debt_amount", 0) or 0)
+            for item in current_debts
+        )
+        st.info(f"Total Customer Debt List: {total_customer_debt:,.2f} LE")
+    else:
+        st.info("No customer debts added yet.")
 
 
 def render_printer_start_inputs() -> None:
@@ -443,6 +531,7 @@ def render_closing_tab(db: dict) -> None:
     st.subheader("💳 Digital Closing")
     render_digital_inputs("close")
 
+    render_customer_debts_section()
     render_expenses_section(db)
 
     st.divider()
