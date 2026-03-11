@@ -29,8 +29,7 @@ EXTRA_FINANCIAL_RECORD_KEYS = [
     "absence_penalties",
 ]
 
-ALL_FINANCIAL_RECORD_KEYS = list(HR_RECORD_KEYS)
-
+ALL_FINANCIAL_RECORD_KEYS = list(HR_RECORD_KEYS) + EXTRA_FINANCIAL_RECORD_KEYS
 # =====================================================
 # Connection
 # =====================================================
@@ -453,6 +452,9 @@ def _write_users(supabase: Client, users: dict) -> None:
                 "warnings": safe_list(user.get("warnings")),
             }
         )
+
+    if user_rows:
+        supabase.table("users").upsert(user_rows, on_conflict="username").execute()
 
         for record_type in ALL_FINANCIAL_RECORD_KEYS:
             for item in safe_list(user.get(record_type)):
