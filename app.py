@@ -23,13 +23,16 @@ from constants import (
     ADMIN_MODULE_PRINTERS,
     ADMIN_MODULE_TASKS,
     ADMIN_MODULE_TRAINING,
+    HR_RECORD_KEYS,
+    HR_RECORD_LABELS,
+    PAYOUT_METHOD_LABELS,
     PAYROLL_ENTRY_KEY_MAP,
     ROLE_ADMIN,
     ROLE_LABELS,
     SESSION_USER,
     TASK_CATEGORIES,
 )
-from database import get_supabase, load_db, save_db
+from database import load_db, save_db
 from operations_service import daily_operations_ui
 from printer_service import printer_management_ui
 from supabase_migration import migrate
@@ -67,6 +70,9 @@ def ensure_db_defaults() -> None:
         "history": [],
         "training_records": {},
         "printers": {},
+        "attendance_records": {},
+        "late_tracking": {},
+        "blocked_users": {},
     }
 
     changed = False
@@ -110,8 +116,69 @@ def get_role_label(role_value: str) -> str:
     return ROLE_LABELS.get(role_value, str(role_value).replace("_", " ").title())
 
 
+def get_payout_method_label(method_value: str) -> str:
+    return PAYOUT_METHOD_LABELS.get(method_value, str(method_value).replace("_", " ").title())
+
+
 def can_view_self_service() -> bool:
-    return get_current_role() != ROLE_ADMIN
+    return True
+
+
+def normalize_financial_records(records: list) -> list:
+    normalized = []
+
+    for record in records or []:
+        normalized.append(
+            {
+                "date": record.get("date", "-"),
+                "amount": float(record.get("amount", record.get("val", 0)) or 0),
+                "note": record.get("note", "-"),
+            }
+        )
+
+    return normalized
+
+
+def calculate_salary_breakdown(user_info: dict) -> dict:
+    salary_basic = float(user_info.get("salary_basic", 0) or 0)
+    transport_allowance = float(user_info.get("transport_allowance", 0) or 0)
+    communication_allowance = float(user_info.get("communication_allowance", 0) or 0)
+    other_allowance = float(user_info.get("other_allowance", 0) or 0)
+
+    total_fixed = (
+        salary_basic
+        + transport_allowance
+        + communication_allowance
+        + other_allowance
+    )
+
+    total_bonus = sum(float(item.get("amount", 0) or 0) for item in user_info.get("bonus", []))
+    total_overtime = sum(float(item.get("amount", 0) or 0) for item in user_info.get("overtime", []))
+    total_deductions = sum(float(item.get("amount", 0) or 0) for item in user_info.get("deductions", []))
+    total_advances = sum(float(item.get("amount", 0) or 0) for item in user_info.get("advances", []))
+    total_late_penalties = sum(float(item.get("amount", 0) or 0) for item in user_info.get("late_penalties", []))
+    total_absence_penalties = sum(float(item.get("amount", 0) or 0) for item in user_info.get("absence_penalties", []))
+
+    gross_salary = total_fixed + total_bonus + total_overtime
+    total_withheld = total_deductions + total_advances + total_late_penalties + total_absence_penalties
+    net_salary = gross_salary - total_withheld
+
+    return {
+        "salary_basic": salary_basic,
+        "transport_allowance": transport_allowance,
+        "communication_allowance": communication_allowance,
+        "other_allowance": other_allowance,
+        "total_fixed": total_fixed,
+        "total_bonus": total_bonus,
+        "total_overtime": total_overtime,
+        "total_deductions": total_deductions,
+        "total_advances": total_advances,
+        "total_late_penalties": total_late_penalties,
+        "total_absence_penalties": total_absence_penalties,
+        "gross_salary": gross_salary,
+        "total_withheld": total_withheld,
+        "net_salary": net_salary,
+    }
 
 
 # =========================
@@ -162,34 +229,92 @@ def render_self_service(user_info: dict) -> None:
 
     st.write(f"**🧩 Role:** {get_role_label(user_info.get('role', 'employee'))}")
     st.write(f"**💼 Job Title:** {user_info.get('job_title', '-')}")
+    st.write(f"**🆔 Employee Code:** {user_info.get('employee_code', '-') or '-'}")
+    st.write(f"**🎂 Birth Date:** {user_info.get('birth_date', '-')}")
     st.write(f"**📅 Hiring Date:** {user_info.get('hiring_date', '-')}")
+    st.write(f"**📞 Phone:** {user_info.get('phone', '-') or '-'}")
+    st.write(f"**📧 Email:** {user_info.get('email', '-') or '-'}")
+    st.write(f"**🪪 National ID:** {user_info.get('national_id', '-') or '-'}")
 
-    salary = float(user_info.get("salary", 0) or 0)
-    st.metric("💰 Base Salary", f"{salary:,.2f} LE")
+    st.divider()
+    st.markdown("### 💳 Salary & Payout Details")
 
-    with st.expander("🎁 My Bonuses", expanded=False):
-        if user_info.get("bonus"):
-            st.dataframe(pd.DataFrame(user_info["bonus"]), use_container_width=True)
-        else:
-            st.info("No bonuses yet.")
+    salary_summary = calculate_salary_breakdown(user_info)
 
-    with st.expander("⏳ Overtime", expanded=False):
-        if user_info.get("overtime"):
-            st.dataframe(pd.DataFrame(user_info["overtime"]), use_container_width=True)
-        else:
-            st.info("No overtime yet.")
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.metric("Fixed Salary", f"{salary_summary['total_fixed']:,.2f} LE")
+    with c2:
+        st.metric("Gross Salary", f"{salary_summary['gross_salary']:,.2f} LE")
+    with c3:
+        st.metric("Net Salary", f"{salary_summary['net_salary']:,.2f} LE")
 
-    with st.expander("⚠️ My Deductions", expanded=False):
-        if user_info.get("deductions"):
-            st.dataframe(pd.DataFrame(user_info["deductions"]), use_container_width=True)
-        else:
-            st.success("Clean Record! No deductions.")
+    salary_df = pd.DataFrame(
+        [
+            {"Item": "Basic Salary", "Value": salary_summary["salary_basic"]},
+            {"Item": "Transport Allowance", "Value": salary_summary["transport_allowance"]},
+            {"Item": "Communication Allowance", "Value": salary_summary["communication_allowance"]},
+            {"Item": "Other Allowance", "Value": salary_summary["other_allowance"]},
+            {"Item": "Total Bonus", "Value": salary_summary["total_bonus"]},
+            {"Item": "Total Overtime", "Value": salary_summary["total_overtime"]},
+            {"Item": "Total Deductions", "Value": salary_summary["total_deductions"]},
+            {"Item": "Total Advances", "Value": salary_summary["total_advances"]},
+            {"Item": "Late Penalties", "Value": salary_summary["total_late_penalties"]},
+            {"Item": "Absence Penalties", "Value": salary_summary["total_absence_penalties"]},
+            {"Item": "Net Salary", "Value": salary_summary["net_salary"]},
+        ]
+    )
 
-    with st.expander("🏖️ Extra Leave", expanded=False):
-        if user_info.get("extra_leaves"):
-            st.dataframe(pd.DataFrame(user_info["extra_leaves"]), use_container_width=True)
-        else:
-            st.success("Clean Record! No extra leaves.")
+    st.dataframe(
+        salary_df,
+        use_container_width=True,
+        column_config={
+            "Value": st.column_config.NumberColumn("Value", format="%.2f LE"),
+        },
+    )
+
+    st.write(f"**🏦 Payout Method:** {get_payout_method_label(user_info.get('payout_method', 'bank'))}")
+    st.write(f"**🏛️ Bank Name:** {user_info.get('bank_name', '-') or '-'}")
+    st.write(f"**💳 Bank Account / IBAN:** {user_info.get('bank_account_number', '-') or '-'}")
+    st.write(f"**📱 Wallet Number:** {user_info.get('wallet_number', '-') or '-'}")
+
+    st.divider()
+    st.markdown("### 🚨 Warnings")
+
+    warnings = user_info.get("warnings", [])
+    if warnings:
+        warnings_df = pd.DataFrame(
+            [
+                {
+                    "Date": item.get("date", "-"),
+                    "Note": item.get("note", "-"),
+                }
+                for item in warnings
+            ]
+        )
+        st.dataframe(warnings_df, use_container_width=True)
+    else:
+        st.success("No warnings recorded.")
+
+    st.divider()
+
+    for category in HR_RECORD_KEYS:
+        label = HR_RECORD_LABELS.get(category, category.title())
+
+        with st.expander(f"📌 {label}", expanded=False):
+            records = normalize_financial_records(user_info.get(category, []))
+            if records:
+                st.dataframe(
+                    pd.DataFrame(records),
+                    use_container_width=True,
+                    column_config={
+                        "amount": st.column_config.NumberColumn("Amount", format="%.2f LE"),
+                        "date": "Date",
+                        "note": "Note",
+                    },
+                )
+            else:
+                st.info(f"No {label.lower()} records yet.")
 
 
 # =========================
