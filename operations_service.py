@@ -49,7 +49,13 @@ from report_service import (
     build_role_report_data,
     build_whatsapp_text as build_role_whatsapp_text,
 )
-from role_service import get_allowed_tabs, get_normalized_current_role
+from role_service import (
+    can_access_daily_operations,
+    get_allowed_tabs,
+    get_daily_operations_block_message,
+    get_normalized_current_role,
+    is_customer_service_role,
+)
 
 
 # =====================================================
@@ -188,6 +194,16 @@ def render_step_navigation(current_index: int, total_steps: int) -> None:
         if current_index < total_steps - 1:
             if st.button("Next ➡", use_container_width=True, key=f"next_btn_{current_index}"):
                 go_to_next_step(total_steps - 1)
+
+
+def render_daily_operations_block() -> None:
+    st.title("📊 NMS ERP - Daily Operations")
+    st.error(get_daily_operations_block_message())
+
+    if is_customer_service_role():
+        st.info(
+            "يمكنك متابعة ملفك الشخصي والتنبيهات والبيانات الخاصة بك من الشريط الجانبي."
+        )
 
 
 # =====================================================
@@ -775,6 +791,10 @@ def daily_operations_ui(db: dict) -> None:
         return
 
     ensure_session_defaults()
+
+    if not can_access_daily_operations():
+        render_daily_operations_block()
+        return
 
     st.title("📊 NMS ERP - Daily Operations")
 
