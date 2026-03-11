@@ -128,6 +128,25 @@ def build_printer_lines(printer_diff: dict) -> str:
     return "\n\n".join(sections)
 
 
+def build_customer_debts_lines(customer_debts: list) -> str:
+    if not customer_debts:
+        return "No Customer Debts"
+
+    lines = []
+    for item in customer_debts:
+        lines.append(
+            f"- {safe_text(item.get('customer_name', '-'))}"
+            f" | {safe_text(item.get('customer_phone', '-'))}"
+            f" | {safe_float(item.get('debt_amount', 0)):,.2f} LE"
+        )
+
+    return "\n".join(lines)
+
+
+def calculate_total_customer_debts(customer_debts: list) -> float:
+    return sum(safe_float(item.get("debt_amount", 0)) for item in (customer_debts or []))
+
+
 def get_user_display_data(db: dict) -> dict:
     username = get_current_username() or "-"
     user_record = db.get("users", {}).get(username, {})
@@ -147,12 +166,23 @@ def build_base_report_data(db: dict, session_state) -> dict:
     expenses_list = session_state.get("shift_expenses", [])
     total_expenses = calculate_total_expenses(expenses_list)
 
+    customer_debts = session_state.get("customer_debts", [])
+    total_customer_debts = calculate_total_customer_debts(customer_debts)
+
     opay_open = safe_float(session_state.get("opay_open", 0))
     opay_close = safe_float(session_state.get("opay_close", 0))
+
     debit_open = safe_float(session_state.get("debit_open", 0))
     debit_close = safe_float(session_state.get("debit_close", 0))
+
     nbe_open = safe_float(session_state.get("nbe_open", 0))
     nbe_close = safe_float(session_state.get("nbe_close", 0))
+
+    qnb_open = safe_float(session_state.get("qnb_open", 0))
+    qnb_close = safe_float(session_state.get("qnb_close", 0))
+
+    fawry_open = safe_float(session_state.get("fawry_open", 0))
+    fawry_close = safe_float(session_state.get("fawry_close", 0))
 
     opening_cash_breakdown = session_state.get("opening_cash_breakdown", {})
     closing_cash_breakdown = session_state.get("closing_cash_breakdown", {})
@@ -201,6 +231,15 @@ def build_base_report_data(db: dict, session_state) -> dict:
         "nbe_open": nbe_open,
         "nbe_close": nbe_close,
         "nbe_diff": nbe_close - nbe_open,
+        "qnb_open": qnb_open,
+        "qnb_close": qnb_close,
+        "qnb_diff": qnb_close - qnb_open,
+        "fawry_open": fawry_open,
+        "fawry_close": fawry_close,
+        "fawry_diff": fawry_close - fawry_open,
+        "customer_debts": customer_debts,
+        "customer_debts_lines": build_customer_debts_lines(customer_debts),
+        "total_customer_debts": total_customer_debts,
         "printer_diff": printer_diff,
         "printer_lines": build_printer_lines(printer_diff),
         "social_notes": safe_text(session_state.get("social_notes", ""), "No Social Notes"),
@@ -226,7 +265,16 @@ def build_base_report_data(db: dict, session_state) -> dict:
 # =====================================================
 def get_visible_sections(report_type: str) -> list[str]:
     if report_type == "financial":
-        return ["identity", "summary", "cash_breakdown", "digital", "expenses", "tasks", "printers"]
+        return [
+            "identity",
+            "summary",
+            "cash_breakdown",
+            "digital",
+            "customer_debts",
+            "expenses",
+            "tasks",
+            "printers",
+        ]
 
     if report_type == "hr":
         return ["identity", "interaction_notes", "special_notes", "tasks"]
@@ -243,6 +291,7 @@ def get_visible_sections(report_type: str) -> list[str]:
             "summary",
             "cash_breakdown",
             "digital",
+            "customer_debts",
             "expenses",
             "tasks",
             "interaction_notes",
@@ -256,6 +305,7 @@ def get_visible_sections(report_type: str) -> list[str]:
         "summary",
         "cash_breakdown",
         "digital",
+        "customer_debts",
         "expenses",
         "tasks",
         "interaction_notes",
@@ -316,10 +366,42 @@ def build_cash_breakdown_section(report: dict) -> str:
 def build_digital_section(report: dict) -> str:
     return "\n".join(
         [
-            "DIGITAL",
-            f"Opay Diff: {report['opay_diff']:,.2f}",
-            f"Debit Diff: {report['debit_diff']:,.2f}",
-            f"NBE Diff: {report['nbe_diff']:,.2f}",
+            "DIGITAL BALANCES",
+            "",
+            "OPAY",
+            f"Open: {report['opay_open']:,.2f}",
+            f"Close: {report['opay_close']:,.2f}",
+            f"Diff: {report['opay_diff']:,.2f}",
+            "",
+            "CUSTOMER DEBIT",
+            f"Open: {report['debit_open']:,.2f}",
+            f"Close: {report['debit_close']:,.2f}",
+            f"Diff: {report['debit_diff']:,.2f}",
+            "",
+            "NBE",
+            f"Open: {report['nbe_open']:,.2f}",
+            f"Close: {report['nbe_close']:,.2f}",
+            f"Diff: {report['nbe_diff']:,.2f}",
+            "",
+            "QNB / INSTAPAY",
+            f"Open: {report['qnb_open']:,.2f}",
+            f"Close: {report['qnb_close']:,.2f}",
+            f"Diff: {report['qnb_diff']:,.2f}",
+            "",
+            "FAWRY",
+            f"Open: {report['fawry_open']:,.2f}",
+            f"Close: {report['fawry_close']:,.2f}",
+            f"Diff: {report['fawry_diff']:,.2f}",
+        ]
+    )
+
+
+def build_customer_debts_section(report: dict) -> str:
+    return "\n".join(
+        [
+            "CUSTOMER DEBTS DETAILS",
+            f"Total Customer Debts: {report['total_customer_debts']:,.2f}",
+            report["customer_debts_lines"],
         ]
     )
 
@@ -453,6 +535,8 @@ def build_section_text(section_name: str, report: dict) -> str:
         return build_cash_breakdown_section(report)
     if section_name == "digital":
         return build_digital_section(report)
+    if section_name == "customer_debts":
+        return build_customer_debts_section(report)
     if section_name == "expenses":
         return build_expenses_section(report)
     if section_name == "tasks":
