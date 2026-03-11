@@ -214,21 +214,17 @@ def render_step_selector(step_labels: list[str]) -> int:
         current_index = 0
         st.session_state["ops_current_tab"] = 0
 
-    selected_label = st.radio(
-        "Navigation",
-        step_labels,
-        index=current_index,
-        horizontal=True,
-        key="ops_step_selector",
-    )
+    st.markdown("### Navigation")
+    cols = st.columns(len(step_labels))
 
-    selected_index = step_labels.index(selected_label)
+    for idx, label in enumerate(step_labels):
+        button_type = "primary" if idx == current_index else "secondary"
+        with cols[idx]:
+            if st.button(label, use_container_width=True, type=button_type, key=f"ops_nav_btn_{idx}"):
+                st.session_state["ops_current_tab"] = idx
+                st.rerun()
 
-    if selected_index != current_index:
-        st.session_state["ops_current_tab"] = selected_index
-        current_index = selected_index
-
-    return current_index
+    return int(st.session_state.get("ops_current_tab", 0))
 
 
 # =====================================================
