@@ -93,6 +93,7 @@ def ensure_session_defaults() -> None:
         "wallet_amount": 0.0,
         "visa_amount": 0.0,
         "ops_current_tab": 0,
+        "pending_tasks_ack": False,
     }
 
     for key, value in defaults.items():
@@ -204,6 +205,30 @@ def render_daily_operations_block() -> None:
         st.info(
             "يمكنك متابعة ملفك الشخصي والتنبيهات والبيانات الخاصة بك من الشريط الجانبي."
         )
+
+
+def render_step_selector(step_labels: list[str]) -> int:
+    current_index = int(st.session_state.get("ops_current_tab", 0))
+
+    if current_index >= len(step_labels):
+        current_index = 0
+        st.session_state["ops_current_tab"] = 0
+
+    selected_label = st.radio(
+        "Navigation",
+        step_labels,
+        index=current_index,
+        horizontal=True,
+        key="ops_step_selector",
+    )
+
+    selected_index = step_labels.index(selected_label)
+
+    if selected_index != current_index:
+        st.session_state["ops_current_tab"] = selected_index
+        current_index = selected_index
+
+    return current_index
 
 
 # =====================================================
@@ -482,6 +507,26 @@ def archive_shift(db: dict) -> None:
     supabase.table("shift_history").insert(row).execute()
 
 
+def can_finalize_shift(report: dict) -> bool:
+    if not report.get("has_pending_tasks", False):
+        return True
+    return bool(st.session_state.get("pending_tasks_ack", False))
+
+
+def render_pending_tasks_gate(report: dict) -> None:
+    if not report.get("has_pending_tasks", False):
+        st.session_state["pending_tasks_ack"] = False
+        return
+
+    st.error(report.get("pending_tasks_warning", "يوجد مهام غير مكتملة."))
+
+    st.session_state["pending_tasks_ack"] = st.checkbox(
+        "أقر أنني قرأت التحذير وأتحمل المسؤولية قبل المتابعة.",
+        value=bool(st.session_state.get("pending_tasks_ack", False)),
+        key="pending_tasks_ack_checkbox",
+    )
+
+
 # =====================================================
 # Opening
 # =====================================================
@@ -694,10 +739,15 @@ def render_role_specific_section(db: dict) -> None:
 def render_report_tab(db: dict) -> None:
     st.subheader("📦 Archive & Reporting")
 
+    report = get_shift_report_data(db)
+    render_pending_tasks_gate(report)
+
+    can_finalize = can_finalize_shift(report)
+
     col1, col2 = st.columns(2)
 
     with col1:
-        if st.button("💾 Archive Shift", use_container_width=True):
+        if st.button("💾 Archive Shift", use_container_width=True, disabled=not can_finalize):
             try:
                 archive_shift(db)
                 st.success("Archived Successfully ✅")
@@ -705,9 +755,7 @@ def render_report_tab(db: dict) -> None:
                 st.error(f"Archive failed: {e}")
 
     with col2:
-        report = get_shift_report_data(db)
-
-        if st.button("📄 Generate PDF", use_container_width=True):
+        if st.button("📄 Generate PDF", use_container_width=True, disabled=not can_finalize):
             pdf_bytes = create_downloadable_pdf(
                 branch=report["branch"],
                 staff_name=report["staff"],
@@ -765,12 +813,15 @@ def render_report_tab(db: dict) -> None:
                 file_name="shift_report.pdf",
             )
 
-        manager_phone = get_manager_phone()
-        wa_text = build_role_whatsapp_text(db, st.session_state)
+    manager_phone = get_manager_phone()
+    wa_text = build_role_whatsapp_text(db, st.session_state)
 
-        with st.expander("🔍 WhatsApp Preview", expanded=False):
-            st.code(wa_text)
+    with st.expander("🔍 WhatsApp Preview", expanded=False):
+        st.code(wa_text)
 
+    if not can_finalize and report.get("has_pending_tasks"):
+        st.warning("لا يمكن إرسال التقرير قبل الإقرار بالمهام غير المكتملة.")
+    else:
         url = f"https://wa.me/{manager_phone}?text={urllib.parse.quote(wa_text)}"
 
         st.markdown(
@@ -842,17 +893,8 @@ def daily_operations_ui(db: dict) -> None:
         st.info("No operational modules are available for this role.")
         return
 
-    current_index = int(st.session_state.get("ops_current_tab", 0))
-    if current_index >= len(tabs):
-        current_index = 0
-        st.session_state["ops_current_tab"] = 0
+    current_index = render_step_selector(tabs)
 
-    tab_objects = st.tabs(tabs)
-
-    for idx, (tab_obj, renderer) in enumerate(zip(tab_objects, renderers)):
-        with tab_obj:
-            if idx == current_index:
-                renderer()
-                render_step_navigation(idx, len(tabs))
-            else:
-                st.caption("Open this step from the navigation buttons or tab header.")
+    st.divider()
+    renderers[current_index]()
+    render_step_navigation(current_index, len(tabs))
