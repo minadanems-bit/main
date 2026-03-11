@@ -82,6 +82,16 @@ def build_user_rows(data: dict) -> tuple[list, list]:
     user_rows = []
     financial_rows = []
 
+    all_financial_keys = [
+        "bonus",
+        "deductions",
+        "overtime",
+        "extra_leaves",
+        "advances",
+        "late_penalties",
+        "absence_penalties",
+    ]
+
     for username, user in users.items():
         user_rows.append(
             {
@@ -89,8 +99,11 @@ def build_user_rows(data: dict) -> tuple[list, list]:
                 "password": user.get("pass", ""),
                 "role": user.get("role", "employee"),
                 "full_name": user.get("full_name", username),
+                "job_title": user.get("job_title", ""),
                 "photo": user.get("photo"),
                 "id_card": user.get("id_card"),
+                "employee_code": user.get("employee_code", ""),
+                "birth_date": user.get("birth_date", "2000-01-01"),
                 "phone": user.get("phone", ""),
                 "email": user.get("email", ""),
                 "national_id": user.get("national_id", ""),
@@ -98,11 +111,19 @@ def build_user_rows(data: dict) -> tuple[list, list]:
                 "qualification": user.get("qualification", ""),
                 "hiring_date": user.get("hiring_date", "2024-01-01"),
                 "salary": float(user.get("salary", 0) or 0),
-                "job_title": user.get("job_title", ""),
+                "salary_basic": float(user.get("salary_basic", 0) or 0),
+                "transport_allowance": float(user.get("transport_allowance", 0) or 0),
+                "communication_allowance": float(user.get("communication_allowance", 0) or 0),
+                "other_allowance": float(user.get("other_allowance", 0) or 0),
+                "bank_name": user.get("bank_name", ""),
+                "bank_account_number": user.get("bank_account_number", ""),
+                "wallet_number": user.get("wallet_number", ""),
+                "payout_method": user.get("payout_method", "bank"),
+                "warnings": safe_list(user.get("warnings")),
             }
         )
 
-        for record_type in ["bonus", "deductions", "overtime", "extra_leaves"]:
+        for record_type in all_financial_keys:
             for item in safe_list(user.get(record_type)):
                 financial_rows.append(
                     {
