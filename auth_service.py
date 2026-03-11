@@ -21,6 +21,25 @@ from database import save_db
 
 
 # =====================================================
+# Session Keys
+# =====================================================
+SESSION_LOGGED_IN = "logged_in"
+SESSION_USER = "user"
+SESSION_ROLE = "role"
+
+SESSION_PENDING_ATTENDANCE_USER = "pending_attendance_user"
+SESSION_PENDING_ATTENDANCE_PASSWORD = "pending_attendance_password"
+SESSION_PENDING_ATTENDANCE_ROLE = "pending_attendance_role"
+
+SESSION_PENDING_LATE_WARNING = "pending_late_warning"
+SESSION_PENDING_LOGIN_PAYLOAD = "pending_login_payload"
+SESSION_LOGIN_BLOCKED_MESSAGE = "login_blocked_message"
+
+SESSION_ATTENDANCE_TIME = "attendance_time"
+SESSION_ATTENDANCE_SHIFT = "attendance_shift"
+
+
+# =====================================================
 # Helpers
 # =====================================================
 def get_user_record(db: dict, username: str) -> dict:
@@ -28,15 +47,15 @@ def get_user_record(db: dict, username: str) -> dict:
 
 
 def is_logged_in() -> bool:
-    return bool(st.session_state.get("logged_in", False))
+    return bool(st.session_state.get(SESSION_LOGGED_IN, False))
 
 
 def get_current_username() -> str | None:
-    return st.session_state.get("user")
+    return st.session_state.get(SESSION_USER)
 
 
 def get_current_role() -> str | None:
-    return st.session_state.get("role")
+    return st.session_state.get(SESSION_ROLE)
 
 
 def is_admin() -> bool:
@@ -233,6 +252,15 @@ def get_late_warning_message(late_count: int, late_minutes: int) -> str:
     )
 
 
+def clear_pending_login_flow() -> None:
+    st.session_state.pop(SESSION_PENDING_ATTENDANCE_USER, None)
+    st.session_state.pop(SESSION_PENDING_ATTENDANCE_PASSWORD, None)
+    st.session_state.pop(SESSION_PENDING_ATTENDANCE_ROLE, None)
+    st.session_state.pop(SESSION_PENDING_LATE_WARNING, None)
+    st.session_state.pop(SESSION_PENDING_LOGIN_PAYLOAD, None)
+    st.session_state.pop(SESSION_LOGIN_BLOCKED_MESSAGE, None)
+
+
 # =====================================================
 # Draft helpers
 # =====================================================
@@ -311,10 +339,10 @@ def verify_user_credentials(db: dict, username: str, password: str) -> tuple[boo
     user_record = users[username]
 
     if not verify_password(user_record, password):
-        return False, "Invalid password.", {}
+        return False, "Invalid password.", user_record
 
     if is_user_blocked_for_month(db, username) and not is_management_user(user_record):
-        st.session_state["login_blocked_message"] = (
+        st.session_state[SESSION_LOGIN_BLOCKED_MESSAGE] = (
             "⛔ تم إيقاف دخول التشغيل اليومي لهذا الموظف خلال هذا الشهر.\n"
             "يرجى مراجعة المدير للحصول على تصريح."
         )
@@ -346,8 +374,8 @@ def login_user(
 
     if late_minutes > 0 and not late_acknowledged:
         warning_message = get_late_warning_message(next_late_count, late_minutes)
-        st.session_state["pending_late_warning"] = warning_message
-        st.session_state["pending_login_payload"] = {
+        st.session_state[SESSION_PENDING_LATE_WARNING] = warning_message
+        st.session_state[SESSION_PENDING_LOGIN_PAYLOAD] = {
             "username": username,
             "password": password,
             "shift_name": shift_name,
@@ -385,7 +413,7 @@ def login_user(
                 branch_name=branch_name,
             )
             persist_auth_changes(db)
-            st.session_state["login_blocked_message"] = get_late_warning_message(next_late_count, late_minutes)
+            st.session_state[SESSION_LOGIN_BLOCKED_MESSAGE] = get_late_warning_message(next_late_count, late_minutes)
             return False, "Daily operations access is blocked."
 
         append_attendance_record(
@@ -413,23 +441,18 @@ def login_user(
         )
         persist_auth_changes(db)
 
-    st.session_state["logged_in"] = True
-    st.session_state["user"] = username
-    st.session_state["role"] = user_record.get("role", "user")
-    st.session_state["attendance_shift"] = shift_name
-    st.session_state["attendance_time"] = f"{int(arrival_hour):02d}:{int(arrival_minute):02d}"
+    st.session_state[SESSION_LOGGED_IN] = True
+    st.session_state[SESSION_USER] = username
+    st.session_state[SESSION_ROLE] = user_record.get("role", "user")
+    st.session_state[SESSION_ATTENDANCE_SHIFT] = shift_name
+    st.session_state[SESSION_ATTENDANCE_TIME] = f"{int(arrival_hour):02d}:{int(arrival_minute):02d}"
     st.session_state[SESSION_SHIFT] = shift_name
     st.session_state[SESSION_BRANCH] = branch_name
 
     restore_user_drafts(db, username)
     log_auth_event(db, username, "Login")
 
-    st.session_state.pop("pending_late_warning", None)
-    st.session_state.pop("pending_login_payload", None)
-    st.session_state.pop("login_blocked_message", None)
-    st.session_state.pop("pending_attendance_user", None)
-    st.session_state.pop("pending_attendance_password", None)
-    st.session_state.pop("pending_attendance_role", None)
+    clear_pending_login_flow()
 
     return True, "Login successful."
 
@@ -448,9 +471,8 @@ def logout_user(db: dict) -> None:
 # UI helpers
 # =====================================================
 def render_attendance_step_for_selected_user(db: dict) -> None:
-    pending_username = st.session_state.get("pending_attendance_user", "")
-    pending_password = st.session_state.get("pending_attendance_password", "")
-    pending_role = st.session_state.get("pending_attendance_role", "")
+    pending_username = st.session_state.get(SESSION_PENDING_ATTENDANCE_USER, "")
+    pending_password = st.session_state.get(SESSION_PENDING_ATTENDANCE_PASSWORD, "")
 
     if not pending_username:
         return
@@ -494,8 +516,8 @@ def render_attendance_step_for_selected_user(db: dict) -> None:
             key="attendance_minute_after_login",
         )
 
-    pending_warning = st.session_state.get("pending_late_warning")
-    pending_payload = st.session_state.get("pending_login_payload")
+    pending_warning = st.session_state.get(SESSION_PENDING_LATE_WARNING)
+    pending_payload = st.session_state.get(SESSION_PENDING_LOGIN_PAYLOAD)
 
     if pending_warning and pending_payload:
         st.warning(pending_warning)
@@ -524,16 +546,12 @@ def render_attendance_step_for_selected_user(db: dict) -> None:
                     st.rerun()
                 else:
                     if message == "Daily operations access is blocked.":
-                        st.error(st.session_state.get("login_blocked_message", message))
+                        st.error(st.session_state.get(SESSION_LOGIN_BLOCKED_MESSAGE, message))
                     else:
                         st.error(f"❌ {message}")
 
         if st.button("⬅️ Back To Login", use_container_width=True):
-            st.session_state.pop("pending_attendance_user", None)
-            st.session_state.pop("pending_attendance_password", None)
-            st.session_state.pop("pending_attendance_role", None)
-            st.session_state.pop("pending_late_warning", None)
-            st.session_state.pop("pending_login_payload", None)
+            clear_pending_login_flow()
             st.rerun()
 
         return
@@ -557,16 +575,12 @@ def render_attendance_step_for_selected_user(db: dict) -> None:
             if message == "Late acknowledgement required.":
                 st.rerun()
             elif message == "Daily operations access is blocked.":
-                st.error(st.session_state.get("login_blocked_message", message))
+                st.error(st.session_state.get(SESSION_LOGIN_BLOCKED_MESSAGE, message))
             else:
                 st.error(f"❌ {message}")
 
     if st.button("⬅️ Back To Login", use_container_width=True):
-        st.session_state.pop("pending_attendance_user", None)
-        st.session_state.pop("pending_attendance_password", None)
-        st.session_state.pop("pending_attendance_role", None)
-        st.session_state.pop("pending_late_warning", None)
-        st.session_state.pop("pending_login_payload", None)
+        clear_pending_login_flow()
         st.rerun()
 
 
@@ -581,7 +595,7 @@ def render_login_screen(db: dict) -> None:
         st.error("No users found in database. Please create an admin user first.")
         st.stop()
 
-    blocked_message = st.session_state.get("login_blocked_message")
+    blocked_message = st.session_state.get(SESSION_LOGIN_BLOCKED_MESSAGE)
     if blocked_message:
         st.error(blocked_message)
 
@@ -590,7 +604,7 @@ def render_login_screen(db: dict) -> None:
     with c2:
         st.write("### 🔑 Secure Login")
 
-        pending_attendance_user = st.session_state.get("pending_attendance_user")
+        pending_attendance_user = st.session_state.get(SESSION_PENDING_ATTENDANCE_USER)
         if pending_attendance_user:
             render_attendance_step_for_selected_user(db)
             st.stop()
@@ -628,8 +642,8 @@ def render_login_screen(db: dict) -> None:
                     step=1,
                 )
 
-            pending_warning = st.session_state.get("pending_late_warning")
-            pending_payload = st.session_state.get("pending_login_payload")
+            pending_warning = st.session_state.get(SESSION_PENDING_LATE_WARNING)
+            pending_payload = st.session_state.get(SESSION_PENDING_LOGIN_PAYLOAD)
 
             if pending_warning and pending_payload:
                 st.warning(pending_warning)
@@ -658,7 +672,7 @@ def render_login_screen(db: dict) -> None:
                             st.rerun()
                         else:
                             if message == "Daily operations access is blocked.":
-                                st.error(st.session_state.get("login_blocked_message", message))
+                                st.error(st.session_state.get(SESSION_LOGIN_BLOCKED_MESSAGE, message))
                             else:
                                 st.error(f"❌ {message}")
 
@@ -682,7 +696,7 @@ def render_login_screen(db: dict) -> None:
                         if message == "Late acknowledgement required.":
                             st.rerun()
                         elif message == "Daily operations access is blocked.":
-                            st.error(st.session_state.get("login_blocked_message", message))
+                            st.error(st.session_state.get(SESSION_LOGIN_BLOCKED_MESSAGE, message))
                         else:
                             st.error(f"❌ {message}")
 
@@ -693,13 +707,13 @@ def render_login_screen(db: dict) -> None:
                 ok, message, verified_user = verify_user_credentials(db, username, password)
 
                 if ok:
-                    st.session_state["pending_attendance_user"] = username
-                    st.session_state["pending_attendance_password"] = password
-                    st.session_state["pending_attendance_role"] = verified_user.get("role", "")
+                    st.session_state[SESSION_PENDING_ATTENDANCE_USER] = username
+                    st.session_state[SESSION_PENDING_ATTENDANCE_PASSWORD] = password
+                    st.session_state[SESSION_PENDING_ATTENDANCE_ROLE] = verified_user.get("role", "")
                     st.rerun()
                 else:
                     if message == "Daily operations access is blocked.":
-                        st.error(st.session_state.get("login_blocked_message", message))
+                        st.error(st.session_state.get(SESSION_LOGIN_BLOCKED_MESSAGE, message))
                     else:
                         st.error(f"❌ {message}")
 
