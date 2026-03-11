@@ -6,16 +6,7 @@
 from datetime import date
 
 from auth_service import get_current_username
-from role_service import (
-    can_include_cleaning_tasks_in_report,
-    can_include_closing_tasks_in_report,
-    can_include_design_tasks_in_report,
-    can_include_interaction_tasks_in_report,
-    can_include_opening_tasks_in_report,
-    can_include_social_tasks_in_report,
-    get_normalized_current_role,
-    get_report_type,
-)
+from role_service import get_normalized_current_role, get_report_type
 
 
 # =====================================================
@@ -36,6 +27,33 @@ def safe_text(value, default="-") -> str:
 def join_non_empty_sections(sections: list[str]) -> str:
     cleaned = [section.strip() for section in sections if str(section).strip()]
     return "\n\n".join(cleaned)
+
+
+# =====================================================
+# Role-based task visibility helpers
+# =====================================================
+def can_include_opening_tasks_for_role(role_value: str) -> bool:
+    return role_value in ["admin", "manager", "accounts"]
+
+
+def can_include_closing_tasks_for_role(role_value: str) -> bool:
+    return role_value in ["admin", "manager", "accounts"]
+
+
+def can_include_interaction_tasks_for_role(role_value: str) -> bool:
+    return role_value in ["admin", "manager", "hr", "employee"]
+
+
+def can_include_social_tasks_for_role(role_value: str) -> bool:
+    return role_value in ["admin", "manager", "graphic_designer", "employee"]
+
+
+def can_include_cleaning_tasks_for_role(role_value: str) -> bool:
+    return role_value in ["admin", "cleaner"]
+
+
+def can_include_design_tasks_for_role(role_value: str) -> bool:
+    return role_value in ["admin", "graphic_designer"]
 
 
 # =====================================================
@@ -171,6 +189,7 @@ def get_user_display_data(db: dict) -> dict:
 
 def build_base_report_data(db: dict, session_state) -> dict:
     user_data = get_user_display_data(db)
+    current_role = user_data["role"]
 
     expenses_list = session_state.get("shift_expenses", [])
     total_expenses = calculate_total_expenses(expenses_list)
@@ -197,36 +216,34 @@ def build_base_report_data(db: dict, session_state) -> dict:
     closing_cash_breakdown = session_state.get("closing_cash_breakdown", {})
     printer_diff = session_state.get("printer_diff", {})
 
-    current_role = user_data["role"]
-
     opening_tasks = (
         db.get("tasks", {}).get("opening", [])
-        if can_include_opening_tasks_in_report()
+        if can_include_opening_tasks_for_role(current_role)
         else []
     )
     closing_tasks = (
         db.get("tasks", {}).get("closing", [])
-        if can_include_closing_tasks_in_report()
+        if can_include_closing_tasks_for_role(current_role)
         else []
     )
     interaction_tasks = (
         db.get("tasks", {}).get("interaction", [])
-        if can_include_interaction_tasks_in_report()
+        if can_include_interaction_tasks_for_role(current_role)
         else []
     )
     social_tasks = (
         db.get("tasks", {}).get("social", [])
-        if can_include_social_tasks_in_report()
+        if can_include_social_tasks_for_role(current_role)
         else []
     )
     cleaning_tasks = (
         db.get("tasks", {}).get("cleaning", [])
-        if can_include_cleaning_tasks_in_report()
+        if can_include_cleaning_tasks_for_role(current_role)
         else []
     )
     design_tasks = (
         db.get("tasks", {}).get("design", [])
-        if can_include_design_tasks_in_report()
+        if can_include_design_tasks_for_role(current_role)
         else []
     )
 
@@ -293,6 +310,48 @@ def build_base_report_data(db: dict, session_state) -> dict:
         "design_tasks_completed": design_status["completed"],
         "design_tasks_pending": design_status["pending"],
     }
+
+
+# =====================================================
+# Pending tasks warning
+# =====================================================
+def get_all_pending_tasks(report: dict) -> list[str]:
+    pending_sections = [
+        ("Opening", report.get("opening_tasks_pending", [])),
+        ("Closing", report.get("closing_tasks_pending", [])),
+        ("Interaction", report.get("interaction_tasks_pending", [])),
+        ("Social", report.get("social_tasks_pending", [])),
+        ("Cleaning", report.get("cleaning_tasks_pending", [])),
+        ("Design", report.get("design_tasks_pending", [])),
+    ]
+
+    pending_items = []
+    for section_name, tasks in pending_sections:
+        for task in tasks or []:
+            pending_items.append(f"{section_name}: {task}")
+
+    return pending_items
+
+
+def has_pending_tasks(report: dict) -> bool:
+    return len(get_all_pending_tasks(report)) > 0
+
+
+def build_pending_tasks_warning(report: dict) -> str:
+    pending_items = get_all_pending_tasks(report)
+
+    if not pending_items:
+        return ""
+
+    lines = [
+        "⚠️ يوجد مهام غير مكتملة في هذا الشيفت.",
+        "يجب إتمام كل المهام المسندة إليك لتجنب أي خصومات.",
+        "",
+        "Pending Tasks:",
+    ]
+    lines.extend([f"- {item}" for item in pending_items])
+
+    return "\n".join(lines)
 
 
 # =====================================================
@@ -368,6 +427,8 @@ def get_visible_sections(report_type: str) -> list[str]:
 def build_role_report_data(db: dict, session_state) -> dict:
     data = build_base_report_data(db, session_state)
     data["visible_sections"] = get_visible_sections(data["report_type"])
+    data["has_pending_tasks"] = has_pending_tasks(data)
+    data["pending_tasks_warning"] = build_pending_tasks_warning(data)
     return data
 
 
