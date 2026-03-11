@@ -4,6 +4,7 @@ from datetime import date
 import pandas as pd
 import streamlit as st
 
+from auth_service import get_current_role, get_current_username
 from constants import (
     DEFAULT_BIRTH_DATE,
     DEFAULT_HIRING_DATE,
@@ -12,7 +13,9 @@ from constants import (
     HR_RECORD_LABELS,
     PAYOUT_METHOD_LABELS,
     PAYOUT_METHOD_OPTIONS,
+    ROLE_ADMIN,
     ROLE_LABELS,
+    ROLE_MANAGER,
     ROLE_OPTIONS,
     ROLE_USER,
     SESSION_ACTIVE_DB,
@@ -23,6 +26,40 @@ from database import create_user, save_db
 # =====================================================
 # Helpers
 # =====================================================
+def is_admin_or_manager() -> bool:
+    current_role = str(get_current_role() or "").strip().lower()
+    return current_role in [ROLE_ADMIN, ROLE_MANAGER]
+
+
+def get_manageable_usernames(db: dict) -> list[str]:
+    users = db.get("users", {})
+
+    if is_admin_or_manager():
+        return list(users.keys())
+
+    current_username = get_current_username()
+    if current_username and current_username in users:
+        return [current_username]
+
+    return []
+
+
+def can_create_employee() -> bool:
+    return is_admin_or_manager()
+
+
+def can_rename_username() -> bool:
+    return is_admin_or_manager()
+
+
+def can_delete_employee() -> bool:
+    return is_admin_or_manager()
+
+
+def can_edit_role() -> bool:
+    return is_admin_or_manager()
+
+
 def ensure_user_defaults(user: dict) -> None:
     defaults = {
         "full_name": "",
@@ -115,7 +152,7 @@ def normalize_financial_records(records: list) -> list:
         normalized.append(
             {
                 "date": record.get("date", "-"),
-                "amount": record.get("amount", record.get("val", 0)),
+                "amount": float(record.get("amount", record.get("val", 0)) or 0),
                 "note": record.get("note", "-"),
             }
         )
@@ -219,6 +256,9 @@ def calculate_salary_breakdown(user: dict) -> dict:
 # Create Employee
 # =====================================================
 def render_create_employee_section(db: dict) -> None:
+    if not can_create_employee():
+        return
+
     st.markdown("## ➕ Create New Employee")
 
     with st.expander("Add New Employee", expanded=False):
@@ -311,6 +351,10 @@ def render_username_management(target: str, db: dict) -> None:
         key=f"current_username_{target}",
     )
 
+    if not can_rename_username():
+        st.info("You can view your username only.")
+        return
+
     if target == "admin":
         st.info("Admin username cannot be changed.")
         return
@@ -341,13 +385,22 @@ def render_personal_details(users: dict, target: str, user: dict, db: dict) -> N
     full_name = st.text_input("Full Name", value=user.get("full_name", ""), key=f"edit_full_name_{target}")
     password = st.text_input("Password", value=user.get("pass", ""), key=f"edit_password_{target}")
 
-    role_value = st.selectbox(
-        "Role",
-        ROLE_OPTIONS,
-        index=current_role_index,
-        format_func=get_role_display,
-        key=f"edit_role_{target}",
-    )
+    if can_edit_role():
+        role_value = st.selectbox(
+            "Role",
+            ROLE_OPTIONS,
+            index=current_role_index,
+            format_func=get_role_display,
+            key=f"edit_role_{target}",
+        )
+    else:
+        role_value = current_role
+        st.text_input(
+            "Role",
+            value=get_role_display(role_value),
+            disabled=True,
+            key=f"edit_role_readonly_{target}",
+        )
 
     job_title = st.text_input("Job Title", value=user.get("job_title", ""), key=f"edit_job_title_{target}")
     employee_code = st.text_input("Employee Code", value=user.get("employee_code", ""), key=f"edit_employee_code_{target}")
@@ -536,20 +589,21 @@ def render_warning_section(users: dict, target: str, user: dict, db: dict) -> No
     else:
         st.info("No warnings recorded.")
 
-    warning_note = st.text_area("Add Warning Note", key=f"warning_note_{target}")
+    if is_admin_or_manager():
+        warning_note = st.text_area("Add Warning Note", key=f"warning_note_{target}")
 
-    if st.button("➕ Add Warning", key=f"add_warning_{target}"):
-        if warning_note.strip():
-            users[target].setdefault("warnings", [])
-            users[target]["warnings"].append(
-                {
-                    "date": str(date.today()),
-                    "note": warning_note.strip(),
-                }
-            )
-            persist_db(db, "✅ Warning Added")
-        else:
-            st.warning("Please write a warning note first.")
+        if st.button("➕ Add Warning", key=f"add_warning_{target}"):
+            if warning_note.strip():
+                users[target].setdefault("warnings", [])
+                users[target]["warnings"].append(
+                    {
+                        "date": str(date.today()),
+                        "note": warning_note.strip(),
+                    }
+                )
+                persist_db(db, "✅ Warning Added")
+            else:
+                st.warning("Please write a warning note first.")
 
 
 def render_financial_entry_form(user: dict, db: dict, target: str) -> None:
@@ -611,9 +665,37 @@ def render_records_history(user: dict) -> None:
             },
         )
 
+    extra_sections = [
+        ("ADVANCES", user.get("advances", [])),
+        ("LATE PENALTIES", user.get("late_penalties", [])),
+        ("ABSENCE PENALTIES", user.get("absence_penalties", [])),
+    ]
+
+    for title, records_source in extra_sections:
+        st.markdown(f"### 🔹 {title}")
+        records = normalize_financial_records(records_source)
+
+        if not records:
+            st.info("No Records")
+            continue
+
+        df = pd.DataFrame(records)
+        st.dataframe(
+            df,
+            use_container_width=True,
+            column_config={
+                "amount": st.column_config.NumberColumn("Amount", format="%.2f"),
+                "date": "Date",
+                "note": "Note",
+            },
+        )
+
 
 def render_delete_employee(users: dict, target: str, db: dict) -> None:
     st.divider()
+
+    if not can_delete_employee():
+        return
 
     if target == "admin":
         st.info("Admin account cannot be deleted from here.")
@@ -668,9 +750,19 @@ def hr_management_ui(db: dict) -> None:
         return
 
     st.divider()
-    st.markdown("## 👤 Manage Existing Employee")
+    st.markdown("## 👤 Manage Employee")
 
-    target = st.selectbox("Select Employee", list(users.keys()))
+    manageable_usernames = get_manageable_usernames(db)
+    if not manageable_usernames:
+        st.warning("No employee profile available.")
+        return
+
+    if is_admin_or_manager():
+        target = st.selectbox("Select Employee", manageable_usernames)
+    else:
+        target = manageable_usernames[0]
+        st.text_input("Employee Username", value=target, disabled=True)
+
     if not target:
         return
 
