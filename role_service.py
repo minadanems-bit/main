@@ -75,7 +75,6 @@ ROLE_ALLOWED_TABS = {
         "report",
     ],
     ROLE_HR: [
-        "interaction",
         "report",
     ],
     ROLE_CLEANER: [
@@ -197,7 +196,7 @@ def is_design_role() -> bool:
 
 
 def is_operational_role() -> bool:
-    return get_normalized_current_role() in [ROLE_ADMIN, ROLE_MANAGER, ROLE_ACCOUNTS]
+    return can_access_daily_operations()
 
 
 def is_customer_service_role() -> bool:
