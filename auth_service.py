@@ -268,16 +268,16 @@ def login_user(
     if not verify_password(user_record, password):
         return False, "Invalid password."
 
-    late_minutes = calculate_late_minutes(shift_name, arrival_hour, arrival_minute)
-    current_late_count = get_user_month_late_count(db, username)
-    next_late_count = current_late_count + 1 if late_minutes > 0 else current_late_count
-
     if is_user_blocked_for_month(db, username):
         st.session_state["login_blocked_message"] = (
             "⛔ تم إيقاف دخول التشغيل اليومي لهذا الموظف خلال هذا الشهر.\n"
             "يرجى مراجعة المدير للحصول على تصريح."
         )
         return False, "Daily operations access is blocked."
+
+    late_minutes = calculate_late_minutes(shift_name, arrival_hour, arrival_minute)
+    current_late_count = get_user_month_late_count(db, username)
+    next_late_count = current_late_count + 1 if late_minutes > 0 else current_late_count
 
     if late_minutes > 0 and not late_acknowledged:
         warning_message = get_late_warning_message(next_late_count, late_minutes)
@@ -286,8 +286,8 @@ def login_user(
             "username": username,
             "password": password,
             "shift_name": shift_name,
-            "arrival_hour": arrival_hour,
-            "arrival_minute": arrival_minute,
+            "arrival_hour": int(arrival_hour),
+            "arrival_minute": int(arrival_minute),
         }
         return False, "Late acknowledgement required."
 
@@ -384,11 +384,21 @@ def render_login_screen(db: dict) -> None:
 
         h1, h2 = st.columns(2)
         with h1:
-            arrival_hour = st.number_input("Arrival Hour", min_value=0, max_value=23, value=8, step=1)
+            arrival_hour = st.number_input(
+                "Arrival Hour",
+                min_value=0,
+                max_value=23,
+                value=8,
+                step=1,
+            )
         with h2:
-            arrival_minute = st.number_input("Arrival Minute", min_value=0, max_value=59, value=0, step=1)
-
-        late_acknowledged = False
+            arrival_minute = st.number_input(
+                "Arrival Minute",
+                min_value=0,
+                max_value=59,
+                value=0,
+                step=1,
+            )
 
         if pending_warning and pending_payload:
             st.warning(pending_warning)
@@ -398,26 +408,27 @@ def render_login_screen(db: dict) -> None:
             )
 
             if st.button("✅ Confirm And Continue", use_container_width=True):
-                success, message = login_user(
-                    db=db,
-                    username=pending_payload["username"],
-                    password=pending_payload["password"],
-                    shift_name=pending_payload["shift_name"],
-                    arrival_hour=int(pending_payload["arrival_hour"]),
-                    arrival_minute=int(pending_payload["arrival_minute"]),
-                    late_acknowledged=late_acknowledged,
-                )
-
-                if success:
-                    st.success(message)
-                    st.rerun()
+                if not late_acknowledged:
+                    st.error("You must acknowledge the warning first.")
                 else:
-                    if message == "Late acknowledgement required." and not late_acknowledged:
-                        st.error("You must acknowledge the warning first.")
-                    elif message == "Daily operations access is blocked.":
-                        st.error(st.session_state.get("login_blocked_message", message))
+                    success, message = login_user(
+                        db=db,
+                        username=pending_payload["username"],
+                        password=pending_payload["password"],
+                        shift_name=pending_payload["shift_name"],
+                        arrival_hour=int(pending_payload["arrival_hour"]),
+                        arrival_minute=int(pending_payload["arrival_minute"]),
+                        late_acknowledged=True,
+                    )
+
+                    if success:
+                        st.success(message)
+                        st.rerun()
                     else:
-                        st.error(f"❌ {message}")
+                        if message == "Daily operations access is blocked.":
+                            st.error(st.session_state.get("login_blocked_message", message))
+                        else:
+                            st.error(f"❌ {message}")
 
         else:
             if st.button("🚀 Login", use_container_width=True):
