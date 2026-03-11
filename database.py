@@ -29,8 +29,7 @@ EXTRA_FINANCIAL_RECORD_KEYS = [
     "absence_penalties",
 ]
 
-ALL_FINANCIAL_RECORD_KEYS = list(HR_RECORD_KEYS) + EXTRA_FINANCIAL_RECORD_KEYS
-
+ALL_FINANCIAL_RECORD_KEYS = list(HR_RECORD_KEYS)
 
 # =====================================================
 # Connection
