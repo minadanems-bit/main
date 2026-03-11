@@ -63,6 +63,10 @@ def _get_special_notes_title(report_type: str) -> str:
     return "Special Notes"
 
 
+def _has_task_data(completed: list | None, pending: list | None) -> bool:
+    return bool(completed or pending)
+
+
 # =====================================================
 # Builders
 # =====================================================
@@ -627,54 +631,25 @@ def create_downloadable_pdf(
         )
 
     if _has_section(visible_sections, "tasks"):
-        elements.extend(
-            _build_task_status_table(
-                styles,
-                "Opening Tasks",
-                opening_tasks_completed or [],
-                opening_tasks_pending or [],
-            )
-        )
-        elements.extend(
-            _build_task_status_table(
-                styles,
-                "Closing Tasks",
-                closing_tasks_completed or [],
-                closing_tasks_pending or [],
-            )
-        )
-        elements.extend(
-            _build_task_status_table(
-                styles,
-                "Interaction Tasks",
-                interaction_tasks_completed or [],
-                interaction_tasks_pending or [],
-            )
-        )
-        elements.extend(
-            _build_task_status_table(
-                styles,
-                "Social Tasks",
-                social_tasks_completed or [],
-                social_tasks_pending or [],
-            )
-        )
-        elements.extend(
-            _build_task_status_table(
-                styles,
-                "Cleaning Tasks",
-                cleaning_tasks_completed or [],
-                cleaning_tasks_pending or [],
-            )
-        )
-        elements.extend(
-            _build_task_status_table(
-                styles,
-                "Design Tasks",
-                design_tasks_completed or [],
-                design_tasks_pending or [],
-            )
-        )
+        task_sections = [
+            ("Opening Tasks", opening_tasks_completed, opening_tasks_pending),
+            ("Closing Tasks", closing_tasks_completed, closing_tasks_pending),
+            ("Interaction Tasks", interaction_tasks_completed, interaction_tasks_pending),
+            ("Social Tasks", social_tasks_completed, social_tasks_pending),
+            ("Cleaning Tasks", cleaning_tasks_completed, cleaning_tasks_pending),
+            ("Design Tasks", design_tasks_completed, design_tasks_pending),
+        ]
+
+        for title, completed, pending in task_sections:
+            if _has_task_data(completed, pending):
+                elements.extend(
+                    _build_task_status_table(
+                        styles,
+                        title,
+                        completed or [],
+                        pending or [],
+                    )
+                )
 
     if _has_section(visible_sections, "interaction_notes"):
         elements.extend(
