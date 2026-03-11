@@ -232,16 +232,39 @@ ADMIN_MODULE_OPTIONS = [
 
 
 # =====================================================
-# Cash & Printer
+# Cash / Digital / Printer
 # =====================================================
 CASH_DENOMINATIONS = [200, 100, 50, 20, 10, 5]
 
 PRINTER_FIELDS = ["Total", "One Side", "Two Side", "Errors", "Jam"]
 
+DIGITAL_BALANCE_CHANNELS = [
+    "opay",
+    "nbe",
+    "qnb",
+    "fawry",
+]
+
 DEFAULT_PRINTERS = {
     "Kyocera 3010i": "192.168.1.120",
     "Xerox 7835": "192.168.1.65",
     "Kyocera P5031DN": "192.168.1.126",
+}
+
+
+# =====================================================
+# Customer Debit
+# =====================================================
+CUSTOMER_DEBIT_FIELDS = [
+    "customer_name",
+    "customer_phone",
+    "debt_amount",
+]
+
+DEFAULT_CUSTOMER_DEBT_ITEM = {
+    "customer_name": "",
+    "customer_phone": "",
+    "debt_amount": 0.0,
 }
 
 
@@ -266,10 +289,20 @@ SESSION_PRINTER_DIFF = "printer_diff"
 
 SESSION_OPAY_OPEN = "opay_open"
 SESSION_OPAY_CLOSE = "opay_close"
+
 SESSION_DEBIT_OPEN = "debit_open"
 SESSION_DEBIT_CLOSE = "debit_close"
+
 SESSION_NBE_OPEN = "nbe_open"
 SESSION_NBE_CLOSE = "nbe_close"
+
+SESSION_QNB_OPEN = "qnb_open"
+SESSION_QNB_CLOSE = "qnb_close"
+
+SESSION_FAWRY_OPEN = "fawry_open"
+SESSION_FAWRY_CLOSE = "fawry_close"
+
+SESSION_CUSTOMER_DEBTS = "customer_debts"
 
 SESSION_ACTIVE_DB = "_active_db"
 
