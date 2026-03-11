@@ -5,10 +5,13 @@ import pandas as pd
 import streamlit as st
 
 from constants import (
+    DEFAULT_BIRTH_DATE,
     DEFAULT_HIRING_DATE,
     HR_FORM_TO_DB_KEY,
     HR_RECORD_KEYS,
     HR_RECORD_LABELS,
+    PAYOUT_METHOD_LABELS,
+    PAYOUT_METHOD_OPTIONS,
     ROLE_LABELS,
     ROLE_OPTIONS,
     ROLE_USER,
@@ -30,13 +33,27 @@ def ensure_user_defaults(user: dict) -> None:
         "address": "",
         "qualification": "",
         "hiring_date": DEFAULT_HIRING_DATE,
+        "birth_date": DEFAULT_BIRTH_DATE,
+        "employee_code": "",
         "salary": 0.0,
+        "salary_basic": 0.0,
+        "transport_allowance": 0.0,
+        "communication_allowance": 0.0,
+        "other_allowance": 0.0,
+        "bank_name": "",
+        "bank_account_number": "",
+        "wallet_number": "",
+        "payout_method": "bank",
         "photo": "",
         "id_card": "",
         "bonus": [],
         "deductions": [],
         "overtime": [],
         "extra_leaves": [],
+        "advances": [],
+        "late_penalties": [],
+        "absence_penalties": [],
+        "warnings": [],
         "role": ROLE_USER,
         "job_title": "",
     }
@@ -47,6 +64,10 @@ def ensure_user_defaults(user: dict) -> None:
     if not user.get("job_title"):
         role_value = user.get("role", ROLE_USER)
         user["job_title"] = role_value.replace("_", " ").title()
+
+    if not user.get("employee_code"):
+        national_id = str(user.get("national_id", "") or "").strip()
+        user["employee_code"] = national_id if national_id else ""
 
 
 def safe_decode_image(image_b64: str):
@@ -71,8 +92,20 @@ def get_safe_hiring_date(user: dict):
         return date.fromisoformat(DEFAULT_HIRING_DATE)
 
 
+def get_safe_birth_date(user: dict):
+    raw_value = user.get("birth_date", DEFAULT_BIRTH_DATE)
+    try:
+        return date.fromisoformat(raw_value)
+    except Exception:
+        return date.fromisoformat(DEFAULT_BIRTH_DATE)
+
+
 def get_role_display(role_value: str) -> str:
     return ROLE_LABELS.get(role_value, role_value.replace("_", " ").title())
+
+
+def get_payout_method_display(method_value: str) -> str:
+    return PAYOUT_METHOD_LABELS.get(method_value, str(method_value).replace("_", " ").title())
 
 
 def normalize_financial_records(records: list) -> list:
@@ -137,6 +170,49 @@ def rename_username_in_db(db: dict, old_username: str, new_username: str) -> tup
 
     save_db(db)
     return True, "Username updated successfully."
+
+
+def calculate_salary_breakdown(user: dict) -> dict:
+    salary_basic = float(user.get("salary_basic", 0) or 0)
+    transport_allowance = float(user.get("transport_allowance", 0) or 0)
+    communication_allowance = float(user.get("communication_allowance", 0) or 0)
+    other_allowance = float(user.get("other_allowance", 0) or 0)
+
+    total_fixed = (
+        salary_basic
+        + transport_allowance
+        + communication_allowance
+        + other_allowance
+    )
+
+    total_bonus = sum(float(item.get("amount", 0) or 0) for item in user.get("bonus", []))
+    total_overtime = sum(float(item.get("amount", 0) or 0) for item in user.get("overtime", []))
+
+    total_deductions = sum(float(item.get("amount", 0) or 0) for item in user.get("deductions", []))
+    total_advances = sum(float(item.get("amount", 0) or 0) for item in user.get("advances", []))
+    total_late_penalties = sum(float(item.get("amount", 0) or 0) for item in user.get("late_penalties", []))
+    total_absence_penalties = sum(float(item.get("amount", 0) or 0) for item in user.get("absence_penalties", []))
+
+    gross_salary = total_fixed + total_bonus + total_overtime
+    total_withheld = total_deductions + total_advances + total_late_penalties + total_absence_penalties
+    net_salary = gross_salary - total_withheld
+
+    return {
+        "salary_basic": salary_basic,
+        "transport_allowance": transport_allowance,
+        "communication_allowance": communication_allowance,
+        "other_allowance": other_allowance,
+        "total_fixed": total_fixed,
+        "total_bonus": total_bonus,
+        "total_overtime": total_overtime,
+        "total_deductions": total_deductions,
+        "total_advances": total_advances,
+        "total_late_penalties": total_late_penalties,
+        "total_absence_penalties": total_absence_penalties,
+        "gross_salary": gross_salary,
+        "total_withheld": total_withheld,
+        "net_salary": net_salary,
+    }
 
 
 # =====================================================
@@ -274,6 +350,13 @@ def render_personal_details(users: dict, target: str, user: dict, db: dict) -> N
     )
 
     job_title = st.text_input("Job Title", value=user.get("job_title", ""), key=f"edit_job_title_{target}")
+    employee_code = st.text_input("Employee Code", value=user.get("employee_code", ""), key=f"edit_employee_code_{target}")
+    birth_date = st.date_input(
+        "Birth Date",
+        value=get_safe_birth_date(user),
+        key=f"edit_birth_date_{target}",
+    )
+
     phone = st.text_input("Phone", value=user.get("phone", ""), key=f"edit_phone_{target}")
     email = st.text_input("Email", value=user.get("email", ""), key=f"edit_email_{target}")
     national_id = st.text_input("National ID", value=user.get("national_id", ""), key=f"edit_national_id_{target}")
@@ -286,32 +369,187 @@ def render_personal_details(users: dict, target: str, user: dict, db: dict) -> N
         key=f"edit_hiring_date_{target}",
     )
 
-    salary = st.number_input(
-        "Base Salary",
-        min_value=0.0,
-        value=float(user.get("salary", 0) or 0),
-        step=100.0,
-        key=f"edit_salary_{target}",
-    )
-
     if st.button("💾 Save Employee Data", key=f"save_employee_data_{target}"):
+        cleaned_national_id = national_id.strip()
+        cleaned_employee_code = employee_code.strip() or cleaned_national_id
+
         users[target].update(
             {
                 "full_name": full_name.strip(),
                 "pass": password,
                 "role": role_value,
                 "job_title": job_title.strip() or get_role_display(role_value),
+                "employee_code": cleaned_employee_code,
+                "birth_date": str(birth_date),
                 "phone": phone.strip(),
                 "email": email.strip(),
-                "national_id": national_id.strip(),
+                "national_id": cleaned_national_id,
                 "address": address.strip(),
                 "qualification": qualification.strip(),
                 "hiring_date": str(hiring_date),
-                "salary": salary,
             }
         )
 
         persist_db(db, "✅ Employee Updated")
+
+
+def render_salary_and_payout_section(users: dict, target: str, user: dict, db: dict) -> None:
+    st.divider()
+    st.markdown("## 💰 Salary Structure & Payout")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        salary_basic = st.number_input(
+            "Basic Salary",
+            min_value=0.0,
+            value=float(user.get("salary_basic", 0) or 0),
+            step=100.0,
+            key=f"salary_basic_{target}",
+        )
+        transport_allowance = st.number_input(
+            "Transport Allowance",
+            min_value=0.0,
+            value=float(user.get("transport_allowance", 0) or 0),
+            step=50.0,
+            key=f"transport_allowance_{target}",
+        )
+        communication_allowance = st.number_input(
+            "Communication Allowance",
+            min_value=0.0,
+            value=float(user.get("communication_allowance", 0) or 0),
+            step=50.0,
+            key=f"communication_allowance_{target}",
+        )
+        other_allowance = st.number_input(
+            "Other Allowance",
+            min_value=0.0,
+            value=float(user.get("other_allowance", 0) or 0),
+            step=50.0,
+            key=f"other_allowance_{target}",
+        )
+
+    with col2:
+        payout_method = st.selectbox(
+            "Payout Method",
+            PAYOUT_METHOD_OPTIONS,
+            index=PAYOUT_METHOD_OPTIONS.index(user.get("payout_method", "bank"))
+            if user.get("payout_method", "bank") in PAYOUT_METHOD_OPTIONS
+            else 0,
+            format_func=get_payout_method_display,
+            key=f"payout_method_{target}",
+        )
+
+        bank_name = st.text_input("Bank Name", value=user.get("bank_name", ""), key=f"bank_name_{target}")
+        bank_account_number = st.text_input(
+            "Bank Account Number / IBAN",
+            value=user.get("bank_account_number", ""),
+            key=f"bank_account_number_{target}",
+        )
+        wallet_number = st.text_input(
+            "Wallet Number",
+            value=user.get("wallet_number", ""),
+            key=f"wallet_number_{target}",
+        )
+
+    if st.button("💾 Save Salary & Payout", key=f"save_salary_payout_{target}"):
+        total_salary = (
+            float(salary_basic or 0)
+            + float(transport_allowance or 0)
+            + float(communication_allowance or 0)
+            + float(other_allowance or 0)
+        )
+
+        users[target].update(
+            {
+                "salary_basic": float(salary_basic or 0),
+                "transport_allowance": float(transport_allowance or 0),
+                "communication_allowance": float(communication_allowance or 0),
+                "other_allowance": float(other_allowance or 0),
+                "salary": total_salary,
+                "payout_method": payout_method,
+                "bank_name": bank_name.strip(),
+                "bank_account_number": bank_account_number.strip(),
+                "wallet_number": wallet_number.strip(),
+            }
+        )
+
+        persist_db(db, "✅ Salary & Payout Updated")
+
+
+def render_salary_summary(user: dict) -> None:
+    st.divider()
+    st.markdown("## 📈 Salary Summary")
+
+    summary = calculate_salary_breakdown(user)
+
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.metric("Fixed Salary", f"{summary['total_fixed']:,.2f}")
+    with c2:
+        st.metric("Gross Salary", f"{summary['gross_salary']:,.2f}")
+    with c3:
+        st.metric("Net Salary", f"{summary['net_salary']:,.2f}")
+
+    df = pd.DataFrame(
+        [
+            {"Item": "Basic Salary", "Value": summary["salary_basic"]},
+            {"Item": "Transport Allowance", "Value": summary["transport_allowance"]},
+            {"Item": "Communication Allowance", "Value": summary["communication_allowance"]},
+            {"Item": "Other Allowance", "Value": summary["other_allowance"]},
+            {"Item": "Total Bonus", "Value": summary["total_bonus"]},
+            {"Item": "Total Overtime", "Value": summary["total_overtime"]},
+            {"Item": "Total Deductions", "Value": summary["total_deductions"]},
+            {"Item": "Total Advances", "Value": summary["total_advances"]},
+            {"Item": "Late Penalties", "Value": summary["total_late_penalties"]},
+            {"Item": "Absence Penalties", "Value": summary["total_absence_penalties"]},
+            {"Item": "Total Withheld", "Value": summary["total_withheld"]},
+            {"Item": "Net Salary", "Value": summary["net_salary"]},
+        ]
+    )
+
+    st.dataframe(
+        df,
+        use_container_width=True,
+        column_config={
+            "Value": st.column_config.NumberColumn("Value", format="%.2f"),
+        },
+    )
+
+
+def render_warning_section(users: dict, target: str, user: dict, db: dict) -> None:
+    st.divider()
+    st.markdown("## 🚨 Warnings")
+
+    current_warnings = user.get("warnings", [])
+    if current_warnings:
+        warnings_df = pd.DataFrame(
+            [
+                {
+                    "date": item.get("date", "-"),
+                    "note": item.get("note", "-"),
+                }
+                for item in current_warnings
+            ]
+        )
+        st.dataframe(warnings_df, use_container_width=True)
+    else:
+        st.info("No warnings recorded.")
+
+    warning_note = st.text_area("Add Warning Note", key=f"warning_note_{target}")
+
+    if st.button("➕ Add Warning", key=f"add_warning_{target}"):
+        if warning_note.strip():
+            users[target].setdefault("warnings", [])
+            users[target]["warnings"].append(
+                {
+                    "date": str(date.today()),
+                    "note": warning_note.strip(),
+                }
+            )
+            persist_db(db, "✅ Warning Added")
+        else:
+            st.warning("Please write a warning note first.")
 
 
 def render_financial_entry_form(user: dict, db: dict, target: str) -> None:
@@ -396,6 +634,21 @@ def render_delete_employee(users: dict, target: str, db: dict) -> None:
         if target in db.get("training_records", {}):
             del db["training_records"][target]
 
+        if "attendance_records" in db:
+            for month_key in list(db["attendance_records"].keys()):
+                if target in db["attendance_records"].get(month_key, {}):
+                    del db["attendance_records"][month_key][target]
+
+        if "late_tracking" in db:
+            for month_key in list(db["late_tracking"].keys()):
+                if target in db["late_tracking"].get(month_key, {}):
+                    del db["late_tracking"][month_key][target]
+
+        if "blocked_users" in db:
+            for month_key in list(db["blocked_users"].keys()):
+                if target in db["blocked_users"].get(month_key, {}):
+                    del db["blocked_users"][month_key][target]
+
         persist_db(db, "Employee Deleted")
 
 
@@ -426,12 +679,16 @@ def hr_management_ui(db: dict) -> None:
 
     st.info(
         f"Role: {get_role_display(user.get('role', ROLE_USER))} | "
-        f"Job Title: {user.get('job_title', '-')}"
+        f"Job Title: {user.get('job_title', '-')} | "
+        f"Employee Code: {user.get('employee_code', '-') or '-'}"
     )
 
     render_username_management(target, db)
     render_profile_images(users, target, user)
     render_personal_details(users, target, user, db)
+    render_salary_and_payout_section(users, target, user, db)
+    render_salary_summary(user)
+    render_warning_section(users, target, user, db)
     render_financial_entry_form(user, db, target)
     render_records_history(user)
     render_delete_employee(users, target, db)
