@@ -6,7 +6,16 @@
 from datetime import date
 
 from auth_service import get_current_username
-from role_service import get_normalized_current_role, get_report_type
+from role_service import (
+    can_include_cleaning_tasks_in_report,
+    can_include_closing_tasks_in_report,
+    can_include_design_tasks_in_report,
+    can_include_interaction_tasks_in_report,
+    can_include_opening_tasks_in_report,
+    can_include_social_tasks_in_report,
+    get_normalized_current_role,
+    get_report_type,
+)
 
 
 # =====================================================
@@ -69,14 +78,6 @@ def build_task_lines(title: str, completed: list, pending: list) -> str:
         lines.append("Pending Tasks: None")
 
     return "\n".join(lines)
-
-
-def should_include_cleaning_tasks(role_value: str) -> bool:
-    return role_value in ["admin", "cleaner"]
-
-
-def should_include_design_tasks(role_value: str) -> bool:
-    return role_value in ["admin", "graphic_designer"]
 
 
 # =====================================================
@@ -170,7 +171,6 @@ def get_user_display_data(db: dict) -> dict:
 
 def build_base_report_data(db: dict, session_state) -> dict:
     user_data = get_user_display_data(db)
-    current_role = user_data["role"]
 
     expenses_list = session_state.get("shift_expenses", [])
     total_expenses = calculate_total_expenses(expenses_list)
@@ -197,13 +197,38 @@ def build_base_report_data(db: dict, session_state) -> dict:
     closing_cash_breakdown = session_state.get("closing_cash_breakdown", {})
     printer_diff = session_state.get("printer_diff", {})
 
-    opening_tasks = db.get("tasks", {}).get("opening", [])
-    closing_tasks = db.get("tasks", {}).get("closing", [])
-    interaction_tasks = db.get("tasks", {}).get("interaction", [])
-    social_tasks = db.get("tasks", {}).get("social", [])
+    current_role = user_data["role"]
 
-    cleaning_tasks = db.get("tasks", {}).get("cleaning", []) if should_include_cleaning_tasks(current_role) else []
-    design_tasks = db.get("tasks", {}).get("design", []) if should_include_design_tasks(current_role) else []
+    opening_tasks = (
+        db.get("tasks", {}).get("opening", [])
+        if can_include_opening_tasks_in_report()
+        else []
+    )
+    closing_tasks = (
+        db.get("tasks", {}).get("closing", [])
+        if can_include_closing_tasks_in_report()
+        else []
+    )
+    interaction_tasks = (
+        db.get("tasks", {}).get("interaction", [])
+        if can_include_interaction_tasks_in_report()
+        else []
+    )
+    social_tasks = (
+        db.get("tasks", {}).get("social", [])
+        if can_include_social_tasks_in_report()
+        else []
+    )
+    cleaning_tasks = (
+        db.get("tasks", {}).get("cleaning", [])
+        if can_include_cleaning_tasks_in_report()
+        else []
+    )
+    design_tasks = (
+        db.get("tasks", {}).get("design", [])
+        if can_include_design_tasks_in_report()
+        else []
+    )
 
     opening_status = extract_task_status(opening_tasks, "open_task", session_state)
     closing_status = extract_task_status(closing_tasks, "close_task", session_state)
@@ -218,7 +243,7 @@ def build_base_report_data(db: dict, session_state) -> dict:
         "shift": session_state.get("shift", "-"),
         "staff": user_data["full_name"],
         "staff_username": user_data["username"],
-        "role": user_data["role"],
+        "role": current_role,
         "job_title": user_data["job_title"],
         "report_type": get_report_type(),
         "sales": safe_float(session_state.get("c_sys_sales", 0)),
@@ -294,6 +319,21 @@ def get_visible_sections(report_type: str) -> list[str]:
 
     if report_type == "design":
         return ["identity", "social_notes", "special_notes", "tasks"]
+
+    if report_type == "customer_service":
+        return [
+            "identity",
+            "summary",
+            "cash_breakdown",
+            "digital",
+            "customer_debts",
+            "expenses",
+            "tasks",
+            "interaction_notes",
+            "social_notes",
+            "special_notes",
+            "printers",
+        ]
 
     if report_type == "full":
         return [
