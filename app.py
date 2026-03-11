@@ -28,6 +28,7 @@ from constants import (
     PAYOUT_METHOD_LABELS,
     PAYROLL_ENTRY_KEY_MAP,
     ROLE_ADMIN,
+    ROLE_EMPLOYEE,
     ROLE_LABELS,
     SESSION_USER,
     TASK_CATEGORIES,
@@ -35,6 +36,7 @@ from constants import (
 from database import load_db, save_db
 from operations_service import daily_operations_ui
 from printer_service import printer_management_ui
+from role_service import normalize_role
 from supabase_migration import migrate
 
 
@@ -122,6 +124,29 @@ def get_payout_method_label(method_value: str) -> str:
 
 def can_view_self_service() -> bool:
     return True
+
+
+def is_customer_service_role() -> bool:
+    return normalize_role(get_current_role()) == ROLE_EMPLOYEE
+
+
+def can_access_daily_operations() -> bool:
+    """
+    حسب الاتفاق الحالي:
+    موظف خدمة العملاء لا يدخل التشغيل اليومي.
+    """
+    return not is_customer_service_role()
+
+
+def get_daily_operations_block_message() -> str:
+    blocked_message = st.session_state.get("login_blocked_message")
+    if blocked_message:
+        return blocked_message
+
+    return (
+        "🚫 لا يمكن لهذا الحساب الدخول إلى التشغيل اليومي حاليًا.\n\n"
+        "هذا الحساب مخصص لعرض الملف الوظيفي والتنبيهات والمتابعة فقط."
+    )
 
 
 def normalize_financial_records(records: list) -> list:
@@ -842,6 +867,14 @@ def render_backup_manager() -> None:
 
 
 # =========================
+# Main content
+# =========================
+def render_blocked_daily_operations_view() -> None:
+    st.divider()
+    st.warning(get_daily_operations_block_message())
+
+
+# =========================
 # Main app
 # =========================
 def main() -> None:
@@ -854,7 +887,10 @@ def main() -> None:
     render_backup_manager()
 
     if is_logged_in() and st.session_state.get(SESSION_USER):
-        daily_operations_ui(db)
+        if can_access_daily_operations():
+            daily_operations_ui(db)
+        else:
+            render_blocked_daily_operations_view()
 
 
 if __name__ == "__main__":
