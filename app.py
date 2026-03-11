@@ -27,7 +27,6 @@ from constants import (
     HR_RECORD_LABELS,
     PAYOUT_METHOD_LABELS,
     PAYROLL_ENTRY_KEY_MAP,
-    ROLE_ADMIN,
     ROLE_EMPLOYEE,
     ROLE_LABELS,
     SESSION_USER,
@@ -48,6 +47,18 @@ from supabase_migration import migrate
 # Database bootstrap
 # =========================
 db = load_db()
+
+
+# =========================
+# Navigation keys
+# =========================
+NAV_DASHBOARD = "dashboard"
+NAV_PROFILE = "profile"
+NAV_OPERATIONS = "operations"
+NAV_ADMIN = "admin"
+NAV_BACKUP = "backup"
+
+SESSION_MAIN_VIEW = "main_view"
 
 
 # =========================
@@ -92,6 +103,11 @@ def ensure_db_defaults() -> None:
         refresh_db()
 
 
+def ensure_ui_defaults() -> None:
+    if SESSION_MAIN_VIEW not in st.session_state:
+        st.session_state[SESSION_MAIN_VIEW] = NAV_DASHBOARD
+
+
 def get_current_user() -> dict:
     username = get_current_username()
     if not username:
@@ -134,6 +150,12 @@ def is_customer_service_role() -> bool:
     return normalize_role(get_current_role()) == ROLE_EMPLOYEE
 
 
+def set_main_view(view_name: str) -> None:
+    st.session_state[SESSION_MAIN_VIEW] = view_name
+
+
+def get_main_view() -> str:
+    return st.session_state.get(SESSION_MAIN_VIEW, NAV_DASHBOARD)
 
 
 def normalize_financial_records(records: list) -> list:
@@ -193,6 +215,10 @@ def calculate_salary_breakdown(user_info: dict) -> dict:
     }
 
 
+def get_training_status(username: str) -> dict:
+    return db.get("training_records", {}).get(username, {})
+
+
 # =========================
 # Supabase import manager
 # =========================
@@ -233,23 +259,38 @@ def render_supabase_import_manager() -> None:
 
 
 # =========================
-# Employee self service
+# Employee profile (main area)
 # =========================
-def render_self_service(user_info: dict) -> None:
-    st.divider()
-    st.subheader("📂 My Profile")
+def render_profile_identity_tab(user_info: dict) -> None:
+    col1, col2 = st.columns([1, 3])
 
-    st.write(f"**🧩 Role:** {get_role_label(user_info.get('role', 'employee'))}")
-    st.write(f"**💼 Job Title:** {user_info.get('job_title', '-')}")
-    st.write(f"**🆔 Employee Code:** {user_info.get('employee_code', '-') or '-'}")
-    st.write(f"**🎂 Birth Date:** {user_info.get('birth_date', '-')}")
-    st.write(f"**📅 Hiring Date:** {user_info.get('hiring_date', '-')}")
-    st.write(f"**📞 Phone:** {user_info.get('phone', '-') or '-'}")
-    st.write(f"**📧 Email:** {user_info.get('email', '-') or '-'}")
-    st.write(f"**🪪 National ID:** {user_info.get('national_id', '-') or '-'}")
+    with col1:
+        safe_user_image(user_info, width=150)
+
+    with col2:
+        st.subheader(user_info.get("full_name", get_current_username() or "User"))
+        st.write(f"**Role:** {get_role_label(user_info.get('role', 'employee'))}")
+        st.write(f"**Job Title:** {user_info.get('job_title', '-')}")
+        st.write(f"**Employee Code:** {user_info.get('employee_code', '-') or '-'}")
 
     st.divider()
-    st.markdown("### 💳 Salary & Payout Details")
+
+    c1, c2 = st.columns(2)
+    with c1:
+        st.write(f"**Birth Date:** {user_info.get('birth_date', '-')}")
+        st.write(f"**Hiring Date:** {user_info.get('hiring_date', '-')}")
+        st.write(f"**Phone:** {user_info.get('phone', '-') or '-'}")
+        st.write(f"**Email:** {user_info.get('email', '-') or '-'}")
+
+    with c2:
+        st.write(f"**National ID:** {user_info.get('national_id', '-') or '-'}")
+        st.write(f"**Bank Name:** {user_info.get('bank_name', '-') or '-'}")
+        st.write(f"**Bank Account / IBAN:** {user_info.get('bank_account_number', '-') or '-'}")
+        st.write(f"**Wallet Number:** {user_info.get('wallet_number', '-') or '-'}")
+
+
+def render_profile_salary_tab(user_info: dict) -> None:
+    st.subheader("💳 Salary & Payout Details")
 
     salary_summary = calculate_salary_breakdown(user_info)
 
@@ -285,13 +326,11 @@ def render_self_service(user_info: dict) -> None:
         },
     )
 
-    st.write(f"**🏦 Payout Method:** {get_payout_method_label(user_info.get('payout_method', 'bank'))}")
-    st.write(f"**🏛️ Bank Name:** {user_info.get('bank_name', '-') or '-'}")
-    st.write(f"**💳 Bank Account / IBAN:** {user_info.get('bank_account_number', '-') or '-'}")
-    st.write(f"**📱 Wallet Number:** {user_info.get('wallet_number', '-') or '-'}")
+    st.write(f"**Payout Method:** {get_payout_method_label(user_info.get('payout_method', 'bank'))}")
 
-    st.divider()
-    st.markdown("### 🚨 Warnings")
+
+def render_profile_warnings_tab(user_info: dict) -> None:
+    st.subheader("🚨 Warnings")
 
     warnings = user_info.get("warnings", [])
     if warnings:
@@ -308,12 +347,14 @@ def render_self_service(user_info: dict) -> None:
     else:
         st.success("No warnings recorded.")
 
-    st.divider()
+
+def render_profile_records_tab(user_info: dict) -> None:
+    st.subheader("📌 HR Records")
 
     for category in HR_RECORD_KEYS:
         label = HR_RECORD_LABELS.get(category, category.title())
 
-        with st.expander(f"📌 {label}", expanded=False):
+        with st.expander(label, expanded=False):
             records = normalize_financial_records(user_info.get(category, []))
             if records:
                 st.dataframe(
@@ -329,6 +370,54 @@ def render_self_service(user_info: dict) -> None:
                 st.info(f"No {label.lower()} records yet.")
 
 
+def render_profile_training_tab() -> None:
+    username = get_current_username() or ""
+    training_info = get_training_status(username)
+
+    st.subheader("🎓 Training Status")
+
+    if training_info:
+        st.success("Training record found.")
+        st.write(f"**Status:** {training_info.get('status', '-')}")
+        st.write(f"**Date:** {training_info.get('date', '-')}")
+    else:
+        st.info("No training completion record found yet.")
+
+    st.caption("سيتم تطوير هذه الصفحة لاحقًا إلى نظام تدريب كامل قابل للإدارة والتعديل من لوحة المدير.")
+
+
+def render_profile_page() -> None:
+    user_info = get_current_user()
+
+    st.title("👤 My Profile")
+    st.caption("كل بياناتك الشخصية والوظيفية في مكان واحد.")
+
+    tabs = st.tabs(
+        [
+            "Personal Info",
+            "Salary",
+            "Warnings",
+            "HR Records",
+            "Training",
+        ]
+    )
+
+    with tabs[0]:
+        render_profile_identity_tab(user_info)
+
+    with tabs[1]:
+        render_profile_salary_tab(user_info)
+
+    with tabs[2]:
+        render_profile_warnings_tab(user_info)
+
+    with tabs[3]:
+        render_profile_records_tab(user_info)
+
+    with tabs[4]:
+        render_profile_training_tab()
+
+
 # =========================
 # Admin modules
 # =========================
@@ -339,6 +428,7 @@ def render_hr_module() -> None:
 
 
 def render_payroll_module() -> None:
+    st.subheader("💰 Payroll & Money")
     st.info("Manage Salaries, Bonuses & Deductions")
 
     users = list(db.get("users", {}).keys())
@@ -401,6 +491,7 @@ def render_payroll_module() -> None:
 def render_tasks_module() -> None:
     from task_service import add_task, delete_task, get_tasks_by_category
 
+    st.subheader("📝 Tasks & Checklists")
     st.info("Manage operational tasks and checklists")
 
     category = st.selectbox("Category", TASK_CATEGORIES, key="tasks_category_select")
@@ -435,6 +526,7 @@ def render_tasks_module() -> None:
 
 
 def render_branches_expenses_module() -> None:
+    st.subheader("🏢 Branches & Expenses")
     st.info("Manage Locations & Expenses")
 
     st.write("**🏢 Branches (الفروع)**")
@@ -498,13 +590,11 @@ def render_branches_expenses_module() -> None:
 
 
 def render_archive_history_module() -> None:
-    st.header("📂 Archive & History")
+    st.subheader("📂 Archive & History")
 
     if not is_admin():
         st.error("Access Denied: Admins Only.")
         return
-
-    st.divider()
 
     history = db.get("history", [])
     if not history:
@@ -525,7 +615,7 @@ def render_archive_history_module() -> None:
     m3.metric("Net Cash Diff", f"{total_diff:,.2f} LE", delta=total_diff, delta_color="normal")
 
     st.divider()
-    st.subheader("📜 Detailed Shift History")
+    st.write("### 📜 Detailed Shift History")
 
     df_history = pd.DataFrame(reversed(history))
 
@@ -581,154 +671,75 @@ def render_archive_history_module() -> None:
 
 
 def render_training_module() -> None:
+    st.subheader("🎓 Employee Training")
+    st.info("هذه النسخة مؤقتة. لاحقًا سنحوّلها إلى نظام Checklists قابل للإضافة والتعديل والحذف من المدير.")
+
     st.markdown(
         """
         <style>
-        .training-title {
-            font-size: 36px;
-            font-weight: bold;
-            text-align: center;
-            color: #0F172A;
-            margin-bottom: 20px;
-        }
-
-        .training-card {
-            padding: 20px;
-            border-radius: 15px;
+        .training-box {
+            padding: 18px;
+            border-radius: 14px;
             background: #F8FAFC;
-            box-shadow: 0px 4px 12px rgba(0,0,0,0.05);
-            margin-bottom: 20px;
+            border: 1px solid #E2E8F0;
+            margin-bottom: 14px;
         }
-
-        .section-header {
-            font-size: 20px;
-            font-weight: bold;
-            color: #1E3A8A;
-            border-left: 6px solid #1E3A8A;
-            padding-left: 10px;
-            margin-bottom: 10px;
-        }
-
-        .highlight-box {
-            padding: 15px;
-            background: #EFF6FF;
-            border-radius: 10px;
-            font-weight: 500;
+        .training-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #0F172A;
+            margin-bottom: 8px;
         }
         </style>
         """,
         unsafe_allow_html=True,
     )
 
-    st.markdown("🚀")
-    st.markdown(
-        "<div class='training-title'>NMS Enterprise | Professional Training Center</div>",
-        unsafe_allow_html=True,
-    )
-
     tabs = st.tabs(
         [
-            "📜 Professional Standards",
-            "⚙ Technical Operations",
-            "🤝 Customer Excellence",
-            "💻 Digital Transformation",
+            "Professional Standards",
+            "Technical Operations",
+            "Customer Excellence",
+            "Digital Tools",
         ]
     )
 
     with tabs[0]:
-        st.markdown("<div class='training-card'>", unsafe_allow_html=True)
-        st.markdown("<div class='section-header'>🎯 Workplace Commitment</div>", unsafe_allow_html=True)
-
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown(
-                """
-                🔵 **Attendance**
-                - Arrive 15 minutes early
-                - Proper handover before shift
-                - Biometric logging mandatory
-                """
-            )
-
-        with col2:
-            st.markdown(
-                """
-                🔵 **Financial Responsibility**
-                - No printing without system record
-                - 50% minimum deposit policy
-                - Employee responsible for cash shortage
-                """
-            )
-
+        st.markdown("<div class='training-box'>", unsafe_allow_html=True)
+        st.markdown("<div class='training-title'>Attendance & Commitment</div>", unsafe_allow_html=True)
+        st.checkbox("Arrive 15 minutes early", key="training_std_1")
+        st.checkbox("Proper handover before shift", key="training_std_2")
+        st.checkbox("Biometric logging mandatory", key="training_std_3")
+        st.checkbox("Follow company attendance rules", key="training_std_4")
         st.markdown("</div>", unsafe_allow_html=True)
 
     with tabs[1]:
-        st.markdown("<div class='training-card'>", unsafe_allow_html=True)
-        st.markdown("<div class='section-header'>🖨 Equipment Handling</div>", unsafe_allow_html=True)
-
-        with st.expander("📠 Printer Operation"):
-            st.markdown(
-                """
-                ✅ Check voltage before power-on  
-                ✅ Clear paper jam carefully  
-                ✅ Monitor print quality every 100 pages  
-                """
-            )
-
-        with st.expander("✂ Finishing Equipment"):
-            st.markdown(
-                """
-                ✅ Thermal binding – wait for green light  
-                ✅ Paper cutting – follow safety rules  
-                ✅ Spiral binding – choose correct size  
-                """
-            )
-
+        st.markdown("<div class='training-box'>", unsafe_allow_html=True)
+        st.markdown("<div class='training-title'>Equipment & Operations</div>", unsafe_allow_html=True)
+        st.checkbox("Check voltage before power-on", key="training_ops_1")
+        st.checkbox("Handle paper jam carefully", key="training_ops_2")
+        st.checkbox("Monitor printer quality", key="training_ops_3")
+        st.checkbox("Use tools safely", key="training_ops_4")
         st.markdown("</div>", unsafe_allow_html=True)
 
     with tabs[2]:
-        st.markdown("<div class='training-card'>", unsafe_allow_html=True)
-        st.markdown("<div class='section-header'>🌟 Service Excellence Model</div>", unsafe_allow_html=True)
-
-        st.markdown(
-            """
-            🟢 Greet with professionalism  
-            🟢 Listen without interruption  
-            🟢 Confirm before final delivery  
-            🟢 Resolve complaints calmly  
-            """
-        )
-
-        st.markdown(
-            "<div class='highlight-box'>💡 Remember: Customer trust = Business growth</div>",
-            unsafe_allow_html=True,
-        )
-
+        st.markdown("<div class='training-box'>", unsafe_allow_html=True)
+        st.markdown("<div class='training-title'>Customer Handling</div>", unsafe_allow_html=True)
+        st.checkbox("Greet customer professionally", key="training_cx_1")
+        st.checkbox("Listen without interruption", key="training_cx_2")
+        st.checkbox("Confirm before delivery", key="training_cx_3")
+        st.checkbox("Resolve complaints calmly", key="training_cx_4")
         st.markdown("</div>", unsafe_allow_html=True)
 
     with tabs[3]:
-        st.markdown("<div class='training-card'>", unsafe_allow_html=True)
-        st.markdown("<div class='section-header'>🚀 Modern Tools</div>", unsafe_allow_html=True)
-
-        c1, c2, c3 = st.columns(3)
-
-        with c1:
-            st.image("https://img.icons8.com/color/96/canva.png", width=60)
-            st.markdown("**Canva**\nDesign & Social Media Content")
-
-        with c2:
-            st.image("https://img.icons8.com/color/96/chatgpt.png", width=60)
-            st.markdown("**AI Tools**\nSmart Automation & Text Optimization")
-
-        with c3:
-            st.image("https://img.icons8.com/color/96/microsoft-excel-2019.png", width=60)
-            st.markdown("**Office Tools**\nData & Reporting Mastery")
-
+        st.markdown("<div class='training-box'>", unsafe_allow_html=True)
+        st.markdown("<div class='training-title'>Digital Tools</div>", unsafe_allow_html=True)
+        st.checkbox("Use Canva for simple content", key="training_dt_1")
+        st.checkbox("Use AI tools responsibly", key="training_dt_2")
+        st.checkbox("Use Office tools correctly", key="training_dt_3")
         st.markdown("</div>", unsafe_allow_html=True)
 
     st.divider()
-    st.markdown("### 📝 Training Acknowledgement")
-
     agree = st.checkbox("I confirm that I have completed the training and understood all policies.")
 
     if st.button("✅ Confirm Completion", use_container_width=True):
@@ -747,18 +758,22 @@ def render_training_module() -> None:
 
 
 def render_printer_management_module() -> None:
+    st.subheader("🖨 Printer Management")
     printer_management_ui(db)
     refresh_db()
 
 
-def render_admin_panel() -> None:
-    st.divider()
-    st.subheader("⚙️ Admin Authority")
+def render_admin_panel_main() -> None:
+    st.title("⚙️ Admin Panel")
+    st.caption("اختر القسم من القائمة التالية، وسيظهر المحتوى هنا في منتصف الشاشة.")
 
     admin_choice = st.selectbox(
-        "Select Management Module:",
+        "Select Management Module",
         ADMIN_MODULE_OPTIONS,
+        key="admin_main_selectbox",
     )
+
+    st.divider()
 
     if admin_choice == ADMIN_MODULE_HR:
         render_hr_module()
@@ -783,55 +798,133 @@ def render_sidebar() -> None:
     with st.sidebar:
         user_info = get_current_user()
         current_role = get_current_role()
+        current_view = get_main_view()
 
-        safe_user_image(user_info)
-        st.header(f"Hi, {user_info.get('full_name', get_current_username() or 'User')}")
+        safe_user_image(user_info, width=100)
+        st.header(user_info.get("full_name", get_current_username() or "User"))
         st.caption(f"Role: {get_role_label(current_role)}")
         st.caption(f"Job Title: {user_info.get('job_title', '-')}")
 
-        if can_view_self_service():
-            render_self_service(user_info)
+        st.divider()
+        st.write("### Navigation")
+
+        if st.button("🏠 Dashboard", use_container_width=True, type="primary" if current_view == NAV_DASHBOARD else "secondary"):
+            set_main_view(NAV_DASHBOARD)
+            st.rerun()
+
+        if st.button("👤 My Profile", use_container_width=True, type="primary" if current_view == NAV_PROFILE else "secondary"):
+            set_main_view(NAV_PROFILE)
+            st.rerun()
+
+        if st.button("📊 Daily Operations", use_container_width=True, type="primary" if current_view == NAV_OPERATIONS else "secondary"):
+            set_main_view(NAV_OPERATIONS)
+            st.rerun()
+
+        if is_admin():
+            if st.button("⚙️ Admin Panel", use_container_width=True, type="primary" if current_view == NAV_ADMIN else "secondary"):
+                set_main_view(NAV_ADMIN)
+                st.rerun()
+
+            if st.button("🧰 Backup Manager", use_container_width=True, type="primary" if current_view == NAV_BACKUP else "secondary"):
+                set_main_view(NAV_BACKUP)
+                st.rerun()
+
+        st.divider()
 
         if st.button("🚪 Logout", use_container_width=True):
             logout_user(db)
             st.rerun()
 
+
+# =========================
+# Dashboard / Backup / Main views
+# =========================
+def render_dashboard_page() -> None:
+    user_info = get_current_user()
+    username = get_current_username() or "-"
+    current_role = get_current_role()
+
+    st.title("🏠 Dashboard")
+    st.caption("واجهة رئيسية أبسط وأوضح للمستخدم.")
+
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.metric("User", username)
+    with c2:
+        st.metric("Role", get_role_label(current_role))
+    with c3:
+        training_info = get_training_status(username)
+        st.metric("Training", training_info.get("status", "pending") if training_info else "pending")
+
+    st.divider()
+
+    st.subheader("Quick Access")
+
+    q1, q2, q3 = st.columns(3)
+
+    with q1:
+        if st.button("👤 Open My Profile", use_container_width=True):
+            set_main_view(NAV_PROFILE)
+            st.rerun()
+
+    with q2:
+        if st.button("📊 Open Daily Operations", use_container_width=True):
+            set_main_view(NAV_OPERATIONS)
+            st.rerun()
+
+    with q3:
         if is_admin():
-            render_admin_panel()
+            if st.button("⚙️ Open Admin Panel", use_container_width=True):
+                set_main_view(NAV_ADMIN)
+                st.rerun()
+
+    st.divider()
+
+    st.subheader("Summary")
+    st.write(f"**Full Name:** {user_info.get('full_name', '-')}")
+    st.write(f"**Job Title:** {user_info.get('job_title', '-')}")
+    st.write(f"**Employee Code:** {user_info.get('employee_code', '-') or '-'}")
+
+    if not can_access_daily_operations():
+        st.warning(get_daily_operations_block_message())
 
 
-# =========================
-# Backup manager
-# =========================
-def render_backup_manager() -> None:
+def render_backup_manager_page() -> None:
     if not is_admin():
+        st.error("Access denied.")
         return
+
+    st.title("🧰 Backup Manager")
 
     backup_folder = "backups"
     os.makedirs(backup_folder, exist_ok=True)
 
-    with st.expander("🧰 Backup Manager"):
+    with st.expander("☁️ Import Backup To Supabase", expanded=True):
         render_supabase_import_manager()
-        st.divider()
 
-        backup_files = sorted(os.listdir(backup_folder), reverse=True)
+    st.divider()
 
-        if not backup_files:
-            st.warning("لا توجد نسخ احتياطية حتى الآن.")
-        else:
-            latest_file = backup_files[0]
-            latest_path = os.path.join(backup_folder, latest_file)
+    st.subheader("📥 Latest Backup Download")
 
-            st.info(f"🕒 أحدث نسخة: {latest_file}")
+    backup_files = sorted(os.listdir(backup_folder), reverse=True)
 
-            with open(latest_path, "rb") as f:
-                st.download_button(
-                    "📥 تحميل النسخة الاحتياطية",
-                    f,
-                    file_name=latest_file,
-                )
+    if not backup_files:
+        st.warning("لا توجد نسخ احتياطية حتى الآن.")
+    else:
+        latest_file = backup_files[0]
+        latest_path = os.path.join(backup_folder, latest_file)
 
-    st.markdown("### ♻️ استرجاع نسخة قديمة")
+        st.info(f"🕒 أحدث نسخة: {latest_file}")
+
+        with open(latest_path, "rb") as f:
+            st.download_button(
+                "📥 تحميل النسخة الاحتياطية",
+                f,
+                file_name=latest_file,
+            )
+
+    st.divider()
+    st.subheader("♻️ Restore Old Backup")
 
     backup_files = sorted(os.listdir(backup_folder), reverse=True)
     if not backup_files:
@@ -853,12 +946,37 @@ def render_backup_manager() -> None:
         st.rerun()
 
 
-# =========================
-# Main content
-# =========================
 def render_blocked_daily_operations_view() -> None:
-    st.divider()
+    st.title("📊 Daily Operations")
     st.warning(get_daily_operations_block_message())
+
+
+def render_main_content() -> None:
+    current_view = get_main_view()
+
+    if current_view == NAV_PROFILE:
+        render_profile_page()
+        return
+
+    if current_view == NAV_OPERATIONS:
+        if can_access_daily_operations():
+            daily_operations_ui(db)
+        else:
+            render_blocked_daily_operations_view()
+        return
+
+    if current_view == NAV_ADMIN:
+        if is_admin():
+            render_admin_panel_main()
+        else:
+            st.error("Access denied.")
+        return
+
+    if current_view == NAV_BACKUP:
+        render_backup_manager_page()
+        return
+
+    render_dashboard_page()
 
 
 # =========================
@@ -866,18 +984,15 @@ def render_blocked_daily_operations_view() -> None:
 # =========================
 def main() -> None:
     ensure_db_defaults()
+    ensure_ui_defaults()
 
     if not is_logged_in():
         render_login_screen(db)
 
     render_sidebar()
-    render_backup_manager()
 
     if is_logged_in() and st.session_state.get(SESSION_USER):
-        if can_access_daily_operations():
-            daily_operations_ui(db)
-        else:
-            render_blocked_daily_operations_view()
+        render_main_content()
 
 
 if __name__ == "__main__":
