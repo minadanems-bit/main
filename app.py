@@ -36,7 +36,11 @@ from constants import (
 from database import load_db, save_db
 from operations_service import daily_operations_ui
 from printer_service import printer_management_ui
-from role_service import normalize_role
+from role_service import (
+    normalize_role,
+    can_access_daily_operations,
+    get_daily_operations_block_message,
+)
 from supabase_migration import migrate
 
 
@@ -130,23 +134,6 @@ def is_customer_service_role() -> bool:
     return normalize_role(get_current_role()) == ROLE_EMPLOYEE
 
 
-def can_access_daily_operations() -> bool:
-    """
-    حسب الاتفاق الحالي:
-    موظف خدمة العملاء لا يدخل التشغيل اليومي.
-    """
-    return not is_customer_service_role()
-
-
-def get_daily_operations_block_message() -> str:
-    blocked_message = st.session_state.get("login_blocked_message")
-    if blocked_message:
-        return blocked_message
-
-    return (
-        "🚫 لا يمكن لهذا الحساب الدخول إلى التشغيل اليومي حاليًا.\n\n"
-        "هذا الحساب مخصص لعرض الملف الوظيفي والتنبيهات والمتابعة فقط."
-    )
 
 
 def normalize_financial_records(records: list) -> list:
