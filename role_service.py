@@ -34,6 +34,8 @@ def normalize_role(role_value: str | None) -> str:
         "accountant": ROLE_ACCOUNTS,
         "hr": ROLE_HR,
         "cleaner": ROLE_CLEANER,
+        "office_boy": ROLE_CLEANER,
+        "office boy": ROLE_CLEANER,
         "graphic_designer": ROLE_GRAPHIC_DESIGNER,
         "graphic designer": ROLE_GRAPHIC_DESIGNER,
         "designer": ROLE_GRAPHIC_DESIGNER,
@@ -72,9 +74,12 @@ ROLE_ALLOWED_TABS = {
         "report",
     ],
     ROLE_EMPLOYEE: [
+        "interaction",
+        "social",
         "report",
     ],
     ROLE_HR: [
+        "interaction",
         "report",
     ],
     ROLE_CLEANER: [
@@ -122,7 +127,15 @@ def get_report_type() -> str:
 # =====================================================
 def can_access_daily_operations() -> bool:
     role = get_normalized_current_role()
-    return role in [ROLE_ADMIN, ROLE_MANAGER, ROLE_ACCOUNTS, ROLE_HR, ROLE_CLEANER, ROLE_GRAPHIC_DESIGNER]
+    return role in [
+        ROLE_ADMIN,
+        ROLE_MANAGER,
+        ROLE_ACCOUNTS,
+        ROLE_HR,
+        ROLE_CLEANER,
+        ROLE_GRAPHIC_DESIGNER,
+        ROLE_EMPLOYEE,
+    ]
 
 
 def is_blocked_from_daily_operations() -> bool:
@@ -134,13 +147,17 @@ def get_daily_operations_block_message() -> str:
 
     if role == ROLE_EMPLOYEE:
         return (
-            "⛔ موظف خدمة العملاء غير مسموح له بدخول التشغيل اليومي.\n"
-            "يمكنه فقط متابعة ملفه الشخصي والتنبيهات الخاصة به."
+            "⛔ هذا الحساب لا يملك صلاحية كاملة على كل أقسام التشغيل اليومي.\n"
+            "سيظهر له فقط الأقسام المسموح بها حسب دوره."
         )
 
-    return (
-        "⛔ هذا الحساب غير مسموح له بدخول التشغيل اليومي حاليًا."
-    )
+    if role == ROLE_CLEANER:
+        return (
+            "⛔ هذا الحساب لا يملك صلاحية كاملة على كل أقسام التشغيل اليومي.\n"
+            "سيظهر له فقط قسم المهام الخاصة به والتقرير."
+        )
+
+    return "⛔ هذا الحساب غير مسموح له بدخول التشغيل اليومي حاليًا."
 
 
 # =====================================================
@@ -205,3 +222,29 @@ def is_customer_service_role() -> bool:
 
 def is_manager_or_admin() -> bool:
     return get_normalized_current_role() in [ROLE_ADMIN, ROLE_MANAGER]
+
+
+def can_access_admin_panel() -> bool:
+    return get_normalized_current_role() in [ROLE_ADMIN, ROLE_MANAGER]
+
+
+def can_access_backup_manager() -> bool:
+    return get_normalized_current_role() in [ROLE_ADMIN, ROLE_MANAGER]
+
+
+def should_use_attendance_popup() -> bool:
+    return get_normalized_current_role() in [ROLE_EMPLOYEE, ROLE_CLEANER]
+
+
+def can_view_full_daily_operations() -> bool:
+    return get_normalized_current_role() in [ROLE_ADMIN, ROLE_MANAGER]
+
+
+def can_view_limited_daily_operations() -> bool:
+    return get_normalized_current_role() in [
+        ROLE_ACCOUNTS,
+        ROLE_HR,
+        ROLE_CLEANER,
+        ROLE_GRAPHIC_DESIGNER,
+        ROLE_EMPLOYEE,
+    ]
