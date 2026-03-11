@@ -13,6 +13,7 @@ APP_SUBTITLE = "Branch Operations & HR System"
 
 DEFAULT_DATE_STR = str(date.today())
 DEFAULT_HIRING_DATE = "2024-01-01"
+DEFAULT_BIRTH_DATE = "2000-01-01"
 DEFAULT_MANAGER_PHONE = "+971522045638"
 
 
@@ -40,7 +41,7 @@ ROLE_OPTIONS = [
 ROLE_LABELS = {
     ROLE_ADMIN: "Admin",
     ROLE_MANAGER: "Manager",
-    ROLE_EMPLOYEE: "Employee",
+    ROLE_EMPLOYEE: "Customer Service",
     ROLE_ACCOUNTS: "Accounts",
     ROLE_HR: "HR",
     ROLE_CLEANER: "Cleaner",
@@ -66,6 +67,20 @@ SHIFT_OPTIONS = [
     SHIFT_BETWEEN,
     SHIFT_NIGHT,
 ]
+
+
+# =====================================================
+# Shift Attendance Rules
+# =====================================================
+SHIFT_START_TIMES = {
+    SHIFT_MORNING: {"hour": 8, "minute": 0},
+    SHIFT_BETWEEN: {"hour": 12, "minute": 0},
+    SHIFT_NIGHT: {"hour": 15, "minute": 0},
+}
+
+SHIFT_GRACE_MINUTES = 5
+MAX_MONTHLY_LATE_WARNINGS = 3
+MONTHLY_LATE_BLOCK_AT = 4
 
 
 # =====================================================
@@ -168,12 +183,18 @@ HR_BONUS = "bonus"
 HR_DEDUCTIONS = "deductions"
 HR_OVERTIME = "overtime"
 HR_EXTRA_LEAVES = "extra_leaves"
+HR_ADVANCES = "advances"
+HR_LATE_PENALTIES = "late_penalties"
+HR_ABSENCE_PENALTIES = "absence_penalties"
 
 HR_RECORD_KEYS = [
     HR_BONUS,
     HR_DEDUCTIONS,
     HR_OVERTIME,
     HR_EXTRA_LEAVES,
+    HR_ADVANCES,
+    HR_LATE_PENALTIES,
+    HR_ABSENCE_PENALTIES,
 ]
 
 HR_RECORD_LABELS = {
@@ -181,6 +202,9 @@ HR_RECORD_LABELS = {
     HR_DEDUCTIONS: "Deduction",
     HR_OVERTIME: "Overtime",
     HR_EXTRA_LEAVES: "Extra Leave",
+    HR_ADVANCES: "Advance / Loan",
+    HR_LATE_PENALTIES: "Late Penalty",
+    HR_ABSENCE_PENALTIES: "Absence Penalty",
 }
 
 HR_FORM_TO_DB_KEY = {
@@ -188,6 +212,9 @@ HR_FORM_TO_DB_KEY = {
     "Deduction": HR_DEDUCTIONS,
     "Overtime": HR_OVERTIME,
     "Extra Leave": HR_EXTRA_LEAVES,
+    "Advance / Loan": HR_ADVANCES,
+    "Late Penalty": HR_LATE_PENALTIES,
+    "Absence Penalty": HR_ABSENCE_PENALTIES,
 }
 
 
@@ -199,6 +226,9 @@ PAYROLL_ENTRY_OPTIONS = [
     "Deductions ⚠️",
     "Overtime ⏳",
     "Extra Leave 🏖️",
+    "Advance / Loan 💵",
+    "Late Penalty 🚨",
+    "Absence Penalty 📅",
 ]
 
 PAYROLL_ENTRY_KEY_MAP = {
@@ -206,6 +236,9 @@ PAYROLL_ENTRY_KEY_MAP = {
     "Deductions ⚠️": HR_DEDUCTIONS,
     "Overtime ⏳": HR_OVERTIME,
     "Extra Leave 🏖️": HR_EXTRA_LEAVES,
+    "Advance / Loan 💵": HR_ADVANCES,
+    "Late Penalty 🚨": HR_LATE_PENALTIES,
+    "Absence Penalty 📅": HR_ABSENCE_PENALTIES,
 }
 
 
@@ -265,6 +298,49 @@ DEFAULT_CUSTOMER_DEBT_ITEM = {
     "customer_name": "",
     "customer_phone": "",
     "debt_amount": 0.0,
+}
+
+
+# =====================================================
+# Employee Finance Structure
+# =====================================================
+SALARY_COMPONENT_BASIC = "salary_basic"
+SALARY_COMPONENT_TRANSPORT = "transport_allowance"
+SALARY_COMPONENT_COMMUNICATION = "communication_allowance"
+SALARY_COMPONENT_OTHER = "other_allowance"
+
+SALARY_COMPONENT_KEYS = [
+    SALARY_COMPONENT_BASIC,
+    SALARY_COMPONENT_TRANSPORT,
+    SALARY_COMPONENT_COMMUNICATION,
+    SALARY_COMPONENT_OTHER,
+]
+
+SALARY_COMPONENT_LABELS = {
+    SALARY_COMPONENT_BASIC: "Basic Salary",
+    SALARY_COMPONENT_TRANSPORT: "Transport Allowance",
+    SALARY_COMPONENT_COMMUNICATION: "Communication Allowance",
+    SALARY_COMPONENT_OTHER: "Other Allowance",
+}
+
+
+# =====================================================
+# Employee Payout Methods
+# =====================================================
+PAYOUT_METHOD_BANK = "bank"
+PAYOUT_METHOD_WALLET = "wallet"
+PAYOUT_METHOD_CASH = "cash"
+
+PAYOUT_METHOD_OPTIONS = [
+    PAYOUT_METHOD_BANK,
+    PAYOUT_METHOD_WALLET,
+    PAYOUT_METHOD_CASH,
+]
+
+PAYOUT_METHOD_LABELS = {
+    PAYOUT_METHOD_BANK: "Bank Transfer",
+    PAYOUT_METHOD_WALLET: "Wallet Transfer",
+    PAYOUT_METHOD_CASH: "Cash",
 }
 
 
@@ -343,6 +419,8 @@ DEFAULT_USER_SCHEMA = {
     "job_title": "",
     "photo": None,
     "id_card": None,
+    "employee_code": "",
+    "birth_date": DEFAULT_BIRTH_DATE,
     "phone": "",
     "email": "",
     "national_id": "",
@@ -350,10 +428,22 @@ DEFAULT_USER_SCHEMA = {
     "qualification": "",
     "hiring_date": DEFAULT_HIRING_DATE,
     "salary": 0.0,
+    "salary_basic": 0.0,
+    "transport_allowance": 0.0,
+    "communication_allowance": 0.0,
+    "other_allowance": 0.0,
+    "bank_name": "",
+    "bank_account_number": "",
+    "wallet_number": "",
+    "payout_method": PAYOUT_METHOD_BANK,
     "bonus": [],
     "deductions": [],
     "overtime": [],
     "extra_leaves": [],
+    "advances": [],
+    "late_penalties": [],
+    "absence_penalties": [],
+    "warnings": [],
 }
 
 
@@ -373,6 +463,8 @@ DEFAULT_APP_DATA = {
             "job_title": "System Admin",
             "photo": None,
             "id_card": None,
+            "employee_code": "ADMIN001",
+            "birth_date": DEFAULT_BIRTH_DATE,
             "phone": "",
             "email": "",
             "national_id": "",
@@ -380,10 +472,22 @@ DEFAULT_APP_DATA = {
             "qualification": "",
             "hiring_date": DEFAULT_HIRING_DATE,
             "salary": 0.0,
+            "salary_basic": 0.0,
+            "transport_allowance": 0.0,
+            "communication_allowance": 0.0,
+            "other_allowance": 0.0,
+            "bank_name": "",
+            "bank_account_number": "",
+            "wallet_number": "",
+            "payout_method": PAYOUT_METHOD_BANK,
             "bonus": [],
             "deductions": [],
             "overtime": [],
             "extra_leaves": [],
+            "advances": [],
+            "late_penalties": [],
+            "absence_penalties": [],
+            "warnings": [],
         }
     },
     "tasks": DEFAULT_TASKS,
@@ -392,4 +496,7 @@ DEFAULT_APP_DATA = {
     "logs": [],
     "printers": DEFAULT_PRINTERS,
     "training_records": {},
+    "attendance_records": {},
+    "late_tracking": {},
+    "blocked_users": {},
 }
