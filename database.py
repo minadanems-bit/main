@@ -11,8 +11,10 @@ from supabase import Client, create_client
 
 from constants import (
     DEFAULT_APP_DATA,
+    DEFAULT_BIRTH_DATE,
     DEFAULT_HIRING_DATE,
     DEFAULT_MANAGER_PHONE,
+    DEFAULT_USER_SCHEMA,
     HR_RECORD_KEYS,
     TASK_CATEGORIES,
 )
@@ -62,25 +64,38 @@ def _empty_logo_to_none(value: Any) -> Any:
 # User normalization
 # =====================================================
 def normalize_user_row(row: dict) -> dict:
-    return {
-        "pass": row.get("password", ""),
-        "role": row.get("role", "employee"),
-        "full_name": row.get("full_name", row.get("username", "")),
-        "photo": row.get("photo"),
-        "id_card": row.get("id_card"),
-        "phone": row.get("phone", ""),
-        "email": row.get("email", ""),
-        "national_id": row.get("national_id", ""),
-        "address": row.get("address", ""),
-        "qualification": row.get("qualification", ""),
-        "hiring_date": safe_str(row.get("hiring_date", DEFAULT_HIRING_DATE), DEFAULT_HIRING_DATE),
-        "salary": safe_float(row.get("salary", 0)),
-        "bonus": [],
-        "deductions": [],
-        "overtime": [],
-        "extra_leaves": [],
-        "job_title": row.get("job_title", ""),
-    }
+    user = dict(DEFAULT_USER_SCHEMA)
+
+    user.update(
+        {
+            "pass": row.get("password", ""),
+            "role": row.get("role", "employee"),
+            "full_name": row.get("full_name", row.get("username", "")),
+            "job_title": row.get("job_title", ""),
+            "photo": row.get("photo"),
+            "id_card": row.get("id_card"),
+            "employee_code": row.get("employee_code", ""),
+            "birth_date": safe_str(row.get("birth_date", DEFAULT_BIRTH_DATE), DEFAULT_BIRTH_DATE),
+            "phone": row.get("phone", ""),
+            "email": row.get("email", ""),
+            "national_id": row.get("national_id", ""),
+            "address": row.get("address", ""),
+            "qualification": row.get("qualification", ""),
+            "hiring_date": safe_str(row.get("hiring_date", DEFAULT_HIRING_DATE), DEFAULT_HIRING_DATE),
+            "salary": safe_float(row.get("salary", 0)),
+            "salary_basic": safe_float(row.get("salary_basic", 0)),
+            "transport_allowance": safe_float(row.get("transport_allowance", 0)),
+            "communication_allowance": safe_float(row.get("communication_allowance", 0)),
+            "other_allowance": safe_float(row.get("other_allowance", 0)),
+            "bank_name": row.get("bank_name", ""),
+            "bank_account_number": row.get("bank_account_number", ""),
+            "wallet_number": row.get("wallet_number", ""),
+            "payout_method": row.get("payout_method", "bank"),
+            "warnings": safe_list(row.get("warnings")),
+        }
+    )
+
+    return user
 
 
 def attach_financial_records(users: dict, financial_rows: list) -> dict:
@@ -230,6 +245,82 @@ def _load_training_records(supabase: Client) -> dict:
     return records
 
 
+def _load_attendance_records(supabase: Client) -> dict:
+    try:
+        result = supabase.table("attendance_records").select("*").order("created_at").execute()
+        rows = result.data or []
+    except Exception:
+        return {}
+
+    attendance_records = {}
+
+    for row in rows:
+        month_key = safe_str(row.get("month_key", ""))
+        username = safe_str(row.get("username", ""))
+
+        if not month_key or not username:
+            continue
+
+        attendance_records.setdefault(month_key, {})
+        attendance_records[month_key].setdefault(username, [])
+        attendance_records[month_key][username].append(
+            {
+                "date": safe_str(row.get("attendance_date", "")),
+                "time": safe_str(row.get("attendance_time", "")),
+                "shift": safe_str(row.get("shift", "")),
+                "late_minutes": int(safe_float(row.get("late_minutes", 0))),
+                "status": safe_str(row.get("status", "")),
+                "created_at": safe_str(row.get("created_at", "")),
+            }
+        )
+
+    return attendance_records
+
+
+def _load_late_tracking(supabase: Client) -> dict:
+    try:
+        result = supabase.table("late_tracking").select("*").execute()
+        rows = result.data or []
+    except Exception:
+        return {}
+
+    data = {}
+    for row in rows:
+        month_key = safe_str(row.get("month_key", ""))
+        username = safe_str(row.get("username", ""))
+        late_count = int(safe_float(row.get("late_count", 0)))
+
+        if not month_key or not username:
+            continue
+
+        data.setdefault(month_key, {})
+        data[month_key][username] = late_count
+
+    return data
+
+
+def _load_blocked_users(supabase: Client) -> dict:
+    try:
+        result = supabase.table("blocked_users").select("*").execute()
+        rows = result.data or []
+    except Exception:
+        return {}
+
+    data = {}
+    for row in rows:
+        month_key = safe_str(row.get("month_key", ""))
+        username = safe_str(row.get("username", ""))
+        is_blocked = bool(row.get("is_blocked", False))
+
+        if not month_key or not username:
+            continue
+
+        data.setdefault(month_key, {})
+        data[month_key][username] = is_blocked
+
+    return data
+
+
 def _load_settings(supabase: Client) -> tuple[str, Any]:
     result = supabase.table("app_settings").select("*").execute()
     rows = result.data or []
@@ -256,6 +347,9 @@ def load_db() -> dict:
     printers = _load_printers(supabase)
     history = _load_history(supabase)
     training_records = _load_training_records(supabase)
+    attendance_records = _load_attendance_records(supabase)
+    late_tracking = _load_late_tracking(supabase)
+    blocked_users = _load_blocked_users(supabase)
     manager_phone, logo = _load_settings(supabase)
 
     data = dict(DEFAULT_APP_DATA)
@@ -272,6 +366,9 @@ def load_db() -> dict:
             "logs": [],
             "training_records": training_records,
             "printers": printers,
+            "attendance_records": attendance_records,
+            "late_tracking": late_tracking,
+            "blocked_users": blocked_users,
         }
     )
     return data
@@ -315,8 +412,11 @@ def _write_users(supabase: Client, users: dict) -> None:
                 "password": user.get("pass", ""),
                 "role": user.get("role", "employee"),
                 "full_name": user.get("full_name", username),
+                "job_title": user.get("job_title", ""),
                 "photo": user.get("photo"),
                 "id_card": user.get("id_card"),
+                "employee_code": user.get("employee_code", ""),
+                "birth_date": user.get("birth_date", DEFAULT_BIRTH_DATE),
                 "phone": user.get("phone", ""),
                 "email": user.get("email", ""),
                 "national_id": user.get("national_id", ""),
@@ -324,7 +424,15 @@ def _write_users(supabase: Client, users: dict) -> None:
                 "qualification": user.get("qualification", ""),
                 "hiring_date": user.get("hiring_date", DEFAULT_HIRING_DATE),
                 "salary": safe_float(user.get("salary", 0)),
-                "job_title": user.get("job_title", ""),
+                "salary_basic": safe_float(user.get("salary_basic", 0)),
+                "transport_allowance": safe_float(user.get("transport_allowance", 0)),
+                "communication_allowance": safe_float(user.get("communication_allowance", 0)),
+                "other_allowance": safe_float(user.get("other_allowance", 0)),
+                "bank_name": user.get("bank_name", ""),
+                "bank_account_number": user.get("bank_account_number", ""),
+                "wallet_number": user.get("wallet_number", ""),
+                "payout_method": user.get("payout_method", "bank"),
+                "warnings": safe_list(user.get("warnings")),
             }
         )
 
@@ -473,15 +581,80 @@ def _write_training_records(supabase: Client, training_records: dict) -> None:
         supabase.table("training_records").insert(rows).execute()
 
 
+def _write_attendance_records(supabase: Client, attendance_records: dict) -> None:
+    try:
+        _delete_all(supabase, "attendance_records", "username")
+    except Exception:
+        return
+
+    rows = []
+    for month_key, users_map in safe_dict(attendance_records).items():
+        for username, records in safe_dict(users_map).items():
+            for item in safe_list(records):
+                rows.append(
+                    {
+                        "month_key": month_key,
+                        "username": username,
+                        "attendance_date": item.get("date", ""),
+                        "attendance_time": item.get("time", ""),
+                        "shift": item.get("shift", ""),
+                        "late_minutes": int(safe_float(item.get("late_minutes", 0))),
+                        "status": item.get("status", ""),
+                    }
+                )
+
+    if rows:
+        supabase.table("attendance_records").insert(rows).execute()
+
+
+def _write_late_tracking(supabase: Client, late_tracking: dict) -> None:
+    try:
+        _delete_all(supabase, "late_tracking", "username")
+    except Exception:
+        return
+
+    rows = []
+    for month_key, users_map in safe_dict(late_tracking).items():
+        for username, late_count in safe_dict(users_map).items():
+            rows.append(
+                {
+                    "month_key": month_key,
+                    "username": username,
+                    "late_count": int(safe_float(late_count)),
+                }
+            )
+
+    if rows:
+        supabase.table("late_tracking").insert(rows).execute()
+
+
+def _write_blocked_users(supabase: Client, blocked_users: dict) -> None:
+    try:
+        _delete_all(supabase, "blocked_users", "username")
+    except Exception:
+        return
+
+    rows = []
+    for month_key, users_map in safe_dict(blocked_users).items():
+        for username, is_blocked in safe_dict(users_map).items():
+            rows.append(
+                {
+                    "month_key": month_key,
+                    "username": username,
+                    "is_blocked": bool(is_blocked),
+                }
+            )
+
+    if rows:
+        supabase.table("blocked_users").insert(rows).execute()
+
+
 # =====================================================
 # Compatibility full save
 # =====================================================
 def save_db(data: dict) -> None:
     """
     Transitional compatibility save.
-
-    This keeps the current project working while we gradually move
-    each module to dedicated service functions.
     """
     supabase = get_supabase()
 
@@ -493,6 +666,9 @@ def save_db(data: dict) -> None:
     _write_printers(supabase, data.get("printers", {}))
     _write_history(supabase, data.get("history", []))
     _write_training_records(supabase, data.get("training_records", {}))
+    _write_attendance_records(supabase, data.get("attendance_records", {}))
+    _write_late_tracking(supabase, data.get("late_tracking", {}))
+    _write_blocked_users(supabase, data.get("blocked_users", {}))
 
 
 # =====================================================
@@ -519,25 +695,18 @@ def create_user(
     if username in db.get("users", {}):
         return False, "Username already exists."
 
-    db["users"][username] = {
-        "pass": password,
-        "role": role,
-        "full_name": full_name,
-        "photo": None,
-        "id_card": None,
-        "phone": "",
-        "email": "",
-        "national_id": "",
-        "address": "",
-        "qualification": "",
-        "hiring_date": DEFAULT_HIRING_DATE,
-        "salary": 0.0,
-        "bonus": [],
-        "deductions": [],
-        "overtime": [],
-        "extra_leaves": [],
-        "job_title": job_title.strip() or role.replace("_", " ").title(),
-    }
+    new_user = dict(DEFAULT_USER_SCHEMA)
+    new_user.update(
+        {
+            "pass": password,
+            "role": role,
+            "full_name": full_name,
+            "job_title": job_title.strip() or role.replace("_", " ").title(),
+            "employee_code": username.upper(),
+        }
+    )
+
+    db["users"][username] = new_user
 
     save_db(db)
     return True, "User created successfully."
