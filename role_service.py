@@ -12,7 +12,6 @@ from constants import (
     ROLE_GRAPHIC_DESIGNER,
     ROLE_HR,
     ROLE_MANAGER,
-    ROLE_USER,
 )
 
 
@@ -25,6 +24,8 @@ def normalize_role(role_value: str | None) -> str:
     legacy_map = {
         "user": ROLE_EMPLOYEE,
         "employee": ROLE_EMPLOYEE,
+        "customer_service": ROLE_EMPLOYEE,
+        "customer service": ROLE_EMPLOYEE,
         "admin": ROLE_ADMIN,
         "manager": ROLE_MANAGER,
         "accounts": ROLE_ACCOUNTS,
@@ -141,3 +142,7 @@ def is_design_role() -> bool:
 
 def is_operational_role() -> bool:
     return get_normalized_current_role() in [ROLE_ADMIN, ROLE_MANAGER, ROLE_EMPLOYEE]
+
+
+def is_customer_service_role() -> bool:
+    return get_normalized_current_role() == ROLE_EMPLOYEE
