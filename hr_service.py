@@ -4,7 +4,13 @@ from datetime import date
 import pandas as pd
 import streamlit as st
 
-from auth_service import get_current_role, get_current_username
+from auth_service import (
+    get_current_month_key,
+    get_current_role,
+    get_current_username,
+    set_user_blocked_for_month,
+    set_user_month_late_count,
+)
 from constants import (
     DEFAULT_BIRTH_DATE,
     DEFAULT_HIRING_DATE,
@@ -58,6 +64,35 @@ def can_delete_employee() -> bool:
 
 def can_edit_role() -> bool:
     return is_admin_or_manager()
+
+def can_manage_attendance_controls() -> bool:
+    return is_admin_or_manager()
+
+
+def can_edit_salary_and_payout() -> bool:
+    return is_admin_or_manager()
+
+
+def can_add_financial_records() -> bool:
+    return is_admin_or_manager()
+
+
+def get_current_month_late_count(db: dict, username: str) -> int:
+    month_key = get_current_month_key()
+    return int(db.get("late_tracking", {}).get(month_key, {}).get(username, 0))
+
+
+def is_current_month_blocked(db: dict, username: str) -> bool:
+    month_key = get_current_month_key()
+    return bool(db.get("blocked_users", {}).get(month_key, {}).get(username, False))
+
+
+def remove_user_month_block(db: dict, username: str) -> None:
+    set_user_blocked_for_month(db, username, False)
+
+
+def reset_user_month_late_count(db: dict, username: str) -> None:
+    set_user_month_late_count(db, username, 0)
 
 
 def ensure_user_defaults(user: dict) -> None:
@@ -450,6 +485,10 @@ def render_salary_and_payout_section(users: dict, target: str, user: dict, db: d
     st.divider()
     st.markdown("## 💰 Salary Structure & Payout")
 
+    if not can_edit_salary_and_payout():
+        st.info("You can view salary summary only.")
+        return
+
     col1, col2 = st.columns(2)
 
     with col1:
@@ -605,10 +644,78 @@ def render_warning_section(users: dict, target: str, user: dict, db: dict) -> No
             else:
                 st.warning("Please write a warning note first.")
 
+def render_attendance_control_section(users: dict, target: str, user: dict, db: dict) -> None:
+    st.divider()
+    st.markdown("## ⏰ Attendance Control")
+
+    month_key = get_current_month_key()
+    late_count = get_current_month_late_count(db, target)
+    blocked_now = is_current_month_blocked(db, target)
+
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.metric("Current Month", month_key)
+    with c2:
+        st.metric("Late Count", late_count)
+    with c3:
+        st.metric("Blocked", "Yes" if blocked_now else "No")
+
+    attendance_rows = db.get("attendance_records", {}).get(month_key, {}).get(target, [])
+    if attendance_rows:
+        df_attendance = pd.DataFrame(attendance_rows)
+        st.dataframe(
+            df_attendance,
+            use_container_width=True,
+            column_config={
+                "late_minutes": st.column_config.NumberColumn("Late Minutes", format="%d"),
+                "date": "Date",
+                "time": "Time",
+                "shift": "Shift",
+                "status": "Status",
+                "created_at": "Created At",
+            },
+        )
+    else:
+        st.info("No attendance records for this month.")
+
+    if not can_manage_attendance_controls():
+        st.info("You can view your attendance status only.")
+        return
+
+    col_a, col_b = st.columns(2)
+
+    with col_a:
+        if st.button("🔓 Unblock For Current Month", key=f"unblock_user_{target}", use_container_width=True):
+            remove_user_month_block(db, target)
+            users[target].setdefault("warnings", [])
+            users[target]["warnings"].append(
+                {
+                    "date": str(date.today()),
+                    "note": f"تم فك حظر التشغيل اليومي للشهر الحالي بواسطة الإدارة ({get_current_username()}).",
+                }
+            )
+            persist_db(db, "✅ User unblocked for current month")
+
+    with col_b:
+        if st.button("🔄 Reset Late Count", key=f"reset_late_count_{target}", use_container_width=True):
+            reset_user_month_late_count(db, target)
+            users[target].setdefault("warnings", [])
+            users[target]["warnings"].append(
+                {
+                    "date": str(date.today()),
+                    "note": f"تم تصفير عداد التأخير للشهر الحالي بواسطة الإدارة ({get_current_username()}).",
+                }
+            )
+            persist_db(db, "✅ Late count reset for current month")
+
 
 def render_financial_entry_form(user: dict, db: dict, target: str) -> None:
     st.divider()
     st.markdown("## 💰 Financial History")
+
+    if not can_add_financial_records():
+        st.info("You can view your financial history only.")
+        return
 
     record_type = st.radio(
         "Record Type",
@@ -781,6 +888,7 @@ def hr_management_ui(db: dict) -> None:
     render_salary_and_payout_section(users, target, user, db)
     render_salary_summary(user)
     render_warning_section(users, target, user, db)
+    render_attendance_control_section(users, target, user, db)
     render_financial_entry_form(user, db, target)
     render_records_history(user)
     render_delete_employee(users, target, db)
