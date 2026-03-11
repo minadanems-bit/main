@@ -86,6 +86,7 @@ def ensure_session_defaults() -> None:
         "insta_amount": 0.0,
         "wallet_amount": 0.0,
         "visa_amount": 0.0,
+        "ops_current_tab": 0,
     }
 
     for key, value in defaults.items():
@@ -155,6 +156,38 @@ def render_notes_area(label: str, key: str, placeholder: str, height: int = 140)
         height=height,
         placeholder=placeholder,
     )
+
+
+def go_to_previous_step() -> None:
+    current = int(st.session_state.get("ops_current_tab", 0))
+    if current > 0:
+        st.session_state["ops_current_tab"] = current - 1
+        st.rerun()
+
+
+def go_to_next_step(max_index: int) -> None:
+    current = int(st.session_state.get("ops_current_tab", 0))
+    if current < max_index:
+        st.session_state["ops_current_tab"] = current + 1
+        st.rerun()
+
+
+def render_step_navigation(current_index: int, total_steps: int) -> None:
+    st.divider()
+    c1, c2, c3 = st.columns([1, 2, 1])
+
+    with c1:
+        if current_index > 0:
+            if st.button("⬅ Back", use_container_width=True, key=f"back_btn_{current_index}"):
+                go_to_previous_step()
+
+    with c2:
+        st.caption(f"Step {current_index + 1} of {total_steps}")
+
+    with c3:
+        if current_index < total_steps - 1:
+            if st.button("Next ➡", use_container_width=True, key=f"next_btn_{current_index}"):
+                go_to_next_step(total_steps - 1)
 
 
 # =====================================================
@@ -789,8 +822,17 @@ def daily_operations_ui(db: dict) -> None:
         st.info("No operational modules are available for this role.")
         return
 
+    current_index = int(st.session_state.get("ops_current_tab", 0))
+    if current_index >= len(tabs):
+        current_index = 0
+        st.session_state["ops_current_tab"] = 0
+
     tab_objects = st.tabs(tabs)
 
-    for tab_obj, renderer in zip(tab_objects, renderers):
+    for idx, (tab_obj, renderer) in enumerate(zip(tab_objects, renderers)):
         with tab_obj:
-            renderer()
+            if idx == current_index:
+                renderer()
+                render_step_navigation(idx, len(tabs))
+            else:
+                st.caption("Open this step from the navigation buttons or tab header.")
