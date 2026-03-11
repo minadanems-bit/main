@@ -453,9 +453,6 @@ def _write_users(supabase: Client, users: dict) -> None:
             }
         )
 
-    if user_rows:
-        supabase.table("users").upsert(user_rows, on_conflict="username").execute()
-
         for record_type in ALL_FINANCIAL_RECORD_KEYS:
             for item in safe_list(user.get(record_type)):
                 financial_rows.append(
@@ -468,14 +465,14 @@ def _write_users(supabase: Client, users: dict) -> None:
                     }
                 )
 
-    _delete_all(supabase, "employee_financial_records", "username")
-    _delete_all(supabase, "users", "username")
-
     if user_rows:
-        supabase.table("users").insert(user_rows).execute()
+        supabase.table("users").upsert(user_rows, on_conflict="username").execute()
+
+    _delete_all(supabase, "employee_financial_records", "username")
 
     if financial_rows:
         supabase.table("employee_financial_records").insert(financial_rows).execute()
+
 
 
 def _write_tasks(supabase: Client, tasks: dict) -> None:
