@@ -7,10 +7,13 @@ from datetime import datetime
 import streamlit as st
 
 from constants import (
-    DEFAULT_HIRING_DATE,
     MONTHLY_LATE_BLOCK_AT,
     ROLE_ADMIN,
+    ROLE_CLEANER,
+    ROLE_EMPLOYEE,
     ROLE_MANAGER,
+    SESSION_BRANCH,
+    SESSION_SHIFT,
     SHIFT_GRACE_MINUTES,
     SHIFT_START_TIMES,
 )
@@ -93,6 +96,11 @@ def is_management_user(user_record: dict) -> bool:
     return role_value in [ROLE_ADMIN, ROLE_MANAGER]
 
 
+def requires_post_login_attendance_step(user_record: dict) -> bool:
+    role_value = str(user_record.get("role", "") or "").strip().lower()
+    return role_value in [ROLE_EMPLOYEE, ROLE_CLEANER]
+
+
 def get_user_month_late_count(db: dict, username: str) -> int:
     ensure_attendance_defaults(db)
     month_key = get_current_month_key()
@@ -127,6 +135,7 @@ def append_attendance_record(
     arrival_minute: int,
     late_minutes: int,
     status: str,
+    branch_name: str = "",
 ) -> None:
     ensure_attendance_defaults(db)
     month_key = get_current_month_key()
@@ -137,6 +146,7 @@ def append_attendance_record(
             "date": datetime.now().strftime("%Y-%m-%d"),
             "time": f"{int(arrival_hour):02d}:{int(arrival_minute):02d}",
             "shift": shift_name,
+            "branch": branch_name,
             "late_minutes": int(late_minutes),
             "status": status,
             "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -292,6 +302,27 @@ def verify_password(user_record: dict, password: str) -> bool:
     return stored_password == password
 
 
+def verify_user_credentials(db: dict, username: str, password: str) -> tuple[bool, str, dict]:
+    users = db.get("users", {})
+
+    if username not in users:
+        return False, "User not found.", {}
+
+    user_record = users[username]
+
+    if not verify_password(user_record, password):
+        return False, "Invalid password.", {}
+
+    if is_user_blocked_for_month(db, username) and not is_management_user(user_record):
+        st.session_state["login_blocked_message"] = (
+            "⛔ تم إيقاف دخول التشغيل اليومي لهذا الموظف خلال هذا الشهر.\n"
+            "يرجى مراجعة المدير للحصول على تصريح."
+        )
+        return False, "Daily operations access is blocked.", user_record
+
+    return True, "Credentials verified.", user_record
+
+
 # =====================================================
 # Login / Logout
 # =====================================================
@@ -303,24 +334,11 @@ def login_user(
     arrival_hour: int,
     arrival_minute: int,
     late_acknowledged: bool,
+    branch_name: str = "",
 ) -> tuple[bool, str]:
-    users = db.get("users", {})
-
-    if username not in users:
-        return False, "User not found."
-
-    user_record = users[username]
-
-    if not verify_password(user_record, password):
-        return False, "Invalid password."
-
-    # المدير والأدمن لا يتم منعهم من الدخول بسبب الحظر الشهري
-    if is_user_blocked_for_month(db, username) and not is_management_user(user_record):
-        st.session_state["login_blocked_message"] = (
-            "⛔ تم إيقاف دخول التشغيل اليومي لهذا الموظف خلال هذا الشهر.\n"
-            "يرجى مراجعة المدير للحصول على تصريح."
-        )
-        return False, "Daily operations access is blocked."
+    ok, message, user_record = verify_user_credentials(db, username, password)
+    if not ok:
+        return False, message
 
     late_minutes = calculate_late_minutes(shift_name, arrival_hour, arrival_minute)
     current_late_count = get_user_month_late_count(db, username)
@@ -335,6 +353,7 @@ def login_user(
             "shift_name": shift_name,
             "arrival_hour": int(arrival_hour),
             "arrival_minute": int(arrival_minute),
+            "branch_name": branch_name,
         }
         return False, "Late acknowledgement required."
 
@@ -363,6 +382,7 @@ def login_user(
                 arrival_minute=arrival_minute,
                 late_minutes=late_minutes,
                 status="blocked_after_late",
+                branch_name=branch_name,
             )
             persist_auth_changes(db)
             st.session_state["login_blocked_message"] = get_late_warning_message(next_late_count, late_minutes)
@@ -376,6 +396,7 @@ def login_user(
             arrival_minute=arrival_minute,
             late_minutes=late_minutes,
             status="late",
+            branch_name=branch_name,
         )
         persist_auth_changes(db)
 
@@ -388,6 +409,7 @@ def login_user(
             arrival_minute=arrival_minute,
             late_minutes=0,
             status="on_time",
+            branch_name=branch_name,
         )
         persist_auth_changes(db)
 
@@ -396,6 +418,8 @@ def login_user(
     st.session_state["role"] = user_record.get("role", "user")
     st.session_state["attendance_shift"] = shift_name
     st.session_state["attendance_time"] = f"{int(arrival_hour):02d}:{int(arrival_minute):02d}"
+    st.session_state[SESSION_SHIFT] = shift_name
+    st.session_state[SESSION_BRANCH] = branch_name
 
     restore_user_drafts(db, username)
     log_auth_event(db, username, "Login")
@@ -403,6 +427,9 @@ def login_user(
     st.session_state.pop("pending_late_warning", None)
     st.session_state.pop("pending_login_payload", None)
     st.session_state.pop("login_blocked_message", None)
+    st.session_state.pop("pending_attendance_user", None)
+    st.session_state.pop("pending_attendance_password", None)
+    st.session_state.pop("pending_attendance_role", None)
 
     return True, "Login successful."
 
@@ -415,6 +442,132 @@ def logout_user(db: dict) -> None:
     persist_auth_changes(db)
 
     clear_user_session()
+
+
+# =====================================================
+# UI helpers
+# =====================================================
+def render_attendance_step_for_selected_user(db: dict) -> None:
+    pending_username = st.session_state.get("pending_attendance_user", "")
+    pending_password = st.session_state.get("pending_attendance_password", "")
+    pending_role = st.session_state.get("pending_attendance_role", "")
+
+    if not pending_username:
+        return
+
+    st.markdown("### 🕒 Attendance Confirmation")
+    st.info(f"أهلاً {pending_username} — أكمل بيانات الحضور للدخول إلى النظام.")
+
+    branches = db.get("branches", []) or ["No Branch"]
+    branch_name = st.selectbox(
+        "Select Branch",
+        branches,
+        key="attendance_branch_after_login",
+    )
+
+    shift_options = list(SHIFT_START_TIMES.keys())
+    shift_name = st.selectbox(
+        "Select Shift",
+        shift_options,
+        key="attendance_shift_after_login",
+    )
+
+    shift_defaults = SHIFT_START_TIMES.get(shift_name, SHIFT_START_TIMES["Morning"])
+
+    h1, h2 = st.columns(2)
+    with h1:
+        arrival_hour = st.number_input(
+            "Arrival Hour",
+            min_value=0,
+            max_value=23,
+            value=int(shift_defaults["hour"]),
+            step=1,
+            key="attendance_hour_after_login",
+        )
+    with h2:
+        arrival_minute = st.number_input(
+            "Arrival Minute",
+            min_value=0,
+            max_value=59,
+            value=int(shift_defaults["minute"]),
+            step=1,
+            key="attendance_minute_after_login",
+        )
+
+    pending_warning = st.session_state.get("pending_late_warning")
+    pending_payload = st.session_state.get("pending_login_payload")
+
+    if pending_warning and pending_payload:
+        st.warning(pending_warning)
+        late_acknowledged = st.checkbox(
+            "I have read and accepted this warning.",
+            key="late_warning_ack_checkbox_after_login",
+        )
+
+        if st.button("✅ Confirm And Continue", use_container_width=True):
+            if not late_acknowledged:
+                st.error("You must acknowledge the warning first.")
+            else:
+                success, message = login_user(
+                    db=db,
+                    username=pending_payload["username"],
+                    password=pending_payload["password"],
+                    shift_name=pending_payload["shift_name"],
+                    arrival_hour=int(pending_payload["arrival_hour"]),
+                    arrival_minute=int(pending_payload["arrival_minute"]),
+                    late_acknowledged=True,
+                    branch_name=pending_payload.get("branch_name", branch_name),
+                )
+
+                if success:
+                    st.success(message)
+                    st.rerun()
+                else:
+                    if message == "Daily operations access is blocked.":
+                        st.error(st.session_state.get("login_blocked_message", message))
+                    else:
+                        st.error(f"❌ {message}")
+
+        if st.button("⬅️ Back To Login", use_container_width=True):
+            st.session_state.pop("pending_attendance_user", None)
+            st.session_state.pop("pending_attendance_password", None)
+            st.session_state.pop("pending_attendance_role", None)
+            st.session_state.pop("pending_late_warning", None)
+            st.session_state.pop("pending_login_payload", None)
+            st.rerun()
+
+        return
+
+    if st.button("🚀 Enter System", use_container_width=True):
+        success, message = login_user(
+            db=db,
+            username=pending_username,
+            password=pending_password,
+            shift_name=shift_name,
+            arrival_hour=int(arrival_hour),
+            arrival_minute=int(arrival_minute),
+            late_acknowledged=False,
+            branch_name=branch_name,
+        )
+
+        if success:
+            st.success(message)
+            st.rerun()
+        else:
+            if message == "Late acknowledgement required.":
+                st.rerun()
+            elif message == "Daily operations access is blocked.":
+                st.error(st.session_state.get("login_blocked_message", message))
+            else:
+                st.error(f"❌ {message}")
+
+    if st.button("⬅️ Back To Login", use_container_width=True):
+        st.session_state.pop("pending_attendance_user", None)
+        st.session_state.pop("pending_attendance_password", None)
+        st.session_state.pop("pending_attendance_role", None)
+        st.session_state.pop("pending_late_warning", None)
+        st.session_state.pop("pending_login_payload", None)
+        st.rerun()
 
 
 # =====================================================
@@ -432,89 +585,120 @@ def render_login_screen(db: dict) -> None:
     if blocked_message:
         st.error(blocked_message)
 
-    pending_warning = st.session_state.get("pending_late_warning")
-    pending_payload = st.session_state.get("pending_login_payload")
-
     c1, c2, c3 = st.columns([1, 2, 1])
 
     with c2:
         st.write("### 🔑 Secure Login")
 
+        pending_attendance_user = st.session_state.get("pending_attendance_user")
+        if pending_attendance_user:
+            render_attendance_step_for_selected_user(db)
+            st.stop()
+
         username = st.selectbox("Select Your Account", users)
         password = st.text_input("Enter Password", type="password")
 
-        st.write("### 🕒 Attendance Confirmation")
-        shift_name = st.selectbox("Select Shift", list(SHIFT_START_TIMES.keys()))
+        user_record = get_user_record(db, username)
+        needs_attendance_after_login = requires_post_login_attendance_step(user_record)
 
-        shift_defaults = SHIFT_START_TIMES.get(shift_name, SHIFT_START_TIMES["Morning"])
+        if not needs_attendance_after_login:
+            st.write("### 🕒 Attendance Confirmation")
 
-        h1, h2 = st.columns(2)
-        with h1:
-            arrival_hour = st.number_input(
-                "Arrival Hour",
-                min_value=0,
-                max_value=23,
-                value=int(shift_defaults["hour"]),
-                step=1,
-            )
-        with h2:
-            arrival_minute = st.number_input(
-                "Arrival Minute",
-                min_value=0,
-                max_value=59,
-                value=int(shift_defaults["minute"]),
-                step=1,
-            )
+            branches = db.get("branches", []) or ["No Branch"]
+            branch_name = st.selectbox("Select Branch", branches)
 
-        if pending_warning and pending_payload:
-            st.warning(pending_warning)
-            late_acknowledged = st.checkbox(
-                "I have read and accepted this warning.",
-                key="late_warning_ack_checkbox",
-            )
+            shift_name = st.selectbox("Select Shift", list(SHIFT_START_TIMES.keys()))
+            shift_defaults = SHIFT_START_TIMES.get(shift_name, SHIFT_START_TIMES["Morning"])
 
-            if st.button("✅ Confirm And Continue", use_container_width=True):
-                if not late_acknowledged:
-                    st.error("You must acknowledge the warning first.")
-                else:
+            h1, h2 = st.columns(2)
+            with h1:
+                arrival_hour = st.number_input(
+                    "Arrival Hour",
+                    min_value=0,
+                    max_value=23,
+                    value=int(shift_defaults["hour"]),
+                    step=1,
+                )
+            with h2:
+                arrival_minute = st.number_input(
+                    "Arrival Minute",
+                    min_value=0,
+                    max_value=59,
+                    value=int(shift_defaults["minute"]),
+                    step=1,
+                )
+
+            pending_warning = st.session_state.get("pending_late_warning")
+            pending_payload = st.session_state.get("pending_login_payload")
+
+            if pending_warning and pending_payload:
+                st.warning(pending_warning)
+                late_acknowledged = st.checkbox(
+                    "I have read and accepted this warning.",
+                    key="late_warning_ack_checkbox",
+                )
+
+                if st.button("✅ Confirm And Continue", use_container_width=True):
+                    if not late_acknowledged:
+                        st.error("You must acknowledge the warning first.")
+                    else:
+                        success, message = login_user(
+                            db=db,
+                            username=pending_payload["username"],
+                            password=pending_payload["password"],
+                            shift_name=pending_payload["shift_name"],
+                            arrival_hour=int(pending_payload["arrival_hour"]),
+                            arrival_minute=int(pending_payload["arrival_minute"]),
+                            late_acknowledged=True,
+                            branch_name=pending_payload.get("branch_name", ""),
+                        )
+
+                        if success:
+                            st.success(message)
+                            st.rerun()
+                        else:
+                            if message == "Daily operations access is blocked.":
+                                st.error(st.session_state.get("login_blocked_message", message))
+                            else:
+                                st.error(f"❌ {message}")
+
+            else:
+                if st.button("🚀 Login", use_container_width=True):
                     success, message = login_user(
                         db=db,
-                        username=pending_payload["username"],
-                        password=pending_payload["password"],
-                        shift_name=pending_payload["shift_name"],
-                        arrival_hour=int(pending_payload["arrival_hour"]),
-                        arrival_minute=int(pending_payload["arrival_minute"]),
-                        late_acknowledged=True,
+                        username=username,
+                        password=password,
+                        shift_name=shift_name,
+                        arrival_hour=int(arrival_hour),
+                        arrival_minute=int(arrival_minute),
+                        late_acknowledged=False,
+                        branch_name=branch_name,
                     )
 
                     if success:
                         st.success(message)
                         st.rerun()
                     else:
-                        if message == "Daily operations access is blocked.":
+                        if message == "Late acknowledgement required.":
+                            st.rerun()
+                        elif message == "Daily operations access is blocked.":
                             st.error(st.session_state.get("login_blocked_message", message))
                         else:
                             st.error(f"❌ {message}")
 
         else:
-            if st.button("🚀 Login", use_container_width=True):
-                success, message = login_user(
-                    db=db,
-                    username=username,
-                    password=password,
-                    shift_name=shift_name,
-                    arrival_hour=int(arrival_hour),
-                    arrival_minute=int(arrival_minute),
-                    late_acknowledged=False,
-                )
+            st.info("بعد التحقق من الحساب، ستظهر لك خطوة اختيار الفرع والشيفت وتوقيت الحضور.")
 
-                if success:
-                    st.success(message)
+            if st.button("➡️ Continue", use_container_width=True):
+                ok, message, verified_user = verify_user_credentials(db, username, password)
+
+                if ok:
+                    st.session_state["pending_attendance_user"] = username
+                    st.session_state["pending_attendance_password"] = password
+                    st.session_state["pending_attendance_role"] = verified_user.get("role", "")
                     st.rerun()
                 else:
-                    if message == "Late acknowledgement required.":
-                        st.rerun()
-                    elif message == "Daily operations access is blocked.":
+                    if message == "Daily operations access is blocked.":
                         st.error(st.session_state.get("login_blocked_message", message))
                     else:
                         st.error(f"❌ {message}")
