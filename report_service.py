@@ -71,6 +71,14 @@ def build_task_lines(title: str, completed: list, pending: list) -> str:
     return "\n".join(lines)
 
 
+def should_include_cleaning_tasks(role_value: str) -> bool:
+    return role_value in ["admin", "cleaner"]
+
+
+def should_include_design_tasks(role_value: str) -> bool:
+    return role_value in ["admin", "graphic_designer"]
+
+
 # =====================================================
 # Data Builders
 # =====================================================
@@ -162,6 +170,7 @@ def get_user_display_data(db: dict) -> dict:
 
 def build_base_report_data(db: dict, session_state) -> dict:
     user_data = get_user_display_data(db)
+    current_role = user_data["role"]
 
     expenses_list = session_state.get("shift_expenses", [])
     total_expenses = calculate_total_expenses(expenses_list)
@@ -192,8 +201,9 @@ def build_base_report_data(db: dict, session_state) -> dict:
     closing_tasks = db.get("tasks", {}).get("closing", [])
     interaction_tasks = db.get("tasks", {}).get("interaction", [])
     social_tasks = db.get("tasks", {}).get("social", [])
-    cleaning_tasks = db.get("tasks", {}).get("cleaning", [])
-    design_tasks = db.get("tasks", {}).get("design", [])
+
+    cleaning_tasks = db.get("tasks", {}).get("cleaning", []) if should_include_cleaning_tasks(current_role) else []
+    design_tasks = db.get("tasks", {}).get("design", []) if should_include_design_tasks(current_role) else []
 
     opening_status = extract_task_status(opening_tasks, "open_task", session_state)
     closing_status = extract_task_status(closing_tasks, "close_task", session_state)
