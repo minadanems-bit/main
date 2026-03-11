@@ -5,11 +5,11 @@ from datetime import datetime, date
 
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 
 from auth_service import (
     get_current_role,
     get_current_username,
-    is_admin,
     is_logged_in,
     logout_user,
     render_login_screen,
@@ -27,8 +27,11 @@ from constants import (
     HR_RECORD_LABELS,
     PAYOUT_METHOD_LABELS,
     PAYROLL_ENTRY_KEY_MAP,
+    ROLE_ADMIN,
+    ROLE_CLEANER,
     ROLE_EMPLOYEE,
     ROLE_LABELS,
+    ROLE_MANAGER,
     SESSION_USER,
     TASK_CATEGORIES,
 )
@@ -146,8 +149,32 @@ def can_view_self_service() -> bool:
     return True
 
 
+def get_normalized_role() -> str:
+    return normalize_role(get_current_role())
+
+
 def is_customer_service_role() -> bool:
-    return normalize_role(get_current_role()) == ROLE_EMPLOYEE
+    return get_normalized_role() == ROLE_EMPLOYEE
+
+
+def is_cleaner_role() -> bool:
+    return get_normalized_role() == ROLE_CLEANER
+
+
+def is_admin_or_manager() -> bool:
+    return get_normalized_role() in [ROLE_ADMIN, ROLE_MANAGER]
+
+
+def can_open_admin_panel() -> bool:
+    return is_admin_or_manager()
+
+
+def can_open_backup_manager() -> bool:
+    return is_admin_or_manager()
+
+
+def should_show_attendance_clock() -> bool:
+    return get_normalized_role() in [ROLE_EMPLOYEE, ROLE_CLEANER]
 
 
 def set_main_view(view_name: str) -> None:
@@ -219,11 +246,114 @@ def get_training_status(username: str) -> dict:
     return db.get("training_records", {}).get(username, {})
 
 
+def get_user_warning_count(user_info: dict) -> int:
+    return len(user_info.get("warnings", []))
+
+
+def get_user_records_count(user_info: dict) -> int:
+    total = 0
+    for category in HR_RECORD_KEYS:
+        total += len(user_info.get(category, []))
+    total += len(user_info.get("advances", []))
+    total += len(user_info.get("late_penalties", []))
+    total += len(user_info.get("absence_penalties", []))
+    return total
+
+
+def get_branch_count() -> int:
+    return len(db.get("branches", []))
+
+
+def get_employee_count() -> int:
+    return len(db.get("users", {}))
+
+
+def get_history_count() -> int:
+    return len(db.get("history", []))
+
+
+def get_tasks_count() -> int:
+    total = 0
+    tasks = db.get("tasks", {})
+    for items in tasks.values():
+        total += len(items or [])
+    return total
+
+
+def get_printer_count() -> int:
+    return len(db.get("printers", {}))
+
+
+def render_clock_widget() -> None:
+    if not should_show_attendance_clock():
+        return
+
+    components.html(
+        """
+        <div style="margin: 10px 0 20px 0; padding: 18px; border-radius: 18px; background: linear-gradient(135deg, #0f172a, #1e293b); color: white; box-shadow: 0 8px 24px rgba(0,0,0,0.15);">
+            <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:24px;">
+                <div style="min-width:220px;">
+                    <div style="font-size:14px; opacity:0.8; margin-bottom:8px;">Attendance Time</div>
+                    <div id="digital-clock" style="font-size:34px; font-weight:700; letter-spacing:1px;">--:--:--</div>
+                    <div id="digital-date" style="font-size:14px; opacity:0.8; margin-top:6px;">--</div>
+                </div>
+
+                <div style="display:flex; justify-content:center; align-items:center; min-width:180px;">
+                    <div id="analog-clock" style="position:relative; width:150px; height:150px; border:6px solid rgba(255,255,255,0.85); border-radius:50%; background: radial-gradient(circle, #1e293b 55%, #0f172a 100%);">
+                        <div style="position:absolute; top:50%; left:50%; width:12px; height:12px; background:#fff; border-radius:50%; transform:translate(-50%,-50%); z-index:10;"></div>
+
+                        <div id="hour-hand" style="position:absolute; width:4px; height:42px; background:#fff; top:33px; left:71px; transform-origin:bottom center; border-radius:4px;"></div>
+                        <div id="minute-hand" style="position:absolute; width:3px; height:56px; background:#cbd5e1; top:19px; left:71.5px; transform-origin:bottom center; border-radius:4px;"></div>
+                        <div id="second-hand" style="position:absolute; width:2px; height:62px; background:#38bdf8; top:13px; left:72px; transform-origin:bottom center; border-radius:4px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            function updateClock() {
+                const now = new Date();
+
+                const hh = String(now.getHours()).padStart(2, '0');
+                const mm = String(now.getMinutes()).padStart(2, '0');
+                const ss = String(now.getSeconds()).padStart(2, '0');
+
+                const dateText = now.toLocaleDateString(undefined, {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+
+                document.getElementById("digital-clock").innerText = `${hh}:${mm}:${ss}`;
+                document.getElementById("digital-date").innerText = dateText;
+
+                const seconds = now.getSeconds();
+                const minutes = now.getMinutes();
+                const hours = now.getHours();
+
+                const secondDeg = seconds * 6;
+                const minuteDeg = (minutes * 6) + (seconds * 0.1);
+                const hourDeg = ((hours % 12) * 30) + (minutes * 0.5);
+
+                document.getElementById("second-hand").style.transform = `rotate(${secondDeg}deg)`;
+                document.getElementById("minute-hand").style.transform = `rotate(${minuteDeg}deg)`;
+                document.getElementById("hour-hand").style.transform = `rotate(${hourDeg}deg)`;
+            }
+
+            updateClock();
+            setInterval(updateClock, 1000);
+        </script>
+        """,
+        height=220,
+    )
+
+
 # =========================
 # Supabase import manager
 # =========================
 def render_supabase_import_manager() -> None:
-    if not is_admin():
+    if not can_open_backup_manager():
         return
 
     st.markdown("### ☁️ Import Backup To Supabase")
@@ -592,8 +722,8 @@ def render_branches_expenses_module() -> None:
 def render_archive_history_module() -> None:
     st.subheader("📂 Archive & History")
 
-    if not is_admin():
-        st.error("Access Denied: Admins Only.")
+    if not can_open_admin_panel():
+        st.error("Access Denied.")
         return
 
     history = db.get("history", [])
@@ -764,6 +894,10 @@ def render_printer_management_module() -> None:
 
 
 def render_admin_panel_main() -> None:
+    if not can_open_admin_panel():
+        st.error("Access denied.")
+        return
+
     st.title("⚙️ Admin Panel")
     st.caption("اختر القسم من القائمة التالية، وسيظهر المحتوى هنا في منتصف الشاشة.")
 
@@ -808,24 +942,45 @@ def render_sidebar() -> None:
         st.divider()
         st.write("### Navigation")
 
-        if st.button("🏠 Dashboard", use_container_width=True, type="primary" if current_view == NAV_DASHBOARD else "secondary"):
+        if st.button(
+            "🏠 Dashboard",
+            use_container_width=True,
+            type="primary" if current_view == NAV_DASHBOARD else "secondary",
+        ):
             set_main_view(NAV_DASHBOARD)
             st.rerun()
 
-        if st.button("👤 My Profile", use_container_width=True, type="primary" if current_view == NAV_PROFILE else "secondary"):
+        if st.button(
+            "👤 My Profile",
+            use_container_width=True,
+            type="primary" if current_view == NAV_PROFILE else "secondary",
+        ):
             set_main_view(NAV_PROFILE)
             st.rerun()
 
-        if st.button("📊 Daily Operations", use_container_width=True, type="primary" if current_view == NAV_OPERATIONS else "secondary"):
+        if st.button(
+            "📊 Daily Operations",
+            use_container_width=True,
+            type="primary" if current_view == NAV_OPERATIONS else "secondary",
+        ):
             set_main_view(NAV_OPERATIONS)
             st.rerun()
 
-        if is_admin():
-            if st.button("⚙️ Admin Panel", use_container_width=True, type="primary" if current_view == NAV_ADMIN else "secondary"):
+        if can_open_admin_panel():
+            if st.button(
+                "⚙️ Admin Panel",
+                use_container_width=True,
+                type="primary" if current_view == NAV_ADMIN else "secondary",
+            ):
                 set_main_view(NAV_ADMIN)
                 st.rerun()
 
-            if st.button("🧰 Backup Manager", use_container_width=True, type="primary" if current_view == NAV_BACKUP else "secondary"):
+        if can_open_backup_manager():
+            if st.button(
+                "🧰 Backup Manager",
+                use_container_width=True,
+                type="primary" if current_view == NAV_BACKUP else "secondary",
+            ):
                 set_main_view(NAV_BACKUP)
                 st.rerun()
 
@@ -839,43 +994,120 @@ def render_sidebar() -> None:
 # =========================
 # Dashboard / Backup / Main views
 # =========================
+def render_dashboard_cards_for_admin() -> None:
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        st.metric("Employees", get_employee_count())
+    with c2:
+        st.metric("Branches", get_branch_count())
+    with c3:
+        st.metric("Tasks", get_tasks_count())
+    with c4:
+        st.metric("Printers", get_printer_count())
+
+    c5, c6 = st.columns(2)
+    with c5:
+        st.metric("Archived Reports", get_history_count())
+    with c6:
+        st.metric("Training Records", len(db.get("training_records", {})))
+
+
+def render_dashboard_cards_for_manager() -> None:
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.metric("Employees", get_employee_count())
+    with c2:
+        st.metric("Branches", get_branch_count())
+    with c3:
+        st.metric("Archived Reports", get_history_count())
+
+
+def render_dashboard_cards_for_employee(user_info: dict) -> None:
+    salary_summary = calculate_salary_breakdown(user_info)
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.metric("Warnings", get_user_warning_count(user_info))
+    with c2:
+        st.metric("My Records", get_user_records_count(user_info))
+    with c3:
+        st.metric("Net Salary", f"{salary_summary['net_salary']:,.2f} LE")
+
+
+def render_dashboard_cards_for_cleaner(user_info: dict) -> None:
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.metric("Warnings", get_user_warning_count(user_info))
+    with c2:
+        training_info = get_training_status(get_current_username() or "")
+        st.metric("Training", training_info.get("status", "pending") if training_info else "pending")
+    with c3:
+        st.metric("Job", "Cleaner")
+
+
+def render_dashboard_cards_default(user_info: dict) -> None:
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.metric("Warnings", get_user_warning_count(user_info))
+    with c2:
+        training_info = get_training_status(get_current_username() or "")
+        st.metric("Training", training_info.get("status", "pending") if training_info else "pending")
+    with c3:
+        st.metric("Archived Reports", get_history_count())
+
+
 def render_dashboard_page() -> None:
     user_info = get_current_user()
     username = get_current_username() or "-"
     current_role = get_current_role()
+    normalized_role = get_normalized_role()
 
     st.title("🏠 Dashboard")
-    st.caption("واجهة رئيسية أبسط وأوضح للمستخدم.")
+    st.caption("واجهة رئيسية أوضح وأذكى حسب دور المستخدم.")
 
-    c1, c2, c3 = st.columns(3)
-    with c1:
+    render_clock_widget()
+
+    top1, top2, top3 = st.columns(3)
+    with top1:
         st.metric("User", username)
-    with c2:
+    with top2:
         st.metric("Role", get_role_label(current_role))
-    with c3:
+    with top3:
         training_info = get_training_status(username)
         st.metric("Training", training_info.get("status", "pending") if training_info else "pending")
 
     st.divider()
 
+    if normalized_role == ROLE_ADMIN:
+        render_dashboard_cards_for_admin()
+    elif normalized_role == ROLE_MANAGER:
+        render_dashboard_cards_for_manager()
+    elif normalized_role == ROLE_EMPLOYEE:
+        render_dashboard_cards_for_employee(user_info)
+    elif normalized_role == ROLE_CLEANER:
+        render_dashboard_cards_for_cleaner(user_info)
+    else:
+        render_dashboard_cards_default(user_info)
+
+    st.divider()
+
     st.subheader("Quick Access")
 
-    q1, q2, q3 = st.columns(3)
+    quick_buttons = []
 
-    with q1:
-        if st.button("👤 Open My Profile", use_container_width=True):
-            set_main_view(NAV_PROFILE)
-            st.rerun()
+    quick_buttons.append(("👤 Open My Profile", NAV_PROFILE))
+    quick_buttons.append(("📊 Open Daily Operations", NAV_OPERATIONS))
 
-    with q2:
-        if st.button("📊 Open Daily Operations", use_container_width=True):
-            set_main_view(NAV_OPERATIONS)
-            st.rerun()
+    if can_open_admin_panel():
+        quick_buttons.append(("⚙️ Open Admin Panel", NAV_ADMIN))
 
-    with q3:
-        if is_admin():
-            if st.button("⚙️ Open Admin Panel", use_container_width=True):
-                set_main_view(NAV_ADMIN)
+    if can_open_backup_manager():
+        quick_buttons.append(("🧰 Open Backup Manager", NAV_BACKUP))
+
+    cols = st.columns(len(quick_buttons))
+    for idx, (label, target_view) in enumerate(quick_buttons):
+        with cols[idx]:
+            if st.button(label, use_container_width=True, key=f"quick_btn_{idx}"):
+                set_main_view(target_view)
                 st.rerun()
 
     st.divider()
@@ -885,12 +1117,16 @@ def render_dashboard_page() -> None:
     st.write(f"**Job Title:** {user_info.get('job_title', '-')}")
     st.write(f"**Employee Code:** {user_info.get('employee_code', '-') or '-'}")
 
-    if not can_access_daily_operations():
+    if normalized_role == ROLE_EMPLOYEE:
+        st.info("يمكنك استخدام الأقسام المخصصة لك فقط حسب صلاحياتك.")
+    elif normalized_role == ROLE_CLEANER:
+        st.info("يمكنك استخدام أقسام النظافة والتقرير حسب صلاحياتك.")
+    elif not can_access_daily_operations():
         st.warning(get_daily_operations_block_message())
 
 
 def render_backup_manager_page() -> None:
-    if not is_admin():
+    if not can_open_backup_manager():
         st.error("Access denied.")
         return
 
@@ -966,7 +1202,7 @@ def render_main_content() -> None:
         return
 
     if current_view == NAV_ADMIN:
-        if is_admin():
+        if can_open_admin_panel():
             render_admin_panel_main()
         else:
             st.error("Access denied.")
