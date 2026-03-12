@@ -202,9 +202,7 @@ def render_daily_operations_block() -> None:
     st.error(get_daily_operations_block_message())
 
     if is_customer_service_role():
-        st.info(
-            "يمكنك متابعة ملفك الشخصي والتنبيهات والبيانات الخاصة بك من الشريط الجانبي."
-        )
+        st.info("يمكنك متابعة ملفك الشخصي والتنبيهات والبيانات الخاصة بك من الشريط الجانبي.")
 
 
 def render_step_selector(step_labels: list[str]) -> int:
