@@ -262,24 +262,67 @@ def clear_pending_login_flow() -> None:
     st.session_state.pop(SESSION_LOGIN_BLOCKED_MESSAGE, None)
 
 
-def render_attendance_clock_widget(height: int = 250) -> None:
+def render_attendance_clock_widget(height: int = 300) -> None:
     components.html(
         """
-        <div style="margin: 6px 0 18px 0; padding: 18px; border-radius: 20px; background: linear-gradient(135deg, #0f172a, #1e293b); color: white; box-shadow: 0 10px 28px rgba(0,0,0,0.18); border:1px solid rgba(255,255,255,0.08);">
-            <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:24px;">
-                <div style="min-width:220px;">
-                    <div style="font-size:13px; opacity:0.78; margin-bottom:8px; letter-spacing:0.4px;">Attendance Time</div>
-                    <div id="digital-clock-login" style="font-size:36px; font-weight:700; letter-spacing:1.5px;">--:--:--</div>
-                    <div id="digital-date-login" style="font-size:14px; opacity:0.8; margin-top:8px;">--</div>
+        <div style="
+            margin: 8px 0 18px 0;
+            padding: 22px;
+            border-radius: 22px;
+            background: linear-gradient(135deg, #020617, #0f172a, #1e293b);
+            color: white;
+            box-shadow: 0 14px 32px rgba(0,0,0,0.22);
+            border: 1px solid rgba(255,255,255,0.08);
+        ">
+            <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:28px;">
+                <div style="min-width:260px;">
+                    <div style="font-size:14px; opacity:0.8; margin-bottom:10px; letter-spacing:0.5px;">
+                        ⏰ Current Attendance Time
+                    </div>
+
+                    <div id="digital-clock-login"
+                         style="font-size:42px; font-weight:800; letter-spacing:2px; line-height:1;">
+                        --:--:--
+                    </div>
+
+                    <div id="digital-ampm-login"
+                         style="font-size:18px; font-weight:700; color:#38bdf8; margin-top:8px;">
+                        --
+                    </div>
+
+                    <div id="digital-date-login"
+                         style="font-size:14px; opacity:0.82; margin-top:10px;">
+                        --
+                    </div>
                 </div>
 
-                <div style="display:flex; justify-content:center; align-items:center; min-width:180px;">
-                    <div id="analog-clock-login" style="position:relative; width:150px; height:150px; border:6px solid rgba(255,255,255,0.88); border-radius:50%; background: radial-gradient(circle, #1e293b 55%, #0f172a 100%);">
+                <div style="display:flex; justify-content:center; align-items:center; min-width:190px;">
+                    <div id="analog-clock-login"
+                         style="
+                            position:relative;
+                            width:165px;
+                            height:165px;
+                            border:6px solid rgba(255,255,255,0.88);
+                            border-radius:50%;
+                            background: radial-gradient(circle, #1e293b 55%, #0f172a 100%);
+                            box-shadow: inset 0 0 20px rgba(255,255,255,0.06);
+                         ">
+
                         <div style="position:absolute; top:50%; left:50%; width:12px; height:12px; background:#ffffff; border-radius:50%; transform:translate(-50%,-50%); z-index:10;"></div>
 
-                        <div id="hour-hand-login" style="position:absolute; width:4px; height:42px; background:#ffffff; top:33px; left:71px; transform-origin:bottom center; border-radius:4px;"></div>
-                        <div id="minute-hand-login" style="position:absolute; width:3px; height:56px; background:#cbd5e1; top:19px; left:71.5px; transform-origin:bottom center; border-radius:4px;"></div>
-                        <div id="second-hand-login" style="position:absolute; width:2px; height:62px; background:#38bdf8; top:13px; left:72px; transform-origin:bottom center; border-radius:4px;"></div>
+                        <div style="position:absolute; top:12px; left:76px; color:white; font-size:13px;">12</div>
+                        <div style="position:absolute; top:72px; right:12px; color:white; font-size:13px;">3</div>
+                        <div style="position:absolute; bottom:10px; left:78px; color:white; font-size:13px;">6</div>
+                        <div style="position:absolute; top:72px; left:12px; color:white; font-size:13px;">9</div>
+
+                        <div id="hour-hand-login"
+                             style="position:absolute; width:5px; height:46px; background:#ffffff; top:36px; left:77px; transform-origin:bottom center; border-radius:4px;"></div>
+
+                        <div id="minute-hand-login"
+                             style="position:absolute; width:3px; height:62px; background:#cbd5e1; top:20px; left:78px; transform-origin:bottom center; border-radius:4px;"></div>
+
+                        <div id="second-hand-login"
+                             style="position:absolute; width:2px; height:70px; background:#38bdf8; top:12px; left:78.5px; transform-origin:bottom center; border-radius:4px;"></div>
                     </div>
                 </div>
             </div>
@@ -289,9 +332,14 @@ def render_attendance_clock_widget(height: int = 250) -> None:
             function updateClockLogin() {
                 const now = new Date();
 
-                const hh = String(now.getHours()).padStart(2, '0');
+                const hh24 = now.getHours();
                 const mm = String(now.getMinutes()).padStart(2, '0');
                 const ss = String(now.getSeconds()).padStart(2, '0');
+
+                const ampm = hh24 >= 12 ? 'PM' : 'AM';
+                let hh12 = hh24 % 12;
+                if (hh12 === 0) hh12 = 12;
+                const hh12Text = String(hh12).padStart(2, '0');
 
                 const dateText = now.toLocaleDateString(undefined, {
                     weekday: 'long',
@@ -301,16 +349,16 @@ def render_attendance_clock_widget(height: int = 250) -> None:
                 });
 
                 const digital = document.getElementById("digital-clock-login");
+                const ampmEl = document.getElementById("digital-ampm-login");
                 const dateEl = document.getElementById("digital-date-login");
                 const hourHand = document.getElementById("hour-hand-login");
                 const minuteHand = document.getElementById("minute-hand-login");
                 const secondHand = document.getElementById("second-hand-login");
 
-                if (!digital || !dateEl || !hourHand || !minuteHand || !secondHand) {
-                    return;
-                }
+                if (!digital || !ampmEl || !dateEl || !hourHand || !minuteHand || !secondHand) return;
 
-                digital.innerText = `${hh}:${mm}:${ss}`;
+                digital.innerText = `${hh12Text}:${mm}:${ss}`;
+                ampmEl.innerText = ampm;
                 dateEl.innerText = dateText;
 
                 const seconds = now.getSeconds();
@@ -332,6 +380,66 @@ def render_attendance_clock_widget(height: int = 250) -> None:
         """,
         height=height,
     )
+
+
+def render_professional_time_picker(
+    title: str,
+    default_hour_24: int,
+    default_minute: int,
+    key_prefix: str,
+) -> tuple[int, int]:
+    st.markdown(f"### {title}")
+
+    hour_options_12 = list(range(1, 13))
+    minute_options = list(range(0, 60, 5))
+
+    default_ampm = "AM" if default_hour_24 < 12 else "PM"
+    default_hour_12 = default_hour_24 % 12
+    if default_hour_12 == 0:
+        default_hour_12 = 12
+
+    if default_minute not in minute_options:
+        closest_minute = min(minute_options, key=lambda x: abs(x - default_minute))
+    else:
+        closest_minute = default_minute
+
+    c1, c2, c3 = st.columns([1.2, 1.2, 1])
+
+    with c1:
+        selected_hour_12 = st.selectbox(
+            "🕐 Hour",
+            hour_options_12,
+            index=hour_options_12.index(default_hour_12),
+            key=f"{key_prefix}_hour_12",
+        )
+
+    with c2:
+        selected_minute = st.selectbox(
+            "⏱ Minute",
+            minute_options,
+            index=minute_options.index(closest_minute),
+            format_func=lambda x: f"{x:02d}",
+            key=f"{key_prefix}_minute",
+        )
+
+    with c3:
+        selected_ampm = st.selectbox(
+            "🌗 AM / PM",
+            ["AM", "PM"],
+            index=0 if default_ampm == "AM" else 1,
+            key=f"{key_prefix}_ampm",
+        )
+
+    hour_24 = selected_hour_12 % 12
+    if selected_ampm == "PM":
+        hour_24 += 12
+
+    display_12 = f"{selected_hour_12:02d}:{selected_minute:02d} {selected_ampm}"
+    display_24 = f"{hour_24:02d}:{selected_minute:02d}"
+
+    st.info(f"✅ Selected Time: {display_12}  |  24H Format: {display_24}")
+
+    return int(hour_24), int(selected_minute)
 
 
 # =====================================================
@@ -555,14 +663,15 @@ def render_attendance_step_for_selected_user(db: dict) -> None:
 
     render_attendance_clock_widget()
 
-    st.info(f"أهلاً {pending_username} — أكمل بيانات الحضور للدخول إلى النظام.")
+    st.success(f"👋 أهلاً {pending_username}")
+    st.write("يرجى اختيار الفرع، الشيفت، ووقت الحضور بشكل واضح قبل الدخول.")
 
     branches = db.get("branches", []) or ["No Branch"]
 
     c1, c2 = st.columns(2)
     with c1:
         branch_name = st.selectbox(
-            "Select Branch",
+            "📍 Select Branch",
             branches,
             key="attendance_branch_after_login",
         )
@@ -570,32 +679,19 @@ def render_attendance_step_for_selected_user(db: dict) -> None:
     shift_options = list(SHIFT_START_TIMES.keys())
     with c2:
         shift_name = st.selectbox(
-            "Select Shift",
+            "🧭 Select Shift",
             shift_options,
             key="attendance_shift_after_login",
         )
 
     shift_defaults = SHIFT_START_TIMES.get(shift_name, SHIFT_START_TIMES["Morning"])
 
-    h1, h2 = st.columns(2)
-    with h1:
-        arrival_hour = st.number_input(
-            "Arrival Hour",
-            min_value=0,
-            max_value=23,
-            value=int(shift_defaults["hour"]),
-            step=1,
-            key="attendance_hour_after_login",
-        )
-    with h2:
-        arrival_minute = st.number_input(
-            "Arrival Minute",
-            min_value=0,
-            max_value=59,
-            value=int(shift_defaults["minute"]),
-            step=1,
-            key="attendance_minute_after_login",
-        )
+    arrival_hour, arrival_minute = render_professional_time_picker(
+        title="⏰ Arrival Time",
+        default_hour_24=int(shift_defaults["hour"]),
+        default_minute=int(shift_defaults["minute"]),
+        key_prefix="attendance_after_login",
+    )
 
     pending_warning = st.session_state.get(SESSION_PENDING_LATE_WARNING)
     pending_payload = st.session_state.get(SESSION_PENDING_LOGIN_PAYLOAD)
@@ -711,30 +807,19 @@ def render_login_screen(db: dict) -> None:
 
             c_branch, c_shift = st.columns(2)
             with c_branch:
-                branch_name = st.selectbox("Select Branch", branches)
+                branch_name = st.selectbox("📍 Select Branch", branches)
 
             with c_shift:
-                shift_name = st.selectbox("Select Shift", list(SHIFT_START_TIMES.keys()))
+                shift_name = st.selectbox("🧭 Select Shift", list(SHIFT_START_TIMES.keys()))
 
             shift_defaults = SHIFT_START_TIMES.get(shift_name, SHIFT_START_TIMES["Morning"])
 
-            h1, h2 = st.columns(2)
-            with h1:
-                arrival_hour = st.number_input(
-                    "Arrival Hour",
-                    min_value=0,
-                    max_value=23,
-                    value=int(shift_defaults["hour"]),
-                    step=1,
-                )
-            with h2:
-                arrival_minute = st.number_input(
-                    "Arrival Minute",
-                    min_value=0,
-                    max_value=59,
-                    value=int(shift_defaults["minute"]),
-                    step=1,
-                )
+            arrival_hour, arrival_minute = render_professional_time_picker(
+                title="⏰ Arrival Time",
+                default_hour_24=int(shift_defaults["hour"]),
+                default_minute=int(shift_defaults["minute"]),
+                key_prefix="direct_login_attendance",
+            )
 
             pending_warning = st.session_state.get(SESSION_PENDING_LATE_WARNING)
             pending_payload = st.session_state.get(SESSION_PENDING_LOGIN_PAYLOAD)
@@ -795,7 +880,7 @@ def render_login_screen(db: dict) -> None:
                             st.error(f"❌ {message}")
 
         else:
-            st.info("بعد التحقق من الحساب، ستظهر لك خطوة اختيار الفرع والشيفت وتوقيت الحضور.")
+            st.info("بعد التحقق من الحساب، ستظهر لك خطوة اختيار الفرع والشيفت ووقت الحضور بشكل احترافي.")
 
             if st.button("➡️ Continue", use_container_width=True):
                 ok, message, verified_user = verify_user_credentials(db, username, password)
