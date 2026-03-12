@@ -4,9 +4,11 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Callable
+import time
 
 import streamlit as st
+from httpx import RemoteProtocolError
 from supabase import Client, create_client
 
 from constants import (
@@ -64,6 +66,33 @@ def _empty_logo_to_none(value: Any) -> Any:
     if value == "":
         return None
     return value
+
+
+def _run_with_retry(action: Callable, retries: int = 3, delay: float = 0.6):
+    last_error = None
+    for attempt in range(retries):
+        try:
+            return action()
+        except RemoteProtocolError as e:
+            last_error = e
+            if attempt == retries - 1:
+                raise
+            time.sleep(delay * (attempt + 1))
+        except Exception as e:
+            last_error = e
+            if attempt == retries - 1:
+                raise
+            time.sleep(delay * (attempt + 1))
+    if last_error:
+        raise last_error
+
+
+def _safe_execute(query, fallback):
+    try:
+        result = _run_with_retry(lambda: query.execute())
+        return result.data or fallback
+    except Exception:
+        return fallback
 
 
 # =====================================================
@@ -139,8 +168,7 @@ def attach_financial_records(users: dict, financial_rows: list) -> dict:
 # Read helpers
 # =====================================================
 def _load_users(supabase: Client) -> dict:
-    result = supabase.table("users").select("*").execute()
-    rows = result.data or []
+    rows = _safe_execute(supabase.table("users").select("*"), [])
 
     users = {}
     for row in rows:
@@ -148,14 +176,12 @@ def _load_users(supabase: Client) -> dict:
         if username:
             users[username] = normalize_user_row(row)
 
-    fin_result = supabase.table("employee_financial_records").select("*").execute()
-    fin_rows = fin_result.data or []
+    fin_rows = _safe_execute(supabase.table("employee_financial_records").select("*"), [])
     return attach_financial_records(users, fin_rows)
 
 
 def _load_tasks(supabase: Client) -> dict:
-    result = supabase.table("tasks").select("*").execute()
-    rows = result.data or []
+    rows = _safe_execute(supabase.table("tasks").select("*"), [])
 
     tasks = {category: [] for category in TASK_CATEGORIES}
     for row in rows:
@@ -168,20 +194,17 @@ def _load_tasks(supabase: Client) -> dict:
 
 
 def _load_branches(supabase: Client) -> list:
-    result = supabase.table("branches").select("*").execute()
-    rows = result.data or []
+    rows = _safe_execute(supabase.table("branches").select("*"), [])
     return [row.get("branch_name", "") for row in rows if row.get("branch_name")]
 
 
 def _load_expense_categories(supabase: Client) -> list:
-    result = supabase.table("expense_categories").select("*").execute()
-    rows = result.data or []
+    rows = _safe_execute(supabase.table("expense_categories").select("*"), [])
     return [row.get("category_name", "") for row in rows if row.get("category_name")]
 
 
 def _load_printers(supabase: Client) -> dict:
-    result = supabase.table("printers").select("*").execute()
-    rows = result.data or []
+    rows = _safe_execute(supabase.table("printers").select("*"), [])
 
     return {
         row.get("printer_name", ""): row.get("printer_ip", "")
@@ -191,8 +214,10 @@ def _load_printers(supabase: Client) -> dict:
 
 
 def _load_history(supabase: Client) -> list:
-    result = supabase.table("shift_history").select("*").order("created_at").execute()
-    rows = result.data or []
+    rows = _safe_execute(
+        supabase.table("shift_history").select("*").order("created_at"),
+        [],
+    )
 
     history = []
     for row in rows:
@@ -243,8 +268,7 @@ def _load_history(supabase: Client) -> list:
 
 
 def _load_training_records(supabase: Client) -> dict:
-    result = supabase.table("training_records").select("*").execute()
-    rows = result.data or []
+    rows = _safe_execute(supabase.table("training_records").select("*"), [])
 
     records = {}
     for row in rows:
@@ -259,11 +283,10 @@ def _load_training_records(supabase: Client) -> dict:
 
 
 def _load_attendance_records(supabase: Client) -> dict:
-    try:
-        result = supabase.table("attendance_records").select("*").order("created_at").execute()
-        rows = result.data or []
-    except Exception:
-        return {}
+    rows = _safe_execute(
+        supabase.table("attendance_records").select("*").order("created_at"),
+        [],
+    )
 
     attendance_records = {}
 
@@ -292,11 +315,7 @@ def _load_attendance_records(supabase: Client) -> dict:
 
 
 def _load_late_tracking(supabase: Client) -> dict:
-    try:
-        result = supabase.table("late_tracking").select("*").execute()
-        rows = result.data or []
-    except Exception:
-        return {}
+    rows = _safe_execute(supabase.table("late_tracking").select("*"), [])
 
     data = {}
     for row in rows:
@@ -314,11 +333,7 @@ def _load_late_tracking(supabase: Client) -> dict:
 
 
 def _load_blocked_users(supabase: Client) -> dict:
-    try:
-        result = supabase.table("blocked_users").select("*").execute()
-        rows = result.data or []
-    except Exception:
-        return {}
+    rows = _safe_execute(supabase.table("blocked_users").select("*"), [])
 
     data = {}
     for row in rows:
@@ -336,8 +351,7 @@ def _load_blocked_users(supabase: Client) -> dict:
 
 
 def _load_settings(supabase: Client) -> tuple[str, Any]:
-    result = supabase.table("app_settings").select("*").execute()
-    rows = result.data or []
+    rows = _safe_execute(supabase.table("app_settings").select("*"), [])
 
     settings_map = {}
     for row in rows:
@@ -392,7 +406,9 @@ def load_db() -> dict:
 # Write helpers
 # =====================================================
 def _delete_all(supabase: Client, table_name: str, guard_column: str) -> None:
-    supabase.table(table_name).delete().neq(guard_column, "__never__").execute()
+    _run_with_retry(
+        lambda: supabase.table(table_name).delete().neq(guard_column, "__never__").execute()
+    )
 
 
 def _upsert_settings(supabase: Client, data: dict) -> None:
@@ -400,19 +416,24 @@ def _upsert_settings(supabase: Client, data: dict) -> None:
     if logo_value is None:
         logo_value = ""
 
-    supabase.table("app_settings").upsert(
-        [
-            {
-                "setting_key": "manager_phone",
-                "setting_value": safe_str(data.get("manager_phone", DEFAULT_MANAGER_PHONE), DEFAULT_MANAGER_PHONE),
-            },
-            {
-                "setting_key": "logo",
-                "setting_value": logo_value,
-            },
-        ],
-        on_conflict="setting_key",
-    ).execute()
+    _run_with_retry(
+        lambda: supabase.table("app_settings").upsert(
+            [
+                {
+                    "setting_key": "manager_phone",
+                    "setting_value": safe_str(
+                        data.get("manager_phone", DEFAULT_MANAGER_PHONE),
+                        DEFAULT_MANAGER_PHONE,
+                    ),
+                },
+                {
+                    "setting_key": "logo",
+                    "setting_value": logo_value,
+                },
+            ],
+            on_conflict="setting_key",
+        ).execute()
+    )
 
 
 def _write_users(supabase: Client, users: dict) -> None:
@@ -463,15 +484,32 @@ def _write_users(supabase: Client, users: dict) -> None:
                 )
 
     if user_rows:
-        supabase.table("users").upsert(user_rows, on_conflict="username").execute()
+        _run_with_retry(
+            lambda: supabase.table("users").upsert(user_rows, on_conflict="username").execute()
+        )
 
     _delete_all(supabase, "employee_financial_records", "username")
 
     if financial_rows:
-        supabase.table("employee_financial_records").insert(financial_rows).execute()
+        _run_with_retry(
+            lambda: supabase.table("employee_financial_records").insert(financial_rows).execute()
+        )
+
+
+def _has_any_task_data(tasks: dict) -> bool:
+    for task_list in safe_dict(tasks).values():
+        for task_text in safe_list(task_list):
+            if safe_str(task_text).strip():
+                return True
+    return False
 
 
 def _write_tasks(supabase: Client, tasks: dict) -> None:
+    # حماية مهمة:
+    # لو الداتا جاية فاضية أو ناقصة، لا تمسح الجدول كله
+    if not _has_any_task_data(tasks):
+        return
+
     task_rows = []
 
     for category, task_list in safe_dict(tasks).items():
@@ -485,10 +523,11 @@ def _write_tasks(supabase: Client, tasks: dict) -> None:
                     }
                 )
 
-    _delete_all(supabase, "tasks", "category")
+    if not task_rows:
+        return
 
-    if task_rows:
-        supabase.table("tasks").insert(task_rows).execute()
+    _delete_all(supabase, "tasks", "category")
+    _run_with_retry(lambda: supabase.table("tasks").insert(task_rows).execute())
 
 
 def _write_branches(supabase: Client, branches: list) -> None:
@@ -509,7 +548,9 @@ def _write_branches(supabase: Client, branches: list) -> None:
     _delete_all(supabase, "branches", "branch_name")
 
     if rows:
-        supabase.table("branches").upsert(rows, on_conflict="branch_name").execute()
+        _run_with_retry(
+            lambda: supabase.table("branches").upsert(rows, on_conflict="branch_name").execute()
+        )
 
 
 def _write_expense_categories(supabase: Client, expense_categories: list) -> None:
@@ -530,7 +571,12 @@ def _write_expense_categories(supabase: Client, expense_categories: list) -> Non
     _delete_all(supabase, "expense_categories", "category_name")
 
     if rows:
-        supabase.table("expense_categories").upsert(rows, on_conflict="category_name").execute()
+        _run_with_retry(
+            lambda: supabase.table("expense_categories").upsert(
+                rows,
+                on_conflict="category_name",
+            ).execute()
+        )
 
 
 def _write_printers(supabase: Client, printers: dict) -> None:
@@ -557,7 +603,12 @@ def _write_printers(supabase: Client, printers: dict) -> None:
     _delete_all(supabase, "printers", "printer_name")
 
     if cleaned_rows:
-        supabase.table("printers").upsert(cleaned_rows, on_conflict="printer_name").execute()
+        _run_with_retry(
+            lambda: supabase.table("printers").upsert(
+                cleaned_rows,
+                on_conflict="printer_name",
+            ).execute()
+        )
 
 
 def _write_history(supabase: Client, history: list) -> None:
@@ -610,7 +661,7 @@ def _write_history(supabase: Client, history: list) -> None:
     _delete_all(supabase, "shift_history", "staff")
 
     if rows:
-        supabase.table("shift_history").insert(rows).execute()
+        _run_with_retry(lambda: supabase.table("shift_history").insert(rows).execute())
 
 
 def _write_training_records(supabase: Client, training_records: dict) -> None:
@@ -628,7 +679,7 @@ def _write_training_records(supabase: Client, training_records: dict) -> None:
     _delete_all(supabase, "training_records", "username")
 
     if rows:
-        supabase.table("training_records").insert(rows).execute()
+        _run_with_retry(lambda: supabase.table("training_records").insert(rows).execute())
 
 
 def _write_attendance_records(supabase: Client, attendance_records: dict) -> None:
@@ -655,7 +706,7 @@ def _write_attendance_records(supabase: Client, attendance_records: dict) -> Non
                 )
 
     if rows:
-        supabase.table("attendance_records").insert(rows).execute()
+        _run_with_retry(lambda: supabase.table("attendance_records").insert(rows).execute())
 
 
 def _write_late_tracking(supabase: Client, late_tracking: dict) -> None:
@@ -676,7 +727,7 @@ def _write_late_tracking(supabase: Client, late_tracking: dict) -> None:
             )
 
     if rows:
-        supabase.table("late_tracking").insert(rows).execute()
+        _run_with_retry(lambda: supabase.table("late_tracking").insert(rows).execute())
 
 
 def _write_blocked_users(supabase: Client, blocked_users: dict) -> None:
@@ -697,7 +748,7 @@ def _write_blocked_users(supabase: Client, blocked_users: dict) -> None:
             )
 
     if rows:
-        supabase.table("blocked_users").insert(rows).execute()
+        _run_with_retry(lambda: supabase.table("blocked_users").insert(rows).execute())
 
 
 # =====================================================
