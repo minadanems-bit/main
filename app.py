@@ -44,7 +44,7 @@ from role_service import (
     get_daily_operations_block_message,
 )
 from supabase_migration import migrate
-
+from training_service import render_training_module as render_training_service_module
 
 # =========================
 # Database bootstrap
@@ -93,6 +93,8 @@ def ensure_db_defaults() -> None:
         "attendance_records": {},
         "late_tracking": {},
         "blocked_users": {},
+        "training_content": {},
+        "training_progress": {},
     }
 
     changed = False
@@ -497,19 +499,8 @@ def render_profile_records_tab(user_info: dict) -> None:
 
 
 def render_profile_training_tab() -> None:
-    username = get_current_username() or ""
-    training_info = get_training_status(username)
-
-    st.subheader("🎓 Training Status")
-
-    if training_info:
-        st.success("Training record found.")
-        st.write(f"**Status:** {training_info.get('status', '-')}")
-        st.write(f"**Date:** {training_info.get('date', '-')}")
-    else:
-        st.info("No training completion record found yet.")
-
-    st.caption("سيتم تطوير هذه الصفحة لاحقًا إلى نظام تدريب كامل قابل للإدارة والتعديل من لوحة المدير.")
+    render_training_service_module(db, admin_mode=False)
+    refresh_db()
 
 
 def render_profile_page() -> None:
@@ -797,90 +788,8 @@ def render_archive_history_module() -> None:
 
 
 def render_training_module() -> None:
-    st.subheader("🎓 Employee Training")
-    st.info("هذه النسخة مؤقتة. لاحقًا سنحوّلها إلى نظام Checklists قابل للإضافة والتعديل والحذف من المدير.")
-
-    st.markdown(
-        """
-        <style>
-        .training-box {
-            padding: 18px;
-            border-radius: 14px;
-            background: #F8FAFC;
-            border: 1px solid #E2E8F0;
-            margin-bottom: 14px;
-        }
-        .training-title {
-            font-size: 18px;
-            font-weight: 700;
-            color: #0F172A;
-            margin-bottom: 8px;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    tabs = st.tabs(
-        [
-            "Professional Standards",
-            "Technical Operations",
-            "Customer Excellence",
-            "Digital Tools",
-        ]
-    )
-
-    with tabs[0]:
-        st.markdown("<div class='training-box'>", unsafe_allow_html=True)
-        st.markdown("<div class='training-title'>Attendance & Commitment</div>", unsafe_allow_html=True)
-        st.checkbox("Arrive 15 minutes early", key="training_std_1")
-        st.checkbox("Proper handover before shift", key="training_std_2")
-        st.checkbox("Biometric logging mandatory", key="training_std_3")
-        st.checkbox("Follow company attendance rules", key="training_std_4")
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    with tabs[1]:
-        st.markdown("<div class='training-box'>", unsafe_allow_html=True)
-        st.markdown("<div class='training-title'>Equipment & Operations</div>", unsafe_allow_html=True)
-        st.checkbox("Check voltage before power-on", key="training_ops_1")
-        st.checkbox("Handle paper jam carefully", key="training_ops_2")
-        st.checkbox("Monitor printer quality", key="training_ops_3")
-        st.checkbox("Use tools safely", key="training_ops_4")
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    with tabs[2]:
-        st.markdown("<div class='training-box'>", unsafe_allow_html=True)
-        st.markdown("<div class='training-title'>Customer Handling</div>", unsafe_allow_html=True)
-        st.checkbox("Greet customer professionally", key="training_cx_1")
-        st.checkbox("Listen without interruption", key="training_cx_2")
-        st.checkbox("Confirm before delivery", key="training_cx_3")
-        st.checkbox("Resolve complaints calmly", key="training_cx_4")
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    with tabs[3]:
-        st.markdown("<div class='training-box'>", unsafe_allow_html=True)
-        st.markdown("<div class='training-title'>Digital Tools</div>", unsafe_allow_html=True)
-        st.checkbox("Use Canva for simple content", key="training_dt_1")
-        st.checkbox("Use AI tools responsibly", key="training_dt_2")
-        st.checkbox("Use Office tools correctly", key="training_dt_3")
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    st.divider()
-    agree = st.checkbox("I confirm that I have completed the training and understood all policies.")
-
-    if st.button("✅ Confirm Completion", use_container_width=True):
-        if agree:
-            db.setdefault("training_records", {})
-            db["training_records"][get_current_username()] = {
-                "date": str(date.today()),
-                "status": "completed",
-            }
-            save_db(db)
-            refresh_db()
-            st.success(f"Training Completed ✔ Recorded for {get_current_username()}")
-            st.balloons()
-        else:
-            st.warning("Please confirm the checkbox first.")
+    render_training_service_module(db, admin_mode=True)
+    refresh_db()
 
 
 def render_printer_management_module() -> None:
