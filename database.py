@@ -517,11 +517,24 @@ def _write_branches(supabase: Client, branches: list) -> None:
 
 
 def _write_expense_categories(supabase: Client, expense_categories: list) -> None:
-    rows = [{"category_name": item} for item in safe_list(expense_categories) if safe_str(item).strip()]
+    cleaned_names = []
+    seen = set()
+
+    for item in safe_list(expense_categories):
+        category_name = safe_str(item).strip()
+        if not category_name:
+            continue
+        if category_name in seen:
+            continue
+        seen.add(category_name)
+        cleaned_names.append(category_name)
+
+    rows = [{"category_name": name} for name in cleaned_names]
+
     _delete_all(supabase, "expense_categories", "category_name")
 
     if rows:
-        supabase.table("expense_categories").insert(rows).execute()
+        supabase.table("expense_categories").upsert(rows, on_conflict="category_name").execute()
 
 
 def _write_printers(supabase: Client, printers: dict) -> None:
