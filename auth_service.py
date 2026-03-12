@@ -5,6 +5,7 @@
 from datetime import datetime
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 from constants import (
     MONTHLY_LATE_BLOCK_AT,
@@ -261,6 +262,78 @@ def clear_pending_login_flow() -> None:
     st.session_state.pop(SESSION_LOGIN_BLOCKED_MESSAGE, None)
 
 
+def render_attendance_clock_widget(height: int = 250) -> None:
+    components.html(
+        """
+        <div style="margin: 6px 0 18px 0; padding: 18px; border-radius: 20px; background: linear-gradient(135deg, #0f172a, #1e293b); color: white; box-shadow: 0 10px 28px rgba(0,0,0,0.18); border:1px solid rgba(255,255,255,0.08);">
+            <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:24px;">
+                <div style="min-width:220px;">
+                    <div style="font-size:13px; opacity:0.78; margin-bottom:8px; letter-spacing:0.4px;">Attendance Time</div>
+                    <div id="digital-clock-login" style="font-size:36px; font-weight:700; letter-spacing:1.5px;">--:--:--</div>
+                    <div id="digital-date-login" style="font-size:14px; opacity:0.8; margin-top:8px;">--</div>
+                </div>
+
+                <div style="display:flex; justify-content:center; align-items:center; min-width:180px;">
+                    <div id="analog-clock-login" style="position:relative; width:150px; height:150px; border:6px solid rgba(255,255,255,0.88); border-radius:50%; background: radial-gradient(circle, #1e293b 55%, #0f172a 100%);">
+                        <div style="position:absolute; top:50%; left:50%; width:12px; height:12px; background:#ffffff; border-radius:50%; transform:translate(-50%,-50%); z-index:10;"></div>
+
+                        <div id="hour-hand-login" style="position:absolute; width:4px; height:42px; background:#ffffff; top:33px; left:71px; transform-origin:bottom center; border-radius:4px;"></div>
+                        <div id="minute-hand-login" style="position:absolute; width:3px; height:56px; background:#cbd5e1; top:19px; left:71.5px; transform-origin:bottom center; border-radius:4px;"></div>
+                        <div id="second-hand-login" style="position:absolute; width:2px; height:62px; background:#38bdf8; top:13px; left:72px; transform-origin:bottom center; border-radius:4px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            function updateClockLogin() {
+                const now = new Date();
+
+                const hh = String(now.getHours()).padStart(2, '0');
+                const mm = String(now.getMinutes()).padStart(2, '0');
+                const ss = String(now.getSeconds()).padStart(2, '0');
+
+                const dateText = now.toLocaleDateString(undefined, {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+
+                const digital = document.getElementById("digital-clock-login");
+                const dateEl = document.getElementById("digital-date-login");
+                const hourHand = document.getElementById("hour-hand-login");
+                const minuteHand = document.getElementById("minute-hand-login");
+                const secondHand = document.getElementById("second-hand-login");
+
+                if (!digital || !dateEl || !hourHand || !minuteHand || !secondHand) {
+                    return;
+                }
+
+                digital.innerText = `${hh}:${mm}:${ss}`;
+                dateEl.innerText = dateText;
+
+                const seconds = now.getSeconds();
+                const minutes = now.getMinutes();
+                const hours = now.getHours();
+
+                const secondDeg = seconds * 6;
+                const minuteDeg = (minutes * 6) + (seconds * 0.1);
+                const hourDeg = ((hours % 12) * 30) + (minutes * 0.5);
+
+                secondHand.style.transform = `rotate(${secondDeg}deg)`;
+                minuteHand.style.transform = `rotate(${minuteDeg}deg)`;
+                hourHand.style.transform = `rotate(${hourDeg}deg)`;
+            }
+
+            updateClockLogin();
+            setInterval(updateClockLogin, 1000);
+        </script>
+        """,
+        height=height,
+    )
+
+
 # =====================================================
 # Draft helpers
 # =====================================================
@@ -477,22 +550,30 @@ def render_attendance_step_for_selected_user(db: dict) -> None:
     if not pending_username:
         return
 
-    st.markdown("### 🕒 Attendance Confirmation")
+    st.markdown("## 🕒 Attendance Confirmation")
+    st.caption("أكمل بيانات الحضور قبل الدخول إلى النظام")
+
+    render_attendance_clock_widget()
+
     st.info(f"أهلاً {pending_username} — أكمل بيانات الحضور للدخول إلى النظام.")
 
     branches = db.get("branches", []) or ["No Branch"]
-    branch_name = st.selectbox(
-        "Select Branch",
-        branches,
-        key="attendance_branch_after_login",
-    )
+
+    c1, c2 = st.columns(2)
+    with c1:
+        branch_name = st.selectbox(
+            "Select Branch",
+            branches,
+            key="attendance_branch_after_login",
+        )
 
     shift_options = list(SHIFT_START_TIMES.keys())
-    shift_name = st.selectbox(
-        "Select Shift",
-        shift_options,
-        key="attendance_shift_after_login",
-    )
+    with c2:
+        shift_name = st.selectbox(
+            "Select Shift",
+            shift_options,
+            key="attendance_shift_after_login",
+        )
 
     shift_defaults = SHIFT_START_TIMES.get(shift_name, SHIFT_START_TIMES["Morning"])
 
@@ -526,62 +607,70 @@ def render_attendance_step_for_selected_user(db: dict) -> None:
             key="late_warning_ack_checkbox_after_login",
         )
 
-        if st.button("✅ Confirm And Continue", use_container_width=True):
-            if not late_acknowledged:
-                st.error("You must acknowledge the warning first.")
-            else:
-                success, message = login_user(
-                    db=db,
-                    username=pending_payload["username"],
-                    password=pending_payload["password"],
-                    shift_name=pending_payload["shift_name"],
-                    arrival_hour=int(pending_payload["arrival_hour"]),
-                    arrival_minute=int(pending_payload["arrival_minute"]),
-                    late_acknowledged=True,
-                    branch_name=pending_payload.get("branch_name", branch_name),
-                )
+        b1, b2 = st.columns(2)
 
-                if success:
-                    st.success(message)
-                    st.rerun()
+        with b1:
+            if st.button("✅ Confirm And Continue", use_container_width=True):
+                if not late_acknowledged:
+                    st.error("You must acknowledge the warning first.")
                 else:
-                    if message == "Daily operations access is blocked.":
-                        st.error(st.session_state.get(SESSION_LOGIN_BLOCKED_MESSAGE, message))
-                    else:
-                        st.error(f"❌ {message}")
+                    success, message = login_user(
+                        db=db,
+                        username=pending_payload["username"],
+                        password=pending_payload["password"],
+                        shift_name=pending_payload["shift_name"],
+                        arrival_hour=int(pending_payload["arrival_hour"]),
+                        arrival_minute=int(pending_payload["arrival_minute"]),
+                        late_acknowledged=True,
+                        branch_name=pending_payload.get("branch_name", branch_name),
+                    )
 
-        if st.button("⬅️ Back To Login", use_container_width=True):
-            clear_pending_login_flow()
-            st.rerun()
+                    if success:
+                        st.success(message)
+                        st.rerun()
+                    else:
+                        if message == "Daily operations access is blocked.":
+                            st.error(st.session_state.get(SESSION_LOGIN_BLOCKED_MESSAGE, message))
+                        else:
+                            st.error(f"❌ {message}")
+
+        with b2:
+            if st.button("⬅️ Back To Login", use_container_width=True):
+                clear_pending_login_flow()
+                st.rerun()
 
         return
 
-    if st.button("🚀 Enter System", use_container_width=True):
-        success, message = login_user(
-            db=db,
-            username=pending_username,
-            password=pending_password,
-            shift_name=shift_name,
-            arrival_hour=int(arrival_hour),
-            arrival_minute=int(arrival_minute),
-            late_acknowledged=False,
-            branch_name=branch_name,
-        )
+    b1, b2 = st.columns(2)
 
-        if success:
-            st.success(message)
-            st.rerun()
-        else:
-            if message == "Late acknowledgement required.":
+    with b1:
+        if st.button("🚀 Enter System", use_container_width=True):
+            success, message = login_user(
+                db=db,
+                username=pending_username,
+                password=pending_password,
+                shift_name=shift_name,
+                arrival_hour=int(arrival_hour),
+                arrival_minute=int(arrival_minute),
+                late_acknowledged=False,
+                branch_name=branch_name,
+            )
+
+            if success:
+                st.success(message)
                 st.rerun()
-            elif message == "Daily operations access is blocked.":
-                st.error(st.session_state.get(SESSION_LOGIN_BLOCKED_MESSAGE, message))
             else:
-                st.error(f"❌ {message}")
+                if message == "Late acknowledgement required.":
+                    st.rerun()
+                elif message == "Daily operations access is blocked.":
+                    st.error(st.session_state.get(SESSION_LOGIN_BLOCKED_MESSAGE, message))
+                else:
+                    st.error(f"❌ {message}")
 
-    if st.button("⬅️ Back To Login", use_container_width=True):
-        clear_pending_login_flow()
-        st.rerun()
+    with b2:
+        if st.button("⬅️ Back To Login", use_container_width=True):
+            clear_pending_login_flow()
+            st.rerun()
 
 
 # =====================================================
@@ -619,9 +708,14 @@ def render_login_screen(db: dict) -> None:
             st.write("### 🕒 Attendance Confirmation")
 
             branches = db.get("branches", []) or ["No Branch"]
-            branch_name = st.selectbox("Select Branch", branches)
 
-            shift_name = st.selectbox("Select Shift", list(SHIFT_START_TIMES.keys()))
+            c_branch, c_shift = st.columns(2)
+            with c_branch:
+                branch_name = st.selectbox("Select Branch", branches)
+
+            with c_shift:
+                shift_name = st.selectbox("Select Shift", list(SHIFT_START_TIMES.keys()))
+
             shift_defaults = SHIFT_START_TIMES.get(shift_name, SHIFT_START_TIMES["Morning"])
 
             h1, h2 = st.columns(2)
