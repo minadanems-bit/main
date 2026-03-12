@@ -18,7 +18,6 @@ from constants import (
     SHIFT_START_TIMES,
 )
 from database import save_db
-from role_service import normalize_role
 from ui_helpers import render_login_clock_widget, render_professional_time_picker
 
 
@@ -39,6 +38,32 @@ SESSION_LOGIN_BLOCKED_MESSAGE = "login_blocked_message"
 
 SESSION_ATTENDANCE_TIME = "attendance_time"
 SESSION_ATTENDANCE_SHIFT = "attendance_shift"
+
+SESSION_LOGIN_SELECTED_USERNAME = "login_selected_username"
+SESSION_LOGIN_PASSWORD_INPUT = "login_password_input"
+
+
+# =====================================================
+# Local role normalization
+# Avoid circular import with role_service
+# =====================================================
+def normalize_role_local(role_value: str | None) -> str:
+    role = (role_value or "").strip().lower()
+
+    legacy_map = {
+        "user": ROLE_EMPLOYEE,
+        "employee": ROLE_EMPLOYEE,
+        "customer_service": ROLE_EMPLOYEE,
+        "customer service": ROLE_EMPLOYEE,
+        "customer services": ROLE_EMPLOYEE,
+        "admin": ROLE_ADMIN,
+        "manager": ROLE_MANAGER,
+        "cleaner": ROLE_CLEANER,
+        "office_boy": ROLE_CLEANER,
+        "office boy": ROLE_CLEANER,
+    }
+
+    return legacy_map.get(role, role or ROLE_EMPLOYEE)
 
 
 # =====================================================
@@ -113,12 +138,12 @@ def ensure_attendance_defaults(db: dict) -> None:
 
 
 def is_management_user(user_record: dict) -> bool:
-    role_value = normalize_role(user_record.get("role"))
+    role_value = normalize_role_local(user_record.get("role"))
     return role_value in [ROLE_ADMIN, ROLE_MANAGER]
 
 
 def requires_post_login_attendance_step(user_record: dict) -> bool:
-    role_value = normalize_role(user_record.get("role"))
+    role_value = normalize_role_local(user_record.get("role"))
     return role_value in [ROLE_EMPLOYEE, ROLE_CLEANER]
 
 
@@ -508,10 +533,12 @@ def render_attendance_step_for_selected_user(db: dict) -> None:
     shift_defaults = SHIFT_START_TIMES.get(shift_name, SHIFT_START_TIMES["Morning"])
 
     arrival_hour, arrival_minute = render_professional_time_picker(
-        title="⏰ Arrival Time",
+        hour_key="attendance_after_login_hour",
+        minute_key="attendance_after_login_minute",
+        ampm_key="attendance_after_login_ampm",
         default_hour_24=int(shift_defaults["hour"]),
         default_minute=int(shift_defaults["minute"]),
-        key_prefix="attendance_after_login",
+        title="Arrival Time",
     )
 
     pending_warning = st.session_state.get(SESSION_PENDING_LATE_WARNING)
@@ -596,10 +623,16 @@ def render_attendance_step_for_selected_user(db: dict) -> None:
 def render_login_screen(db: dict) -> None:
     st.title("🔐 NMS Enterprise Access")
 
-    users = list(db.get("users", {}).keys())
+    users = sorted(list(db.get("users", {}).keys()))
     if not users:
         st.error("No users found in database. Please create an admin user first.")
         st.stop()
+
+    if SESSION_LOGIN_SELECTED_USERNAME not in st.session_state:
+        st.session_state[SESSION_LOGIN_SELECTED_USERNAME] = users[0]
+
+    if st.session_state[SESSION_LOGIN_SELECTED_USERNAME] not in users:
+        st.session_state[SESSION_LOGIN_SELECTED_USERNAME] = users[0]
 
     blocked_message = st.session_state.get(SESSION_LOGIN_BLOCKED_MESSAGE)
     if blocked_message:
@@ -615,8 +648,18 @@ def render_login_screen(db: dict) -> None:
             render_attendance_step_for_selected_user(db)
             st.stop()
 
-        username = st.selectbox("Select Your Account", users)
-        password = st.text_input("Enter Password", type="password")
+        username = st.selectbox(
+            "Select Your Account",
+            users,
+            index=users.index(st.session_state[SESSION_LOGIN_SELECTED_USERNAME]),
+            key=SESSION_LOGIN_SELECTED_USERNAME,
+        )
+
+        password = st.text_input(
+            "Enter Password",
+            type="password",
+            key=SESSION_LOGIN_PASSWORD_INPUT,
+        )
 
         user_record = get_user_record(db, username)
         needs_attendance_after_login = requires_post_login_attendance_step(user_record)
@@ -628,18 +671,28 @@ def render_login_screen(db: dict) -> None:
 
             c_branch, c_shift = st.columns(2)
             with c_branch:
-                branch_name = st.selectbox("📍 Select Branch", branches)
+                branch_name = st.selectbox(
+                    "📍 Select Branch",
+                    branches,
+                    key="direct_login_branch",
+                )
 
             with c_shift:
-                shift_name = st.selectbox("🧭 Select Shift", list(SHIFT_START_TIMES.keys()))
+                shift_name = st.selectbox(
+                    "🧭 Select Shift",
+                    list(SHIFT_START_TIMES.keys()),
+                    key="direct_login_shift",
+                )
 
             shift_defaults = SHIFT_START_TIMES.get(shift_name, SHIFT_START_TIMES["Morning"])
 
             arrival_hour, arrival_minute = render_professional_time_picker(
-                title="⏰ Arrival Time",
+                hour_key="direct_login_attendance_hour",
+                minute_key="direct_login_attendance_minute",
+                ampm_key="direct_login_attendance_ampm",
                 default_hour_24=int(shift_defaults["hour"]),
                 default_minute=int(shift_defaults["minute"]),
-                key_prefix="direct_login_attendance",
+                title="Arrival Time",
             )
 
             pending_warning = st.session_state.get(SESSION_PENDING_LATE_WARNING)
