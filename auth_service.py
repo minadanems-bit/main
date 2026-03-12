@@ -5,7 +5,6 @@
 from datetime import datetime
 
 import streamlit as st
-import streamlit.components.v1 as components
 
 from constants import (
     MONTHLY_LATE_BLOCK_AT,
@@ -19,6 +18,8 @@ from constants import (
     SHIFT_START_TIMES,
 )
 from database import save_db
+from role_service import normalize_role
+from ui_helpers import render_login_clock_widget, render_professional_time_picker
 
 
 # =====================================================
@@ -112,12 +113,12 @@ def ensure_attendance_defaults(db: dict) -> None:
 
 
 def is_management_user(user_record: dict) -> bool:
-    role_value = str(user_record.get("role", "") or "").strip().lower()
+    role_value = normalize_role(user_record.get("role"))
     return role_value in [ROLE_ADMIN, ROLE_MANAGER]
 
 
 def requires_post_login_attendance_step(user_record: dict) -> bool:
-    role_value = str(user_record.get("role", "") or "").strip().lower()
+    role_value = normalize_role(user_record.get("role"))
     return role_value in [ROLE_EMPLOYEE, ROLE_CLEANER]
 
 
@@ -260,186 +261,6 @@ def clear_pending_login_flow() -> None:
     st.session_state.pop(SESSION_PENDING_LATE_WARNING, None)
     st.session_state.pop(SESSION_PENDING_LOGIN_PAYLOAD, None)
     st.session_state.pop(SESSION_LOGIN_BLOCKED_MESSAGE, None)
-
-
-def render_attendance_clock_widget(height: int = 300) -> None:
-    components.html(
-        """
-        <div style="
-            margin: 8px 0 18px 0;
-            padding: 22px;
-            border-radius: 22px;
-            background: linear-gradient(135deg, #020617, #0f172a, #1e293b);
-            color: white;
-            box-shadow: 0 14px 32px rgba(0,0,0,0.22);
-            border: 1px solid rgba(255,255,255,0.08);
-        ">
-            <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:28px;">
-                <div style="min-width:260px;">
-                    <div style="font-size:14px; opacity:0.8; margin-bottom:10px; letter-spacing:0.5px;">
-                        ⏰ Current Attendance Time
-                    </div>
-
-                    <div id="digital-clock-login"
-                         style="font-size:42px; font-weight:800; letter-spacing:2px; line-height:1;">
-                        --:--:--
-                    </div>
-
-                    <div id="digital-ampm-login"
-                         style="font-size:18px; font-weight:700; color:#38bdf8; margin-top:8px;">
-                        --
-                    </div>
-
-                    <div id="digital-date-login"
-                         style="font-size:14px; opacity:0.82; margin-top:10px;">
-                        --
-                    </div>
-                </div>
-
-                <div style="display:flex; justify-content:center; align-items:center; min-width:190px;">
-                    <div id="analog-clock-login"
-                         style="
-                            position:relative;
-                            width:165px;
-                            height:165px;
-                            border:6px solid rgba(255,255,255,0.88);
-                            border-radius:50%;
-                            background: radial-gradient(circle, #1e293b 55%, #0f172a 100%);
-                            box-shadow: inset 0 0 20px rgba(255,255,255,0.06);
-                         ">
-
-                        <div style="position:absolute; top:50%; left:50%; width:12px; height:12px; background:#ffffff; border-radius:50%; transform:translate(-50%,-50%); z-index:10;"></div>
-
-                        <div style="position:absolute; top:12px; left:76px; color:white; font-size:13px;">12</div>
-                        <div style="position:absolute; top:72px; right:12px; color:white; font-size:13px;">3</div>
-                        <div style="position:absolute; bottom:10px; left:78px; color:white; font-size:13px;">6</div>
-                        <div style="position:absolute; top:72px; left:12px; color:white; font-size:13px;">9</div>
-
-                        <div id="hour-hand-login"
-                             style="position:absolute; width:5px; height:46px; background:#ffffff; top:36px; left:77px; transform-origin:bottom center; border-radius:4px;"></div>
-
-                        <div id="minute-hand-login"
-                             style="position:absolute; width:3px; height:62px; background:#cbd5e1; top:20px; left:78px; transform-origin:bottom center; border-radius:4px;"></div>
-
-                        <div id="second-hand-login"
-                             style="position:absolute; width:2px; height:70px; background:#38bdf8; top:12px; left:78.5px; transform-origin:bottom center; border-radius:4px;"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <script>
-            function updateClockLogin() {
-                const now = new Date();
-
-                const hh24 = now.getHours();
-                const mm = String(now.getMinutes()).padStart(2, '0');
-                const ss = String(now.getSeconds()).padStart(2, '0');
-
-                const ampm = hh24 >= 12 ? 'PM' : 'AM';
-                let hh12 = hh24 % 12;
-                if (hh12 === 0) hh12 = 12;
-                const hh12Text = String(hh12).padStart(2, '0');
-
-                const dateText = now.toLocaleDateString(undefined, {
-                    weekday: 'long',
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                });
-
-                const digital = document.getElementById("digital-clock-login");
-                const ampmEl = document.getElementById("digital-ampm-login");
-                const dateEl = document.getElementById("digital-date-login");
-                const hourHand = document.getElementById("hour-hand-login");
-                const minuteHand = document.getElementById("minute-hand-login");
-                const secondHand = document.getElementById("second-hand-login");
-
-                if (!digital || !ampmEl || !dateEl || !hourHand || !minuteHand || !secondHand) return;
-
-                digital.innerText = `${hh12Text}:${mm}:${ss}`;
-                ampmEl.innerText = ampm;
-                dateEl.innerText = dateText;
-
-                const seconds = now.getSeconds();
-                const minutes = now.getMinutes();
-                const hours = now.getHours();
-
-                const secondDeg = seconds * 6;
-                const minuteDeg = (minutes * 6) + (seconds * 0.1);
-                const hourDeg = ((hours % 12) * 30) + (minutes * 0.5);
-
-                secondHand.style.transform = `rotate(${secondDeg}deg)`;
-                minuteHand.style.transform = `rotate(${minuteDeg}deg)`;
-                hourHand.style.transform = `rotate(${hourDeg}deg)`;
-            }
-
-            updateClockLogin();
-            setInterval(updateClockLogin, 1000);
-        </script>
-        """,
-        height=height,
-    )
-
-
-def render_professional_time_picker(
-    title: str,
-    default_hour_24: int,
-    default_minute: int,
-    key_prefix: str,
-) -> tuple[int, int]:
-    st.markdown(f"### {title}")
-
-    hour_options_12 = list(range(1, 13))
-    minute_options = list(range(0, 60, 5))
-
-    default_ampm = "AM" if default_hour_24 < 12 else "PM"
-    default_hour_12 = default_hour_24 % 12
-    if default_hour_12 == 0:
-        default_hour_12 = 12
-
-    if default_minute not in minute_options:
-        closest_minute = min(minute_options, key=lambda x: abs(x - default_minute))
-    else:
-        closest_minute = default_minute
-
-    c1, c2, c3 = st.columns([1.2, 1.2, 1])
-
-    with c1:
-        selected_hour_12 = st.selectbox(
-            "🕐 Hour",
-            hour_options_12,
-            index=hour_options_12.index(default_hour_12),
-            key=f"{key_prefix}_hour_12",
-        )
-
-    with c2:
-        selected_minute = st.selectbox(
-            "⏱ Minute",
-            minute_options,
-            index=minute_options.index(closest_minute),
-            format_func=lambda x: f"{x:02d}",
-            key=f"{key_prefix}_minute",
-        )
-
-    with c3:
-        selected_ampm = st.selectbox(
-            "🌗 AM / PM",
-            ["AM", "PM"],
-            index=0 if default_ampm == "AM" else 1,
-            key=f"{key_prefix}_ampm",
-        )
-
-    hour_24 = selected_hour_12 % 12
-    if selected_ampm == "PM":
-        hour_24 += 12
-
-    display_12 = f"{selected_hour_12:02d}:{selected_minute:02d} {selected_ampm}"
-    display_24 = f"{hour_24:02d}:{selected_minute:02d}"
-
-    st.info(f"✅ Selected Time: {display_12}  |  24H Format: {display_24}")
-
-    return int(hour_24), int(selected_minute)
 
 
 # =====================================================
@@ -661,7 +482,7 @@ def render_attendance_step_for_selected_user(db: dict) -> None:
     st.markdown("## 🕒 Attendance Confirmation")
     st.caption("أكمل بيانات الحضور قبل الدخول إلى النظام")
 
-    render_attendance_clock_widget()
+    render_login_clock_widget()
 
     st.success(f"👋 أهلاً {pending_username}")
     st.write("يرجى اختيار الفرع، الشيفت، ووقت الحضور بشكل واضح قبل الدخول.")
