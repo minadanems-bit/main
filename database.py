@@ -21,15 +21,11 @@ from constants import (
 
 
 # =====================================================
-# Extra financial record keys
+# Financial record keys
 # =====================================================
-EXTRA_FINANCIAL_RECORD_KEYS = [
-    "advances",
-    "late_penalties",
-    "absence_penalties",
-]
+ALL_FINANCIAL_RECORD_KEYS = list(HR_RECORD_KEYS)
 
-ALL_FINANCIAL_RECORD_KEYS = list(HR_RECORD_KEYS) + EXTRA_FINANCIAL_RECORD_KEYS
+
 # =====================================================
 # Connection
 # =====================================================
@@ -285,6 +281,7 @@ def _load_attendance_records(supabase: Client) -> dict:
                 "date": safe_str(row.get("attendance_date", "")),
                 "time": safe_str(row.get("attendance_time", "")),
                 "shift": safe_str(row.get("shift", "")),
+                "branch": safe_str(row.get("branch", "")),
                 "late_minutes": int(safe_float(row.get("late_minutes", 0))),
                 "status": safe_str(row.get("status", "")),
                 "created_at": safe_str(row.get("created_at", "")),
@@ -474,7 +471,6 @@ def _write_users(supabase: Client, users: dict) -> None:
         supabase.table("employee_financial_records").insert(financial_rows).execute()
 
 
-
 def _write_tasks(supabase: Client, tasks: dict) -> None:
     task_rows = []
 
@@ -538,19 +534,30 @@ def _write_expense_categories(supabase: Client, expense_categories: list) -> Non
 
 
 def _write_printers(supabase: Client, printers: dict) -> None:
-    rows = []
+    cleaned_rows = []
+    seen = set()
+
     for printer_name, printer_ip in safe_dict(printers).items():
-        rows.append(
+        name = safe_str(printer_name).strip()
+        ip = safe_str(printer_ip).strip()
+
+        if not name:
+            continue
+        if name in seen:
+            continue
+
+        seen.add(name)
+        cleaned_rows.append(
             {
-                "printer_name": printer_name,
-                "printer_ip": safe_str(printer_ip),
+                "printer_name": name,
+                "printer_ip": ip,
             }
         )
 
     _delete_all(supabase, "printers", "printer_name")
 
-    if rows:
-        supabase.table("printers").insert(rows).execute()
+    if cleaned_rows:
+        supabase.table("printers").upsert(cleaned_rows, on_conflict="printer_name").execute()
 
 
 def _write_history(supabase: Client, history: list) -> None:
@@ -641,6 +648,7 @@ def _write_attendance_records(supabase: Client, attendance_records: dict) -> Non
                         "attendance_date": item.get("date", ""),
                         "attendance_time": item.get("time", ""),
                         "shift": item.get("shift", ""),
+                        "branch": item.get("branch", ""),
                         "late_minutes": int(safe_float(item.get("late_minutes", 0))),
                         "status": item.get("status", ""),
                     }
