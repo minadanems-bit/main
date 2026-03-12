@@ -145,10 +145,6 @@ def get_payout_method_label(method_value: str) -> str:
     return PAYOUT_METHOD_LABELS.get(method_value, str(method_value).replace("_", " ").title())
 
 
-def can_view_self_service() -> bool:
-    return True
-
-
 def get_normalized_role() -> str:
     return normalize_role(get_current_role())
 
@@ -1093,7 +1089,6 @@ def render_dashboard_page() -> None:
     st.subheader("Quick Access")
 
     quick_buttons = []
-
     quick_buttons.append(("👤 Open My Profile", NAV_PROFILE))
     quick_buttons.append(("📊 Open Daily Operations", NAV_OPERATIONS))
 
