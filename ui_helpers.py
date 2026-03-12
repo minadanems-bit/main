@@ -108,46 +108,84 @@ def calculate_salary_breakdown(user_info: dict) -> dict:
 # =====================================================
 # Clock widgets
 # =====================================================
-def render_attendance_clock_widget() -> None:
+def render_attendance_clock_widget(height: int = 300) -> None:
     components.html(
         """
-        <div style="margin: 10px 0 20px 0; padding: 18px; border-radius: 18px;
-                    background: linear-gradient(135deg, #0f172a, #1e293b);
-                    color: white; box-shadow: 0 8px 24px rgba(0,0,0,0.15);">
-            <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:24px;">
-                <div style="min-width:220px;">
-                    <div style="font-size:14px; opacity:0.8; margin-bottom:8px;">Attendance Time</div>
-                    <div id="digital-clock" style="font-size:34px; font-weight:700; letter-spacing:1px;">--:--:--</div>
-                    <div id="ampm-clock" style="font-size:14px; opacity:0.85; margin-top:4px;">--</div>
-                    <div id="digital-date" style="font-size:14px; opacity:0.8; margin-top:6px;">--</div>
+        <div style="
+            margin: 8px 0 18px 0;
+            padding: 22px;
+            border-radius: 22px;
+            background: linear-gradient(135deg, #020617, #0f172a, #1e293b);
+            color: white;
+            box-shadow: 0 14px 32px rgba(0,0,0,0.22);
+            border: 1px solid rgba(255,255,255,0.08);
+        ">
+            <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:28px;">
+                <div style="min-width:260px;">
+                    <div style="font-size:14px; opacity:0.8; margin-bottom:10px; letter-spacing:0.5px;">
+                        ⏰ Current Attendance Time
+                    </div>
+
+                    <div id="digital-clock-login"
+                         style="font-size:42px; font-weight:800; letter-spacing:2px; line-height:1;">
+                        --:--:--
+                    </div>
+
+                    <div id="digital-ampm-login"
+                         style="font-size:18px; font-weight:700; color:#38bdf8; margin-top:8px;">
+                        --
+                    </div>
+
+                    <div id="digital-date-login"
+                         style="font-size:14px; opacity:0.82; margin-top:10px;">
+                        --
+                    </div>
                 </div>
 
-                <div style="display:flex; justify-content:center; align-items:center; min-width:180px;">
-                    <div id="analog-clock" style="position:relative; width:150px; height:150px; border:6px solid rgba(255,255,255,0.85); border-radius:50%; background: radial-gradient(circle, #1e293b 55%, #0f172a 100%);">
-                        <div style="position:absolute; top:50%; left:50%; width:12px; height:12px; background:#fff; border-radius:50%; transform:translate(-50%,-50%); z-index:10;"></div>
+                <div style="display:flex; justify-content:center; align-items:center; min-width:190px;">
+                    <div id="analog-clock-login"
+                         style="
+                            position:relative;
+                            width:165px;
+                            height:165px;
+                            border:6px solid rgba(255,255,255,0.88);
+                            border-radius:50%;
+                            background: radial-gradient(circle, #1e293b 55%, #0f172a 100%);
+                            box-shadow: inset 0 0 20px rgba(255,255,255,0.06);
+                         ">
 
-                        <div style="position:absolute; top:8px; left:50%; transform:translateX(-50%); font-size:12px;">12</div>
-                        <div style="position:absolute; right:10px; top:50%; transform:translateY(-50%); font-size:12px;">3</div>
-                        <div style="position:absolute; bottom:8px; left:50%; transform:translateX(-50%); font-size:12px;">6</div>
-                        <div style="position:absolute; left:10px; top:50%; transform:translateY(-50%); font-size:12px;">9</div>
+                        <div style="position:absolute; top:50%; left:50%; width:12px; height:12px; background:#ffffff; border-radius:50%; transform:translate(-50%,-50%); z-index:10;"></div>
 
-                        <div id="hour-hand" style="position:absolute; width:4px; height:42px; background:#fff; top:33px; left:71px; transform-origin:bottom center; border-radius:4px;"></div>
-                        <div id="minute-hand" style="position:absolute; width:3px; height:56px; background:#cbd5e1; top:19px; left:71.5px; transform-origin:bottom center; border-radius:4px;"></div>
-                        <div id="second-hand" style="position:absolute; width:2px; height:62px; background:#38bdf8; top:13px; left:72px; transform-origin:bottom center; border-radius:4px;"></div>
+                        <div style="position:absolute; top:12px; left:76px; color:white; font-size:13px;">12</div>
+                        <div style="position:absolute; top:72px; right:12px; color:white; font-size:13px;">3</div>
+                        <div style="position:absolute; bottom:10px; left:78px; color:white; font-size:13px;">6</div>
+                        <div style="position:absolute; top:72px; left:12px; color:white; font-size:13px;">9</div>
+
+                        <div id="hour-hand-login"
+                             style="position:absolute; width:5px; height:46px; background:#ffffff; top:36px; left:77px; transform-origin:bottom center; border-radius:4px;"></div>
+
+                        <div id="minute-hand-login"
+                             style="position:absolute; width:3px; height:62px; background:#cbd5e1; top:20px; left:78px; transform-origin:bottom center; border-radius:4px;"></div>
+
+                        <div id="second-hand-login"
+                             style="position:absolute; width:2px; height:70px; background:#38bdf8; top:12px; left:78.5px; transform-origin:bottom center; border-radius:4px;"></div>
                     </div>
                 </div>
             </div>
         </div>
 
         <script>
-            function updateClock() {
+            function updateClockLogin() {
                 const now = new Date();
 
                 const hh24 = now.getHours();
-                const hh = String(hh24).padStart(2, '0');
                 const mm = String(now.getMinutes()).padStart(2, '0');
                 const ss = String(now.getSeconds()).padStart(2, '0');
-                const ampm = hh24 >= 12 ? "PM" : "AM";
+
+                const ampm = hh24 >= 12 ? 'PM' : 'AM';
+                let hh12 = hh24 % 12;
+                if (hh12 === 0) hh12 = 12;
+                const hh12Text = String(hh12).padStart(2, '0');
 
                 const dateText = now.toLocaleDateString(undefined, {
                     weekday: 'long',
@@ -156,9 +194,18 @@ def render_attendance_clock_widget() -> None:
                     day: 'numeric'
                 });
 
-                document.getElementById("digital-clock").innerText = `${hh}:${mm}:${ss}`;
-                document.getElementById("ampm-clock").innerText = ampm;
-                document.getElementById("digital-date").innerText = dateText;
+                const digital = document.getElementById("digital-clock-login");
+                const ampmEl = document.getElementById("digital-ampm-login");
+                const dateEl = document.getElementById("digital-date-login");
+                const hourHand = document.getElementById("hour-hand-login");
+                const minuteHand = document.getElementById("minute-hand-login");
+                const secondHand = document.getElementById("second-hand-login");
+
+                if (!digital || !ampmEl || !dateEl || !hourHand || !minuteHand || !secondHand) return;
+
+                digital.innerText = `${hh12Text}:${mm}:${ss}`;
+                ampmEl.innerText = ampm;
+                dateEl.innerText = dateText;
 
                 const seconds = now.getSeconds();
                 const minutes = now.getMinutes();
@@ -168,25 +215,31 @@ def render_attendance_clock_widget() -> None:
                 const minuteDeg = (minutes * 6) + (seconds * 0.1);
                 const hourDeg = ((hours % 12) * 30) + (minutes * 0.5);
 
-                document.getElementById("second-hand").style.transform = `rotate(${secondDeg}deg)`;
-                document.getElementById("minute-hand").style.transform = `rotate(${minuteDeg}deg)`;
-                document.getElementById("hour-hand").style.transform = `rotate(${hourDeg}deg)`;
+                secondHand.style.transform = `rotate(${secondDeg}deg)`;
+                minuteHand.style.transform = `rotate(${minuteDeg}deg)`;
+                hourHand.style.transform = `rotate(${hourDeg}deg)`;
             }
 
-            updateClock();
-            setInterval(updateClock, 1000);
+            updateClockLogin();
+            setInterval(updateClockLogin, 1000);
         </script>
         """,
-        height=235,
+        height=height,
     )
 
 
-def render_login_clock_widget() -> None:
+def render_login_clock_widget(height: int = 180) -> None:
     components.html(
         """
-        <div style="margin: 0 0 16px 0; padding: 16px; border-radius: 18px;
-                    background: linear-gradient(135deg, #111827, #1f2937);
-                    color: white; border: 1px solid rgba(255,255,255,0.08);">
+        <div style="
+            margin: 0 0 16px 0;
+            padding: 18px;
+            border-radius: 18px;
+            background: linear-gradient(135deg, #111827, #1f2937);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.08);
+            box-shadow: 0 10px 24px rgba(0,0,0,0.16);
+        ">
             <div style="display:flex; justify-content:space-between; align-items:center; gap:18px; flex-wrap:wrap;">
                 <div>
                     <div style="font-size:13px; opacity:0.75; margin-bottom:6px;">Current Attendance Time</div>
@@ -210,10 +263,13 @@ def render_login_clock_widget() -> None:
                 const now = new Date();
 
                 const hh24 = now.getHours();
-                const hh = String(hh24).padStart(2, '0');
                 const mm = String(now.getMinutes()).padStart(2, '0');
                 const ss = String(now.getSeconds()).padStart(2, '0');
                 const ampm = hh24 >= 12 ? "PM" : "AM";
+
+                let hh12 = hh24 % 12;
+                if (hh12 === 0) hh12 = 12;
+                const hh12Text = String(hh12).padStart(2, '0');
 
                 const dateText = now.toLocaleDateString(undefined, {
                     weekday: 'long',
@@ -222,16 +278,22 @@ def render_login_clock_widget() -> None:
                     day: 'numeric'
                 });
 
-                document.getElementById("login-digital-clock").innerText = `${hh}:${mm}:${ss}`;
-                document.getElementById("login-ampm").innerText = ampm;
-                document.getElementById("login-digital-date").innerText = dateText;
+                const digital = document.getElementById("login-digital-clock");
+                const ampmEl = document.getElementById("login-ampm");
+                const dateEl = document.getElementById("login-digital-date");
+
+                if (!digital || !ampmEl || !dateEl) return;
+
+                digital.innerText = `${hh12Text}:${mm}:${ss}`;
+                ampmEl.innerText = ampm;
+                dateEl.innerText = dateText;
             }
 
             updateLoginClock();
             setInterval(updateLoginClock, 1000);
         </script>
         """,
-        height=150,
+        height=height,
     )
 
 
@@ -239,65 +301,67 @@ def render_login_clock_widget() -> None:
 # Time input
 # =====================================================
 def render_professional_time_picker(
-    hour_key: str,
-    minute_key: str,
-    ampm_key: str,
+    title: str,
     default_hour_24: int,
     default_minute: int,
-    title: str = "Attendance Time",
+    key_prefix: str,
 ) -> tuple[int, int]:
+    st.markdown(f"### {title}")
+
+    hour_options_12 = list(range(1, 13))
+    minute_options = list(range(0, 60, 5))
+
     default_ampm = "AM" if default_hour_24 < 12 else "PM"
     default_hour_12 = default_hour_24 % 12
     if default_hour_12 == 0:
         default_hour_12 = 12
 
-    if hour_key not in st.session_state:
-        st.session_state[hour_key] = default_hour_12
-    if minute_key not in st.session_state:
-        st.session_state[minute_key] = default_minute
-    if ampm_key not in st.session_state:
-        st.session_state[ampm_key] = default_ampm
+    if default_minute not in minute_options:
+        closest_minute = min(minute_options, key=lambda x: abs(x - default_minute))
+    else:
+        closest_minute = default_minute
 
-    st.markdown(f"#### ⏰ {title}")
+    hour_key = f"{key_prefix}_hour_12"
+    minute_key = f"{key_prefix}_minute"
+    ampm_key = f"{key_prefix}_ampm"
 
     c1, c2, c3 = st.columns([1.2, 1.2, 1])
 
     with c1:
-        hour_12 = st.selectbox(
-            "Hour",
-            options=list(range(1, 13)),
-            index=list(range(1, 13)).index(int(st.session_state[hour_key])),
+        selected_hour_12 = st.selectbox(
+            "🕐 Hour",
+            hour_options_12,
+            index=hour_options_12.index(default_hour_12),
             key=hour_key,
         )
 
     with c2:
-        minute_value = st.selectbox(
-            "Minute",
-            options=list(range(0, 60)),
-            index=list(range(0, 60)).index(int(st.session_state[minute_key])),
+        selected_minute = st.selectbox(
+            "⏱ Minute",
+            minute_options,
+            index=minute_options.index(closest_minute),
             format_func=lambda x: f"{x:02d}",
             key=minute_key,
         )
 
     with c3:
-        ampm_value = st.radio(
-            "AM / PM",
-            options=["AM", "PM"],
-            horizontal=False,
-            index=0 if st.session_state[ampm_key] == "AM" else 1,
+        selected_ampm = st.selectbox(
+            "🌗 AM / PM",
+            ["AM", "PM"],
+            index=0 if default_ampm == "AM" else 1,
             key=ampm_key,
         )
 
-    hour_24 = int(hour_12) % 12
-    if ampm_value == "PM":
+    hour_24 = selected_hour_12 % 12
+    if selected_ampm == "PM":
         hour_24 += 12
 
-    if ampm_value == "AM" and int(hour_12) == 12:
-        hour_24 = 0
+    display_12 = f"{selected_hour_12:02d}:{selected_minute:02d} {selected_ampm}"
+    display_24 = f"{hour_24:02d}:{selected_minute:02d}"
 
-    st.caption(f"Selected time: {int(hour_12):02d}:{int(minute_value):02d} {ampm_value}")
+    st.info(f"✅ Selected Time: {display_12}  |  24H Format: {display_24}")
 
-    return hour_24, int(minute_value)
+    return int(hour_24), int(selected_minute)
 
 
 # =====================================================
