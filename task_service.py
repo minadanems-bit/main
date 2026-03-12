@@ -3,7 +3,10 @@
 # Supabase-backed task operations
 # =====================================================
 
-from typing import List, Dict, Optional
+from typing import List, Dict
+import time
+
+from httpx import RemoteProtocolError
 
 from constants import DEFAULT_TASKS, TASK_CATEGORIES
 from database import get_supabase
@@ -25,6 +28,51 @@ def _is_valid_category(category: str) -> bool:
     return category in TASK_CATEGORIES
 
 
+def _run_with_retry(action, retries: int = 3, delay: float = 0.6):
+    last_error = None
+    for attempt in range(retries):
+        try:
+            return action()
+        except RemoteProtocolError as e:
+            last_error = e
+            if attempt == retries - 1:
+                raise
+            time.sleep(delay * (attempt + 1))
+        except Exception as e:
+            last_error = e
+            if attempt == retries - 1:
+                raise
+            time.sleep(delay * (attempt + 1))
+    if last_error:
+        raise last_error
+
+
+def _ensure_seeded_once_if_empty() -> None:
+    supabase = get_supabase()
+
+    existing = _run_with_retry(
+        lambda: supabase.table("tasks").select("id").limit(1).execute()
+    )
+
+    if existing.data:
+        return
+
+    rows = []
+    for category, task_list in DEFAULT_TASKS.items():
+        for task_text in task_list:
+            cleaned = str(task_text).strip()
+            if cleaned:
+                rows.append(
+                    {
+                        "category": category,
+                        "task_text": cleaned,
+                    }
+                )
+
+    if rows:
+        _run_with_retry(lambda: supabase.table("tasks").insert(rows).execute())
+
+
 # =====================================================
 # Read
 # =====================================================
@@ -32,14 +80,17 @@ def get_tasks_by_category(category: str) -> List[Dict]:
     if not _is_valid_category(category):
         return []
 
+    _ensure_seeded_once_if_empty()
     supabase = get_supabase()
 
-    result = (
-        supabase.table("tasks")
-        .select("id, category, task_text, created_at")
-        .eq("category", category)
-        .order("created_at")
-        .execute()
+    result = _run_with_retry(
+        lambda: (
+            supabase.table("tasks")
+            .select("id, category, task_text, created_at")
+            .eq("category", category)
+            .order("created_at")
+            .execute()
+        )
     )
 
     rows = result.data or []
@@ -47,13 +98,16 @@ def get_tasks_by_category(category: str) -> List[Dict]:
 
 
 def get_all_tasks_grouped() -> Dict[str, List[str]]:
+    _ensure_seeded_once_if_empty()
     supabase = get_supabase()
 
-    result = (
-        supabase.table("tasks")
-        .select("id, category, task_text, created_at")
-        .order("created_at")
-        .execute()
+    result = _run_with_retry(
+        lambda: (
+            supabase.table("tasks")
+            .select("id, category, task_text, created_at")
+            .order("created_at")
+            .execute()
+        )
     )
 
     rows = result.data or []
@@ -82,25 +136,28 @@ def add_task(category: str, task_text: str) -> tuple[bool, str]:
 
     supabase = get_supabase()
 
-    # منع التكرار داخل نفس الفئة
-    existing = (
-        supabase.table("tasks")
-        .select("id")
-        .eq("category", category)
-        .eq("task_text", cleaned_task)
-        .limit(1)
-        .execute()
+    existing = _run_with_retry(
+        lambda: (
+            supabase.table("tasks")
+            .select("id")
+            .eq("category", category)
+            .eq("task_text", cleaned_task)
+            .limit(1)
+            .execute()
+        )
     )
 
     if existing.data:
         return False, "Task already exists in this category."
 
-    supabase.table("tasks").insert(
-        {
-            "category": category,
-            "task_text": cleaned_task,
-        }
-    ).execute()
+    _run_with_retry(
+        lambda: supabase.table("tasks").insert(
+            {
+                "category": category,
+                "task_text": cleaned_task,
+            }
+        ).execute()
+    )
 
     return True, "Task added successfully."
 
@@ -114,7 +171,9 @@ def delete_task(task_id: str) -> tuple[bool, str]:
 
     supabase = get_supabase()
 
-    supabase.table("tasks").delete().eq("id", task_id).execute()
+    _run_with_retry(
+        lambda: supabase.table("tasks").delete().eq("id", task_id).execute()
+    )
     return True, "Task deleted successfully."
 
 
@@ -122,28 +181,11 @@ def delete_task(task_id: str) -> tuple[bool, str]:
 # Seed defaults
 # =====================================================
 def seed_default_tasks_if_empty() -> tuple[bool, str]:
-    supabase = get_supabase()
-
-    existing = supabase.table("tasks").select("id").limit(1).execute()
-    if existing.data:
-        return True, "Tasks already exist."
-
-    rows = []
-    for category, task_list in DEFAULT_TASKS.items():
-        for task_text in task_list:
-            cleaned = str(task_text).strip()
-            if cleaned:
-                rows.append(
-                    {
-                        "category": category,
-                        "task_text": cleaned,
-                    }
-                )
-
-    if rows:
-        supabase.table("tasks").insert(rows).execute()
-
-    return True, "Default tasks seeded successfully."
+    try:
+        _ensure_seeded_once_if_empty()
+        return True, "Default tasks seeded successfully."
+    except Exception as e:
+        return False, f"Failed to seed default tasks: {e}"
 
 
 # =====================================================
@@ -164,11 +206,15 @@ def replace_category_tasks(category: str, task_texts: List[str]) -> tuple[bool, 
             cleaned_tasks.append(cleaned)
             seen.add(cleaned)
 
-    supabase.table("tasks").delete().eq("category", category).execute()
+    _run_with_retry(
+        lambda: supabase.table("tasks").delete().eq("category", category).execute()
+    )
 
     if cleaned_tasks:
-        supabase.table("tasks").insert(
-            [{"category": category, "task_text": task} for task in cleaned_tasks]
-        ).execute()
+        _run_with_retry(
+            lambda: supabase.table("tasks").insert(
+                [{"category": category, "task_text": task} for task in cleaned_tasks]
+            ).execute()
+        )
 
     return True, "Category tasks replaced successfully."
