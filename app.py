@@ -51,9 +51,14 @@ from ui_helpers import (
 
 
 # =========================
-# Database bootstrap
+# Cached DB bootstrap
 # =========================
-db = load_db()
+@st.cache_data(show_spinner=False, ttl=10)
+def cached_load_db() -> dict:
+    return load_db()
+
+
+db = cached_load_db()
 
 
 # =========================
@@ -73,7 +78,16 @@ SESSION_MAIN_VIEW = "main_view"
 # =========================
 def refresh_db() -> None:
     global db
-    db = load_db()
+    cached_load_db.clear()
+    db = cached_load_db()
+
+
+def persist_db_and_rerun(success_message: str | None = None) -> None:
+    save_db(db)
+    cached_load_db.clear()
+    if success_message:
+        st.success(success_message)
+    st.rerun()
 
 
 def ensure_db_defaults() -> None:
@@ -97,8 +111,6 @@ def ensure_db_defaults() -> None:
         "attendance_records": {},
         "late_tracking": {},
         "blocked_users": {},
-        "training_content": {},
-        "training_progress": {},
     }
 
     changed = False
@@ -109,7 +121,7 @@ def ensure_db_defaults() -> None:
 
     if changed:
         save_db(db)
-        refresh_db()
+        cached_load_db.clear()
 
 
 def ensure_ui_defaults() -> None:
@@ -278,8 +290,7 @@ def render_supabase_import_manager() -> None:
                     f.write(uploaded_backup.getbuffer())
 
                 migrate(temp_backup_path)
-                refresh_db()
-
+                cached_load_db.clear()
                 st.success("✅ Backup imported to Supabase successfully.")
                 st.rerun()
 
@@ -401,7 +412,6 @@ def render_profile_records_tab(user_info: dict) -> None:
 
 def render_profile_training_tab() -> None:
     render_training_service_module(db, admin_mode=False)
-    refresh_db()
 
 
 def render_profile_page() -> None:
@@ -442,7 +452,6 @@ def render_profile_page() -> None:
 def render_hr_module() -> None:
     from hr_service import hr_management_ui
     hr_management_ui(db)
-    refresh_db()
 
 
 def render_payroll_module() -> None:
@@ -474,10 +483,7 @@ def render_payroll_module() -> None:
     if st.button("💾 Update Contract"):
         db["users"][target]["salary"] = salary
         db["users"][target]["hiring_date"] = str(hiring_date)
-        save_db(db)
-        refresh_db()
-        st.success("Contract Updated")
-        st.rerun()
+        persist_db_and_rerun("Contract Updated")
 
     st.divider()
     st.write("**Add Financial Entry:**")
@@ -500,10 +506,7 @@ def render_payroll_module() -> None:
                 "note": note.strip(),
             }
         )
-        save_db(db)
-        refresh_db()
-        st.success("Added to HR Record")
-        st.rerun()
+        persist_db_and_rerun("Added to HR Record")
 
 
 def render_tasks_module() -> None:
@@ -524,8 +527,8 @@ def render_tasks_module() -> None:
                 if st.button("🗑️", key=f"del_task_{row['id']}"):
                     success, message = delete_task(row["id"])
                     if success:
+                        cached_load_db.clear()
                         st.success(message)
-                        refresh_db()
                         st.rerun()
                     else:
                         st.error(message)
@@ -536,8 +539,8 @@ def render_tasks_module() -> None:
     if st.button("➕ Add Task"):
         success, message = add_task(category, new_task)
         if success:
+            cached_load_db.clear()
             st.success(message)
-            refresh_db()
             st.rerun()
         else:
             st.error(message)
@@ -560,18 +563,12 @@ def render_branches_expenses_module() -> None:
                 if new_branch_name.strip():
                     idx = branches.index(branch_selected)
                     branches[idx] = new_branch_name.strip()
-                    save_db(db)
-                    refresh_db()
-                    st.success("Renamed!")
-                    st.rerun()
+                    persist_db_and_rerun("Renamed!")
 
         with c_br2:
             if st.button("🗑️ Delete Branch", type="primary"):
                 branches.remove(branch_selected)
-                save_db(db)
-                refresh_db()
-                st.warning("Deleted!")
-                st.rerun()
+                persist_db_and_rerun("Deleted!")
     else:
         st.info("No branches yet.")
 
@@ -579,9 +576,7 @@ def render_branches_expenses_module() -> None:
     if st.button("➕ Create Branch"):
         if new_branch.strip():
             branches.append(new_branch.strip())
-            save_db(db)
-            refresh_db()
-            st.rerun()
+            persist_db_and_rerun()
 
     st.divider()
     st.write("**💸 Expense Categories (بنود المصاريف)**")
@@ -594,17 +589,13 @@ def render_branches_expenses_module() -> None:
         with ce2:
             if st.button("✖️", key=f"del_ex_{index}"):
                 db["expense_categories"].pop(index)
-                save_db(db)
-                refresh_db()
-                st.rerun()
+                persist_db_and_rerun()
 
     new_expense = st.text_input("New Expense Category")
     if st.button("➕ Add Expense Category"):
         if new_expense.strip():
             db["expense_categories"].append(new_expense.strip())
-            save_db(db)
-            refresh_db()
-            st.rerun()
+            persist_db_and_rerun()
 
 
 def render_archive_history_module() -> None:
@@ -682,21 +673,16 @@ def render_archive_history_module() -> None:
         confirm_check = st.checkbox("I understand that 'Clear History' will delete everything.")
         if confirm_check and st.button("🚨 Permanently Clear All History"):
             db["history"] = []
-            save_db(db)
-            refresh_db()
-            st.success("History Cleared!")
-            st.rerun()
+            persist_db_and_rerun("History Cleared!")
 
 
 def render_training_module() -> None:
     render_training_service_module(db, admin_mode=True)
-    refresh_db()
 
 
 def render_printer_management_module() -> None:
     st.subheader("🖨 Printer Management")
     printer_management_ui(db)
-    refresh_db()
 
 
 def render_admin_panel_main() -> None:
@@ -918,7 +904,7 @@ def render_backup_manager_page() -> None:
         db.clear()
         db.update(restored_data)
         save_db(db)
-        refresh_db()
+        cached_load_db.clear()
         st.success("✅ تم استرجاع النسخة بنجاح")
         st.rerun()
 
