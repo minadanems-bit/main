@@ -301,65 +301,92 @@ def render_login_clock_widget(height: int = 180) -> None:
 # Time input
 # =====================================================
 def render_professional_time_picker(
-    title: str,
+    hour_key: str,
+    minute_key: str,
+    ampm_key: str,
     default_hour_24: int,
     default_minute: int,
-    key_prefix: str,
+    title: str = "Attendance Time",
 ) -> tuple[int, int]:
-    st.markdown(f"### {title}")
-
-    hour_options_12 = list(range(1, 13))
-    minute_options = list(range(0, 60, 5))
-
-    default_ampm = "AM" if default_hour_24 < 12 else "PM"
-    default_hour_12 = default_hour_24 % 12
+    default_ampm = "AM" if int(default_hour_24) < 12 else "PM"
+    default_hour_12 = int(default_hour_24) % 12
     if default_hour_12 == 0:
         default_hour_12 = 12
 
-    if default_minute not in minute_options:
-        closest_minute = min(minute_options, key=lambda x: abs(x - default_minute))
-    else:
-        closest_minute = default_minute
+    default_minute = int(default_minute)
+    if default_minute < 0:
+        default_minute = 0
+    if default_minute > 59:
+        default_minute = 59
 
-    hour_key = f"{key_prefix}_hour_12"
-    minute_key = f"{key_prefix}_minute"
-    ampm_key = f"{key_prefix}_ampm"
+    if hour_key not in st.session_state:
+        st.session_state[hour_key] = default_hour_12
+
+    if minute_key not in st.session_state:
+        st.session_state[minute_key] = default_minute
+
+    if ampm_key not in st.session_state:
+        st.session_state[ampm_key] = default_ampm
+
+    st.markdown(f"#### ⏰ {title}")
+
+    hour_options = list(range(1, 13))
+    minute_options = list(range(0, 60))
+    ampm_options = ["AM", "PM"]
+
+    current_hour = st.session_state.get(hour_key, default_hour_12)
+    current_minute = st.session_state.get(minute_key, default_minute)
+    current_ampm = st.session_state.get(ampm_key, default_ampm)
+
+    if current_hour not in hour_options:
+        current_hour = default_hour_12
+        st.session_state[hour_key] = current_hour
+
+    if current_minute not in minute_options:
+        current_minute = default_minute
+        st.session_state[minute_key] = current_minute
+
+    if current_ampm not in ampm_options:
+        current_ampm = default_ampm
+        st.session_state[ampm_key] = current_ampm
 
     c1, c2, c3 = st.columns([1.2, 1.2, 1])
 
     with c1:
         selected_hour_12 = st.selectbox(
             "🕐 Hour",
-            hour_options_12,
-            index=hour_options_12.index(default_hour_12),
-            key=f"{hour_key}_widget",
+            hour_options,
+            index=hour_options.index(current_hour),
+            key=hour_key,
         )
 
     with c2:
         selected_minute = st.selectbox(
             "⏱ Minute",
             minute_options,
-            index=minute_options.index(closest_minute),
+            index=minute_options.index(current_minute),
             format_func=lambda x: f"{x:02d}",
-            key=f"{minute_key}_widget",
+            key=minute_key,
         )
 
     with c3:
         selected_ampm = st.selectbox(
             "🌗 AM / PM",
-            ["AM", "PM"],
-            index=0 if default_ampm == "AM" else 1,
-            key=f"{ampm_key}_widget",
+            ampm_options,
+            index=ampm_options.index(current_ampm),
+            key=ampm_key,
         )
 
-    hour_24 = selected_hour_12 % 12
+    hour_24 = int(selected_hour_12) % 12
     if selected_ampm == "PM":
         hour_24 += 12
+    if selected_ampm == "AM" and int(selected_hour_12) == 12:
+        hour_24 = 0
 
-    display_12 = f"{selected_hour_12:02d}:{selected_minute:02d} {selected_ampm}"
-    display_24 = f"{hour_24:02d}:{selected_minute:02d}"
+    display_12 = f"{int(selected_hour_12):02d}:{int(selected_minute):02d} {selected_ampm}"
+    display_24 = f"{int(hour_24):02d}:{int(selected_minute):02d}"
 
-    st.info(f"✅ Selected Time: {display_12}  |  24H Format: {display_24}")
+    st.caption(f"Selected time: {display_12} | 24H Format: {display_24}")
 
     return int(hour_24), int(selected_minute)
 
