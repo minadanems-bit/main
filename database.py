@@ -496,11 +496,24 @@ def _write_tasks(supabase: Client, tasks: dict) -> None:
 
 
 def _write_branches(supabase: Client, branches: list) -> None:
-    rows = [{"branch_name": item} for item in safe_list(branches) if safe_str(item).strip()]
+    cleaned_names = []
+    seen = set()
+
+    for item in safe_list(branches):
+        branch_name = safe_str(item).strip()
+        if not branch_name:
+            continue
+        if branch_name in seen:
+            continue
+        seen.add(branch_name)
+        cleaned_names.append(branch_name)
+
+    rows = [{"branch_name": name} for name in cleaned_names]
+
     _delete_all(supabase, "branches", "branch_name")
 
     if rows:
-        supabase.table("branches").insert(rows).execute()
+        supabase.table("branches").upsert(rows, on_conflict="branch_name").execute()
 
 
 def _write_expense_categories(supabase: Client, expense_categories: list) -> None:
