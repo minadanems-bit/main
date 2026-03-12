@@ -82,6 +82,8 @@ ROLE_ALLOWED_TABS = {
         "report",
     ],
     ROLE_EMPLOYEE: [
+        "opening",
+        "closing",
         "interaction",
         "social",
         "report",
@@ -183,12 +185,12 @@ def can_include_design_tasks_in_report() -> bool:
 
 def can_include_opening_tasks_in_report() -> bool:
     role = get_normalized_current_role()
-    return role in [ROLE_ADMIN, ROLE_MANAGER, ROLE_ACCOUNTS]
+    return role in [ROLE_ADMIN, ROLE_MANAGER, ROLE_ACCOUNTS, ROLE_EMPLOYEE]
 
 
 def can_include_closing_tasks_in_report() -> bool:
     role = get_normalized_current_role()
-    return role in [ROLE_ADMIN, ROLE_MANAGER, ROLE_ACCOUNTS]
+    return role in [ROLE_ADMIN, ROLE_MANAGER, ROLE_ACCOUNTS, ROLE_EMPLOYEE]
 
 
 def can_include_interaction_tasks_in_report() -> bool:
