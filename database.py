@@ -757,12 +757,14 @@ def _write_blocked_users(supabase: Client, blocked_users: dict) -> None:
 def save_db(data: dict) -> None:
     """
     Transitional compatibility save.
+    IMPORTANT:
+    tasks are managed directly by task_service, so we do NOT rewrite tasks here.
+    This prevents old in-memory snapshots from deleting tasks unexpectedly.
     """
     supabase = get_supabase()
 
     _upsert_settings(supabase, data)
     _write_users(supabase, data.get("users", {}))
-    _write_tasks(supabase, data.get("tasks", {}))
     _write_branches(supabase, data.get("branches", []))
     _write_expense_categories(supabase, data.get("expense_categories", []))
     _write_printers(supabase, data.get("printers", {}))
