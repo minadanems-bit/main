@@ -45,6 +45,10 @@ from role_service import (
 )
 from supabase_migration import migrate
 from training_service import render_training_module as render_training_service_module
+from ui_helpers import (
+    render_attendance_clock_widget,
+    render_role_dashboard_cards,
+)
 
 # =========================
 # Database bootstrap
@@ -969,7 +973,7 @@ def render_dashboard_page() -> None:
     st.title("🏠 Dashboard")
     st.caption("واجهة رئيسية أوضح وأذكى حسب دور المستخدم.")
 
-    render_clock_widget()
+    render_attendance_clock_widget()
 
     top1, top2, top3 = st.columns(3)
     with top1:
@@ -982,16 +986,12 @@ def render_dashboard_page() -> None:
 
     st.divider()
 
-    if normalized_role == ROLE_ADMIN:
-        render_dashboard_cards_for_admin()
-    elif normalized_role == ROLE_MANAGER:
-        render_dashboard_cards_for_manager()
-    elif normalized_role == ROLE_EMPLOYEE:
-        render_dashboard_cards_for_employee(user_info)
-    elif normalized_role == ROLE_CLEANER:
-        render_dashboard_cards_for_cleaner(user_info)
-    else:
-        render_dashboard_cards_default(user_info)
+    render_role_dashboard_cards(
+        normalized_role=normalized_role,
+        user_info=user_info,
+        db=db,
+        training_info=training_info,
+    )
 
     st.divider()
 
