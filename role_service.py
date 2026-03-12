@@ -3,7 +3,8 @@
 # Handles role permissions and report type per role
 # =====================================================
 
-from auth_service import get_current_role
+import streamlit as st
+
 from constants import (
     ROLE_ACCOUNTS,
     ROLE_ADMIN,
@@ -13,6 +14,13 @@ from constants import (
     ROLE_HR,
     ROLE_MANAGER,
 )
+
+
+# =====================================================
+# Internal helper
+# =====================================================
+def get_current_role_from_session() -> str | None:
+    return st.session_state.get("role")
 
 
 # =====================================================
@@ -45,7 +53,7 @@ def normalize_role(role_value: str | None) -> str:
 
 
 def get_normalized_current_role() -> str:
-    return normalize_role(get_current_role())
+    return normalize_role(get_current_role_from_session())
 
 
 # =====================================================
@@ -155,24 +163,6 @@ def get_daily_operations_block_message() -> str:
         return (
             "⛔ هذا الحساب لا يملك صلاحية كاملة على كل أقسام التشغيل اليومي.\n"
             "سيظهر له فقط قسم المهام الخاصة به والتقرير."
-        )
-
-    if role == ROLE_GRAPHIC_DESIGNER:
-        return (
-            "⛔ هذا الحساب لا يملك صلاحية كاملة على كل أقسام التشغيل اليومي.\n"
-            "سيظهر له فقط الأقسام المناسبة لدوره."
-        )
-
-    if role == ROLE_HR:
-        return (
-            "⛔ هذا الحساب لا يملك صلاحية كاملة على كل أقسام التشغيل اليومي.\n"
-            "سيظهر له فقط الأقسام المناسبة لدوره."
-        )
-
-    if role == ROLE_ACCOUNTS:
-        return (
-            "⛔ هذا الحساب لا يملك صلاحية كاملة على كل أقسام التشغيل اليومي.\n"
-            "سيظهر له فقط الأقسام المالية والتقرير."
         )
 
     return "⛔ هذا الحساب غير مسموح له بدخول التشغيل اليومي حاليًا."
