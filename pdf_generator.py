@@ -60,6 +60,8 @@ def _get_special_notes_title(report_type: str) -> str:
         return "Cleaning Notes"
     if report_type == "design":
         return "Design Notes"
+    if report_type == "moderator":
+        return "Moderation Notes"
     return "Special Notes"
 
 
@@ -519,6 +521,8 @@ def create_downloadable_pdf(
     cleaning_tasks_pending=None,
     design_tasks_completed=None,
     design_tasks_pending=None,
+    moderation_tasks_completed=None,
+    moderation_tasks_pending=None,
 ):
     db = load_db()
     buffer = io.BytesIO()
@@ -638,6 +642,7 @@ def create_downloadable_pdf(
             ("Social Tasks", social_tasks_completed, social_tasks_pending),
             ("Cleaning Tasks", cleaning_tasks_completed, cleaning_tasks_pending),
             ("Design Tasks", design_tasks_completed, design_tasks_pending),
+            ("Moderation Tasks", moderation_tasks_completed, moderation_tasks_pending),
         ]
 
         for title, completed, pending in task_sections:
