@@ -44,7 +44,7 @@ ROLE_LABELS = {
     ROLE_ADMIN: "Admin",
     ROLE_MANAGER: "Manager",
     ROLE_EMPLOYEE: "Customer Service",
-    ROLE_ACCOUNTS: "Accounts",
+    ROLE_ACCOUNTS: "Accountant",
     ROLE_HR: "HR",
     ROLE_CLEANER: "Cleaner",
     ROLE_GRAPHIC_DESIGNER: "Graphic Designer",
@@ -122,14 +122,77 @@ TASK_CATEGORY_LABELS = {
 # Role-Based Task Access
 # =====================================================
 ROLE_TASK_ACCESS = {
-    ROLE_ADMIN: TASK_CATEGORIES,
-    ROLE_MANAGER: [TASK_OPENING, TASK_CLOSING, TASK_SOCIAL, TASK_INTERACTION, TASK_MODERATION],
-    ROLE_EMPLOYEE: [TASK_OPENING, TASK_CLOSING, TASK_SOCIAL, TASK_INTERACTION],
-    ROLE_ACCOUNTS: [TASK_OPENING, TASK_CLOSING, TASK_INTERACTION],
-    ROLE_HR: [TASK_INTERACTION],
-    ROLE_CLEANER: [TASK_CLEANING],
-    ROLE_GRAPHIC_DESIGNER: [TASK_DESIGN, TASK_SOCIAL, TASK_INTERACTION],
-    ROLE_MODERATOR: [TASK_MODERATION, TASK_SOCIAL, TASK_INTERACTION],
+    ROLE_ADMIN: [
+        TASK_OPENING,
+        TASK_CLOSING,
+        TASK_SOCIAL,
+        TASK_INTERACTION,
+        TASK_CLEANING,
+        TASK_DESIGN,
+        TASK_MODERATION,
+        "report",
+        "crm",
+    ],
+    ROLE_MANAGER: [
+        TASK_OPENING,
+        TASK_CLOSING,
+        TASK_SOCIAL,
+        TASK_INTERACTION,
+        TASK_MODERATION,
+        "report",
+        "crm",
+    ],
+    ROLE_EMPLOYEE: [
+        TASK_OPENING,
+        TASK_CLOSING,
+        TASK_SOCIAL,
+        TASK_INTERACTION,
+        "report",
+        "crm",
+    ],
+    ROLE_ACCOUNTS: [
+        TASK_OPENING,
+        TASK_CLOSING,
+        "report",
+        "crm",
+    ],
+    ROLE_HR: [
+        "report",
+        "crm",
+    ],
+    ROLE_CLEANER: [
+        TASK_CLEANING,
+        "report",
+    ],
+    ROLE_GRAPHIC_DESIGNER: [
+        TASK_DESIGN,
+        TASK_SOCIAL,
+        TASK_INTERACTION,
+        "report",
+        "crm",
+    ],
+    ROLE_MODERATOR: [
+        TASK_MODERATION,
+        TASK_SOCIAL,
+        TASK_INTERACTION,
+        "report",
+        "crm",
+    ],
+}
+
+
+# =====================================================
+# Report Types By Role
+# =====================================================
+ROLE_REPORT_TYPES = {
+    ROLE_ADMIN: "full",
+    ROLE_MANAGER: "full",
+    ROLE_EMPLOYEE: "customer_service",
+    ROLE_ACCOUNTS: "financial",
+    ROLE_HR: "hr",
+    ROLE_CLEANER: "cleaning",
+    ROLE_GRAPHIC_DESIGNER: "design",
+    ROLE_MODERATOR: "moderation",
 }
 
 
@@ -268,6 +331,7 @@ ADMIN_MODULE_PRINTERS = "🖨 Printer Management"
 ADMIN_MODULE_ARCHIVE = "📂 Archive & History"
 ADMIN_MODULE_TRAINING = "🎓 Employee Training"
 ADMIN_MODULE_ROLE_MANAGEMENT = "🧩 Roles & Permissions"
+ADMIN_MODULE_CRM = "📇 CRM & Internal Communication"
 
 ADMIN_MODULE_OPTIONS = [
     ADMIN_MODULE_HR,
@@ -278,7 +342,34 @@ ADMIN_MODULE_OPTIONS = [
     ADMIN_MODULE_ARCHIVE,
     ADMIN_MODULE_TRAINING,
     ADMIN_MODULE_ROLE_MANAGEMENT,
+    ADMIN_MODULE_CRM,
 ]
+
+
+# =====================================================
+# CRM / Internal Communication
+# =====================================================
+CRM_STATUS_NEW = "new"
+CRM_STATUS_IN_PROGRESS = "in_progress"
+CRM_STATUS_WAITING = "waiting"
+CRM_STATUS_DONE = "done"
+CRM_STATUS_CANCELLED = "cancelled"
+
+CRM_STATUS_OPTIONS = [
+    CRM_STATUS_NEW,
+    CRM_STATUS_IN_PROGRESS,
+    CRM_STATUS_WAITING,
+    CRM_STATUS_DONE,
+    CRM_STATUS_CANCELLED,
+]
+
+CRM_STATUS_LABELS = {
+    CRM_STATUS_NEW: "New",
+    CRM_STATUS_IN_PROGRESS: "In Progress",
+    CRM_STATUS_WAITING: "Waiting",
+    CRM_STATUS_DONE: "Done",
+    CRM_STATUS_CANCELLED: "Cancelled",
+}
 
 
 # =====================================================
@@ -399,6 +490,14 @@ SESSION_CUSTOMER_DEBTS = "customer_debts"
 
 SESSION_ACTIVE_DB = "_active_db"
 
+# login-selected values; نستخدمها لاحقًا لقفل تغيير الفرع والشيفت داخل التشغيل اليومي
+SESSION_LOGIN_SELECTED_BRANCH = "login_selected_branch"
+SESSION_LOGIN_SELECTED_SHIFT = "login_selected_shift"
+
+# CRM / communication session keys
+SESSION_CRM_SELECTED_STATUS = "crm_selected_status"
+SESSION_CRM_SELECTED_ASSIGNEE = "crm_selected_assignee"
+
 
 # =====================================================
 # Draft Prefixes
@@ -516,4 +615,14 @@ DEFAULT_APP_DATA = {
     "attendance_records": {},
     "late_tracking": {},
     "blocked_users": {},
+
+    # dynamic roles / permissions
+    "role_task_access": {},
+    "role_report_types": {},
+    "task_category_labels": {},
+
+    # CRM / communication placeholders
+    "crm_records": [],
+    "crm_notifications": [],
+    "internal_messages": [],
 }
