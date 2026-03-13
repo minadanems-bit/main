@@ -1,6 +1,6 @@
 # =====================================================
 # ROLE SERVICE
-# Handles role permissions and report type per role
+# Handles dynamic roles, permissions, tabs, report types
 # =====================================================
 
 import streamlit as st
@@ -64,10 +64,19 @@ try:
 except Exception:
     TASK_DESIGN = "design"
 
+try:
+    from constants import TASK_MODERATION
+except Exception:
+    TASK_MODERATION = "moderation"
+
 
 # =====================================================
-# Internal helper
+# Internal helpers
 # =====================================================
+def _normalize_text(value: str | None) -> str:
+    return str(value or "").strip().lower()
+
+
 def get_current_role_from_session() -> str | None:
     return st.session_state.get("role")
 
@@ -76,7 +85,7 @@ def get_current_role_from_session() -> str | None:
 # Role normalization
 # =====================================================
 def normalize_role(role_value: str | None) -> str:
-    role = (role_value or "").strip().lower()
+    role = _normalize_text(role_value)
 
     legacy_map = {
         "user": ROLE_EMPLOYEE,
@@ -84,18 +93,26 @@ def normalize_role(role_value: str | None) -> str:
         "customer_service": ROLE_EMPLOYEE,
         "customer service": ROLE_EMPLOYEE,
         "customer services": ROLE_EMPLOYEE,
+
         "admin": ROLE_ADMIN,
         "manager": ROLE_MANAGER,
+
         "accounts": ROLE_ACCOUNTS,
         "accountsant": ROLE_ACCOUNTS,
         "accountant": ROLE_ACCOUNTS,
+
         "hr": ROLE_HR,
+        "human_resources": ROLE_HR,
+        "human resources": ROLE_HR,
+
         "cleaner": ROLE_CLEANER,
         "office_boy": ROLE_CLEANER,
         "office boy": ROLE_CLEANER,
+
         "graphic_designer": ROLE_GRAPHIC_DESIGNER,
         "graphic designer": ROLE_GRAPHIC_DESIGNER,
         "designer": ROLE_GRAPHIC_DESIGNER,
+
         "moderator": ROLE_MODERATOR,
         "mod": ROLE_MODERATOR,
         "content_moderator": ROLE_MODERATOR,
@@ -125,10 +142,10 @@ def get_role_display_name(role_value: str | None) -> str:
 
 
 # =====================================================
-# Dynamic permissions from constants
+# Dynamic role access map
 # =====================================================
 def get_role_task_access_map() -> dict[str, list[str]]:
-    dynamic_map = {}
+    dynamic_map: dict[str, list[str]] = {}
 
     for role_key, tasks in (ROLE_TASK_ACCESS or {}).items():
         normalized_role = normalize_role(role_key)
@@ -142,19 +159,24 @@ def get_role_task_access_map() -> dict[str, list[str]]:
             TASK_SOCIAL,
             TASK_CLEANING,
             TASK_DESIGN,
+            TASK_MODERATION,
             "report",
+            "crm",
         ],
         ROLE_MANAGER: [
             TASK_OPENING,
             TASK_CLOSING,
             TASK_INTERACTION,
             TASK_SOCIAL,
+            TASK_MODERATION,
             "report",
+            "crm",
         ],
         ROLE_ACCOUNTS: [
             TASK_OPENING,
             TASK_CLOSING,
             "report",
+            "crm",
         ],
         ROLE_EMPLOYEE: [
             TASK_OPENING,
@@ -162,10 +184,11 @@ def get_role_task_access_map() -> dict[str, list[str]]:
             TASK_INTERACTION,
             TASK_SOCIAL,
             "report",
+            "crm",
         ],
         ROLE_HR: [
-            TASK_INTERACTION,
             "report",
+            "crm",
         ],
         ROLE_CLEANER: [
             TASK_CLEANING,
@@ -175,24 +198,28 @@ def get_role_task_access_map() -> dict[str, list[str]]:
             TASK_DESIGN,
             TASK_SOCIAL,
             "report",
+            "crm",
         ],
         ROLE_MODERATOR: [
-            TASK_INTERACTION,
+            TASK_MODERATION,
             TASK_SOCIAL,
+            TASK_INTERACTION,
             "report",
+            "crm",
         ],
     }
 
     for role_key, tasks in fallback_map.items():
         dynamic_map.setdefault(role_key, tasks)
 
-    normalized_final = {}
+    normalized_final: dict[str, list[str]] = {}
+
     for role_key, tasks in dynamic_map.items():
         cleaned = []
         seen = set()
 
         for task_name in tasks:
-            task_value = str(task_name or "").strip().lower()
+            task_value = _normalize_text(task_name)
             if not task_value:
                 continue
             if task_value == "tasks":
@@ -210,18 +237,16 @@ def get_role_task_access_map() -> dict[str, list[str]]:
 
 
 # =====================================================
-# Tabs per role
+# Allowed tabs per role
 # =====================================================
-ROLE_ALLOWED_TABS = get_role_task_access_map()
-
-
 def get_allowed_tabs() -> list[str]:
     role = get_normalized_current_role()
-    return ROLE_ALLOWED_TABS.get(role, ["report"])
+    role_map = get_role_task_access_map()
+    return role_map.get(role, ["report"])
 
 
 def can_access(tab_name: str) -> bool:
-    return str(tab_name or "").strip().lower() in get_allowed_tabs()
+    return _normalize_text(tab_name) in get_allowed_tabs()
 
 
 # =====================================================
@@ -235,7 +260,7 @@ ROLE_REPORT_TYPE = {
     ROLE_HR: "hr",
     ROLE_CLEANER: "cleaning",
     ROLE_GRAPHIC_DESIGNER: "design",
-    ROLE_MODERATOR: "moderator",
+    ROLE_MODERATOR: "moderation",
 }
 
 
@@ -248,8 +273,19 @@ def get_report_type() -> str:
 # Work access / block helpers
 # =====================================================
 def can_access_daily_operations() -> bool:
-    allowed_tabs = get_allowed_tabs()
-    return len(allowed_tabs) > 0
+    operational_tabs = {
+        TASK_OPENING,
+        TASK_CLOSING,
+        TASK_INTERACTION,
+        TASK_SOCIAL,
+        TASK_CLEANING,
+        TASK_DESIGN,
+        TASK_MODERATION,
+        "report",
+    }
+
+    allowed_tabs = set(get_allowed_tabs())
+    return len(allowed_tabs.intersection(operational_tabs)) > 0
 
 
 def is_blocked_from_daily_operations() -> bool:
@@ -268,7 +304,7 @@ def get_daily_operations_block_message() -> str:
     if role == ROLE_CLEANER:
         return (
             "⛔ هذا الحساب لا يملك صلاحية كاملة على كل أقسام التشغيل اليومي.\n"
-            "سيظهر له فقط قسم المهام الخاصة به والتقرير."
+            "سيظهر له فقط قسم النظافة والتقرير."
         )
 
     if role == ROLE_GRAPHIC_DESIGNER:
@@ -280,7 +316,19 @@ def get_daily_operations_block_message() -> str:
     if role == ROLE_MODERATOR:
         return (
             "⛔ هذا الحساب لا يملك صلاحية كاملة على كل أقسام التشغيل اليومي.\n"
-            "سيظهر له فقط الأقسام المسموح بها للموديراتور والتقرير."
+            "سيظهر له فقط أقسام الموديريشن/السوشيال/التفاعل والتقرير."
+        )
+
+    if role == ROLE_HR:
+        return (
+            "⛔ هذا الحساب لا يملك صلاحية كاملة على كل أقسام التشغيل اليومي.\n"
+            "صلاحياته الأساسية ستكون في الإدارة والموظفين وCRM حسب الإعدادات."
+        )
+
+    if role == ROLE_ACCOUNTS:
+        return (
+            "⛔ هذا الحساب لا يملك صلاحية كاملة على كل أقسام التشغيل اليومي.\n"
+            "سيظهر له فقط الأقسام المالية المسموح بها والتقرير."
         )
 
     return "⛔ هذا الحساب غير مسموح له بدخول التشغيل اليومي حاليًا."
@@ -313,8 +361,12 @@ def can_include_social_tasks_in_report() -> bool:
     return TASK_SOCIAL in get_allowed_tabs()
 
 
+def can_include_moderation_tasks_in_report() -> bool:
+    return TASK_MODERATION in get_allowed_tabs()
+
+
 # =====================================================
-# Optional helpers
+# Admin / backup / CRM / HR / payroll helpers
 # =====================================================
 def is_financial_role() -> bool:
     return get_normalized_current_role() in [ROLE_ADMIN, ROLE_MANAGER, ROLE_ACCOUNTS]
@@ -349,15 +401,31 @@ def is_manager_or_admin() -> bool:
 
 
 def can_access_admin_panel() -> bool:
-    return get_normalized_current_role() in [ROLE_ADMIN, ROLE_MANAGER]
+    return get_normalized_current_role() in [ROLE_ADMIN, ROLE_MANAGER, ROLE_HR]
 
 
 def can_access_backup_manager() -> bool:
     return get_normalized_current_role() in [ROLE_ADMIN, ROLE_MANAGER]
 
 
+def can_access_crm() -> bool:
+    return "crm" in get_allowed_tabs() or is_manager_or_admin() or is_hr_role()
+
+
+def can_access_employee_management() -> bool:
+    return get_normalized_current_role() in [ROLE_ADMIN, ROLE_MANAGER, ROLE_HR]
+
+
+def can_access_payroll_management() -> bool:
+    return get_normalized_current_role() in [ROLE_ADMIN, ROLE_MANAGER, ROLE_ACCOUNTS]
+
+
+def can_access_task_management() -> bool:
+    return get_normalized_current_role() in [ROLE_ADMIN, ROLE_MANAGER]
+
+
 def should_use_attendance_popup() -> bool:
-    return get_normalized_current_role() in [ROLE_EMPLOYEE, ROLE_CLEANER]
+    return get_normalized_current_role() in [ROLE_EMPLOYEE, ROLE_CLEANER, ROLE_MODERATOR]
 
 
 def can_view_full_daily_operations() -> bool:
