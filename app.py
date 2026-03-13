@@ -469,17 +469,8 @@ def render_birthday_page() -> None:
 # CRM placeholder
 # =========================
 def render_crm_module() -> None:
-    st.subheader("📇 CRM & Internal Communication")
-    st.info("الصفحة جاهزة كمكان مخصص للـ CRM، والخطوة الجاية هنكمل فيها النظام الاحترافي كامل.")
-    st.write("المخطط الحالي للصفحة:")
-    st.write("- Inbox داخلي بين الموظفين والمديرين")
-    st.write("- Task transfer بين الأدوار")
-    st.write("- Notifications")
-    st.write("- Follow-up status")
-    st.write("- Customer / lead notes")
-    st.write("- Escalations")
-    st.write("- Attachments / activity log")
-
+    from crm_service import render_crm_module as render_real_crm_module
+    render_real_crm_module()
 
 # =========================
 # Admin modules
