@@ -1,6 +1,6 @@
 # =====================================================
 # CRM SERVICE
-# Tasks, messages, notifications, and dashboard helpers
+# Tasks, messages, notifications, and full CRM UI
 # =====================================================
 
 from __future__ import annotations
@@ -8,6 +8,10 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
+import pandas as pd
+import streamlit as st
+
+from auth_service import get_current_role, get_current_username
 from database import load_db, save_db
 
 
@@ -50,6 +54,10 @@ def _generate_id(prefix: str) -> str:
     return f"{prefix}_{stamp}"
 
 
+def _persist(db: dict) -> None:
+    save_db(db)
+
+
 def ensure_crm_defaults(db: dict) -> bool:
     changed = False
 
@@ -66,10 +74,6 @@ def ensure_crm_defaults(db: dict) -> bool:
         changed = True
 
     return changed
-
-
-def persist_db(db: dict) -> None:
-    save_db(db)
 
 
 # =====================================================
@@ -139,7 +143,7 @@ def mark_notification_as_read(notification_id: str) -> tuple[bool, str]:
     for item in db["crm_notifications"]:
         if _safe_text(item.get("id")) == _safe_text(notification_id):
             item["is_read"] = True
-            persist_db(db)
+            _persist(db)
             return True, "Notification marked as read."
 
     return False, "Notification not found."
@@ -158,7 +162,7 @@ def mark_all_notifications_as_read(username: str) -> tuple[bool, str]:
             changed = True
 
     if changed:
-        persist_db(db)
+        _persist(db)
 
     return True, "Notifications updated."
 
@@ -218,7 +222,7 @@ def send_internal_message(
         related_id=message_id,
     )
 
-    persist_db(db)
+    _persist(db)
     return True, "Message sent successfully."
 
 
@@ -253,7 +257,7 @@ def mark_message_as_read(message_id: str) -> tuple[bool, str]:
     for item in db["internal_messages"]:
         if _safe_text(item.get("id")) == _safe_text(message_id):
             item["is_read"] = True
-            persist_db(db)
+            _persist(db)
             return True, "Message marked as read."
 
     return False, "Message not found."
@@ -337,7 +341,7 @@ def create_crm_task(
         related_id=task_id,
     )
 
-    persist_db(db)
+    _persist(db)
     return True, "CRM task created successfully."
 
 
@@ -359,7 +363,7 @@ def get_crm_tasks(
         created_by = _safe_text(created_by)
         rows = [item for item in rows if _safe_text(item.get("created_by")) == created_by]
 
-    if status:
+    if status and status != "all":
         status = _normalize(status)
         rows = [item for item in rows if _normalize(item.get("status")) == status]
 
@@ -434,7 +438,7 @@ def update_crm_task_status(
             related_id=_safe_text(task.get("id")),
         )
 
-    persist_db(db)
+    _persist(db)
     return True, "Task status updated successfully."
 
 
@@ -480,7 +484,7 @@ def reassign_crm_task(
         related_id=_safe_text(task.get("id")),
     )
 
-    persist_db(db)
+    _persist(db)
     return True, "Task reassigned successfully."
 
 
@@ -529,7 +533,7 @@ def add_crm_task_comment(
             related_id=_safe_text(task.get("id")),
         )
 
-    persist_db(db)
+    _persist(db)
     return True, "Comment added successfully."
 
 
@@ -574,3 +578,373 @@ def get_crm_dashboard_stats(db: dict, username: str | None = None) -> dict:
         "total_messages": len(messages),
         "total_notifications": len(notifications),
     }
+
+
+# =====================================================
+# UI helpers
+# =====================================================
+def _priority_label(priority: str) -> str:
+    mapping = {
+        "low": "Low",
+        "normal": "Normal",
+        "high": "High",
+        "urgent": "Urgent",
+    }
+    return mapping.get(_normalize(priority), str(priority).title())
+
+
+def _status_label(status: str) -> str:
+    return DEFAULT_CRM_TASK_STATUSES.get(_normalize(status), str(status).replace("_", " ").title())
+
+
+def _render_dashboard_tab(db: dict, current_user: str) -> None:
+    st.subheader("📈 CRM Dashboard")
+
+    my_stats = get_crm_dashboard_stats(db, current_user)
+    general_stats = get_crm_dashboard_stats(db)
+
+    a1, a2, a3, a4 = st.columns(4)
+    with a1:
+        st.metric("My Tasks", my_stats.get("my_tasks_total", 0))
+    with a2:
+        st.metric("Unread Messages", my_stats.get("my_unread_messages", 0))
+    with a3:
+        st.metric("Unread Notifications", my_stats.get("my_unread_notifications", 0))
+    with a4:
+        st.metric("Done Tasks", my_stats.get("my_tasks_done", 0))
+
+    st.divider()
+
+    b1, b2, b3, b4 = st.columns(4)
+    with b1:
+        st.metric("All Tasks", general_stats.get("total_tasks", 0))
+    with b2:
+        st.metric("New", general_stats.get("total_new_tasks", 0))
+    with b3:
+        st.metric("In Progress", general_stats.get("total_in_progress_tasks", 0))
+    with b4:
+        st.metric("Waiting", general_stats.get("total_waiting_tasks", 0))
+
+
+def _render_create_task_tab(db: dict, current_user: str) -> None:
+    st.subheader("➕ Create CRM Task")
+
+    users = get_all_users(db)
+    branches = db.get("branches", []) or []
+
+    title = st.text_input("Task Title", key="crm_task_title")
+    description = st.text_area("Description", key="crm_task_description")
+    assigned_to = st.selectbox("Assign To", users, key="crm_task_assigned_to")
+    priority = st.selectbox("Priority", DEFAULT_CRM_PRIORITIES, index=1, key="crm_task_priority")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        due_date = st.date_input("Due Date", value=None, key="crm_task_due_date")
+    with col2:
+        branch = st.selectbox(
+            "Branch",
+            [""] + branches,
+            format_func=lambda x: x if x else "No Branch",
+            key="crm_task_branch",
+        )
+
+    related_category = st.text_input("Related Category", key="crm_task_category")
+
+    if st.button("✅ Create Task", use_container_width=True):
+        success, message = create_crm_task(
+            created_by=current_user,
+            assigned_to=assigned_to,
+            title=title,
+            description=description,
+            priority=priority,
+            due_date=str(due_date) if due_date else "",
+            branch=branch,
+            related_category=related_category,
+        )
+        if success:
+            st.success(message)
+            st.rerun()
+        else:
+            st.error(message)
+
+
+def _render_my_tasks_tab(db: dict, current_user: str) -> None:
+    st.subheader("📋 My Tasks")
+
+    filter_status = st.selectbox(
+        "Filter By Status",
+        ["all"] + list(DEFAULT_CRM_TASK_STATUSES.keys()),
+        format_func=lambda x: "All" if x == "all" else _status_label(x),
+        key="crm_my_tasks_filter_status",
+    )
+
+    tasks = get_crm_tasks(db, assigned_to=current_user, status=filter_status)
+
+    if not tasks:
+        st.info("No tasks found.")
+        return
+
+    for task in tasks:
+        with st.expander(f"{task.get('title', '-') }  |  {_status_label(task.get('status', 'new'))}", expanded=False):
+            st.write(f"**Assigned By:** {task.get('created_by', '-')}")
+            st.write(f"**Priority:** {_priority_label(task.get('priority', 'normal'))}")
+            st.write(f"**Branch:** {task.get('branch', '-') or '-'}")
+            st.write(f"**Due Date:** {task.get('due_date', '-') or '-'}")
+            st.write(f"**Description:** {task.get('description', '-') or '-'}")
+
+            st.divider()
+
+            new_status = st.selectbox(
+                "Update Status",
+                list(DEFAULT_CRM_TASK_STATUSES.keys()),
+                index=list(DEFAULT_CRM_TASK_STATUSES.keys()).index(_normalize(task.get("status", "new"))),
+                format_func=_status_label,
+                key=f"crm_status_{task['id']}",
+            )
+            status_note = st.text_input("Status Note", key=f"crm_status_note_{task['id']}")
+
+            c1, c2 = st.columns(2)
+
+            with c1:
+                if st.button("💾 Save Status", key=f"crm_save_status_{task['id']}", use_container_width=True):
+                    success, message = update_crm_task_status(
+                        task_id=task["id"],
+                        new_status=new_status,
+                        changed_by=current_user,
+                        note=status_note,
+                    )
+                    if success:
+                        st.success(message)
+                        st.rerun()
+                    else:
+                        st.error(message)
+
+            with c2:
+                comment_text = st.text_input("Quick Comment", key=f"crm_comment_{task['id']}")
+                if st.button("💬 Add Comment", key=f"crm_add_comment_{task['id']}", use_container_width=True):
+                    success, message = add_crm_task_comment(
+                        task_id=task["id"],
+                        comment_by=current_user,
+                        comment_text=comment_text,
+                    )
+                    if success:
+                        st.success(message)
+                        st.rerun()
+                    else:
+                        st.error(message)
+
+            comments = task.get("comments", [])
+            if comments:
+                st.markdown("#### Comments")
+                for item in comments:
+                    st.write(f"- **{item.get('comment_by', '-')}**: {item.get('comment_text', '-')} ({item.get('created_at', '-')})")
+
+
+def _render_team_tasks_tab(db: dict, current_user: str, current_role: str) -> None:
+    st.subheader("🧩 Team Tasks")
+
+    is_admin_like = _normalize(current_role) in ["admin", "manager"]
+
+    if not is_admin_like:
+        st.info("This section is available for Admin / Manager only.")
+        return
+
+    users = ["all"] + get_all_users(db)
+    statuses = ["all"] + list(DEFAULT_CRM_TASK_STATUSES.keys())
+
+    col1, col2 = st.columns(2)
+    with col1:
+        selected_user = st.selectbox("Assigned User", users, key="crm_team_tasks_user")
+    with col2:
+        selected_status = st.selectbox(
+            "Status",
+            statuses,
+            format_func=lambda x: "All" if x == "all" else _status_label(x),
+            key="crm_team_tasks_status",
+        )
+
+    tasks = get_crm_tasks(
+        db,
+        assigned_to=None if selected_user == "all" else selected_user,
+        status=selected_status,
+    )
+
+    if not tasks:
+        st.info("No tasks found.")
+        return
+
+    for task in tasks:
+        with st.expander(f"{task.get('title', '-')} | {_status_label(task.get('status', 'new'))}", expanded=False):
+            st.write(f"**Created By:** {task.get('created_by', '-')}")
+            st.write(f"**Assigned To:** {task.get('assigned_to', '-')}")
+            st.write(f"**Priority:** {_priority_label(task.get('priority', 'normal'))}")
+            st.write(f"**Description:** {task.get('description', '-') or '-'}")
+
+            reassign_to = st.selectbox(
+                "Reassign To",
+                get_all_users(db),
+                key=f"crm_reassign_to_{task['id']}",
+            )
+            reassign_note = st.text_input("Reassign Note", key=f"crm_reassign_note_{task['id']}")
+
+            if st.button("🔄 Reassign Task", key=f"crm_reassign_btn_{task['id']}", use_container_width=True):
+                success, message = reassign_crm_task(
+                    task_id=task["id"],
+                    new_assignee=reassign_to,
+                    changed_by=current_user,
+                    note=reassign_note,
+                )
+                if success:
+                    st.success(message)
+                    st.rerun()
+                else:
+                    st.error(message)
+
+
+def _render_messages_tab(db: dict, current_user: str) -> None:
+    st.subheader("✉ Internal Messages")
+
+    users = [u for u in get_all_users(db) if u != current_user]
+
+    with st.expander("Send New Message", expanded=False):
+        if not users:
+            st.info("No available users.")
+        else:
+            receiver = st.selectbox("Send To", users, key="crm_msg_receiver")
+            subject = st.text_input("Subject", key="crm_msg_subject")
+            body = st.text_area("Message", key="crm_msg_body")
+
+            if st.button("📨 Send Message", use_container_width=True):
+                success, message = send_internal_message(
+                    sender_username=current_user,
+                    receiver_username=receiver,
+                    subject=subject,
+                    message_text=body,
+                )
+                if success:
+                    st.success(message)
+                    st.rerun()
+                else:
+                    st.error(message)
+
+    st.divider()
+
+    inbox, sent = st.tabs(["Inbox", "Sent"])
+
+    with inbox:
+        rows = get_inbox_messages(db, current_user)
+        if not rows:
+            st.info("Inbox is empty.")
+        else:
+            for row in rows:
+                with st.expander(f"{row.get('subject', '-')} | From: {row.get('sender_username', '-')}", expanded=False):
+                    st.write(f"**From:** {row.get('sender_username', '-')}")
+                    st.write(f"**Date:** {row.get('created_at', '-')}")
+                    st.write(row.get("message_text", "-"))
+
+                    if not bool(row.get("is_read", False)):
+                        if st.button("✅ Mark As Read", key=f"crm_mark_msg_read_{row['id']}"):
+                            success, message = mark_message_as_read(row["id"])
+                            if success:
+                                st.success(message)
+                                st.rerun()
+                            else:
+                                st.error(message)
+
+    with sent:
+        rows = get_sent_messages(db, current_user)
+        if not rows:
+            st.info("No sent messages.")
+        else:
+            for row in rows:
+                with st.expander(f"{row.get('subject', '-')} | To: {row.get('receiver_username', '-')}", expanded=False):
+                    st.write(f"**To:** {row.get('receiver_username', '-')}")
+                    st.write(f"**Date:** {row.get('created_at', '-')}")
+                    st.write(row.get("message_text", "-"))
+
+
+def _render_notifications_tab(db: dict, current_user: str) -> None:
+    st.subheader("🔔 Notifications")
+
+    rows = get_user_notifications(db, current_user)
+
+    c1, c2 = st.columns([3, 1])
+    with c2:
+        if st.button("✅ Mark All As Read", use_container_width=True):
+            success, message = mark_all_notifications_as_read(current_user)
+            if success:
+                st.success(message)
+                st.rerun()
+            else:
+                st.error(message)
+
+    if not rows:
+        st.info("No notifications.")
+        return
+
+    for row in rows:
+        title = row.get("title", "-")
+        message = row.get("message", "-")
+        created_at = row.get("created_at", "-")
+        is_read = bool(row.get("is_read", False))
+
+        badge = "✅" if is_read else "🟠"
+
+        with st.expander(f"{badge} {title} | {created_at}", expanded=False):
+            st.write(message)
+
+            if not is_read:
+                if st.button("Mark as Read", key=f"crm_notif_read_{row['id']}", use_container_width=True):
+                    success, msg = mark_notification_as_read(row["id"])
+                    if success:
+                        st.success(msg)
+                        st.rerun()
+                    else:
+                        st.error(msg)
+
+
+# =====================================================
+# Main CRM UI
+# =====================================================
+def render_crm_module() -> None:
+    db = load_db()
+    ensure_crm_defaults(db)
+
+    current_user = get_current_username() or ""
+    current_role = get_current_role() or ""
+
+    st.title("📇 CRM & Internal Communication")
+    st.caption("إدارة احترافية للمهام الداخلية، الرسائل، والإشعارات.")
+
+    if not current_user:
+        st.warning("Please login first.")
+        return
+
+    tabs = st.tabs(
+        [
+            "Dashboard",
+            "Create Task",
+            "My Tasks",
+            "Team Tasks",
+            "Messages",
+            "Notifications",
+        ]
+    )
+
+    with tabs[0]:
+        _render_dashboard_tab(db, current_user)
+
+    with tabs[1]:
+        _render_create_task_tab(db, current_user)
+
+    with tabs[2]:
+        _render_my_tasks_tab(db, current_user)
+
+    with tabs[3]:
+        _render_team_tasks_tab(db, current_user, current_role)
+
+    with tabs[4]:
+        _render_messages_tab(db, current_user)
+
+    with tabs[5]:
+        _render_notifications_tab(db, current_user)
