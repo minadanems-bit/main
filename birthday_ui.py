@@ -19,16 +19,66 @@ def render_birthday_banner(full_name: str):
     st.markdown(
         f"""
         <div style="
-        padding:25px;
-        border-radius:15px;
-        text-align:center;
-        background: linear-gradient(90deg,#ff9a9e,#fad0c4);
-        color:#000;
-        font-size:22px;
-        font-weight:bold;
+            padding: 28px;
+            border-radius: 18px;
+            text-align: center;
+            background: linear-gradient(90deg, #ff9a9e, #fad0c4, #fad0c4);
+            color: #222;
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 18px;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.10);
+            border: 1px solid rgba(255,255,255,0.6);
         ">
-        🎉 Happy Birthday {full_name}! 🎂  
-        Wishing you a beautiful day full of happiness and success.
+            🎉 Happy Birthday {full_name}! 🎂<br>
+            <span style="font-size:16px; font-weight:500;">
+                Wishing you a beautiful day full of happiness, success, and unforgettable moments.
+            </span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_birthday_person_card(full_name: str, username: str):
+    st.markdown(
+        f"""
+        <div style="
+            padding: 16px;
+            border-radius: 14px;
+            background: #fff8fb;
+            border: 1px solid #f3d7df;
+            margin-bottom: 12px;
+        ">
+            <div style="font-size: 20px; font-weight: 700; color: #222;">
+                🎂 {full_name}
+            </div>
+            <div style="font-size: 13px; color: #666; margin-top: 4px;">
+                @{username}
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_message_card(sender_username: str, message_text: str):
+    st.markdown(
+        f"""
+        <div style="
+            border: 1px solid #e8e8e8;
+            padding: 12px;
+            border-radius: 12px;
+            margin-bottom: 10px;
+            background: #ffffff;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        ">
+            <div style="font-weight: 700; color: #333; margin-bottom: 6px;">
+                💌 {sender_username}
+            </div>
+            <div style="color: #444; line-height: 1.7;">
+                {message_text}
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -49,16 +99,24 @@ def birthday_ui():
 
     st.subheader("🎉 Today's Birthdays")
 
+    # لو المستخدم الحالي نفسه عيد ميلاده النهارده
+    if current_user and is_username_birthday_today(db, current_user):
+        current_user_record = db.get("users", {}).get(current_user, {})
+        current_full_name = current_user_record.get("full_name") or current_user
+        render_birthday_banner(current_full_name)
+        st.balloons()
+        st.success("🎊 Today is your special day! Enjoy every moment.")
+
     for user in birthday_users:
-        username = user["username"]
-        full_name = user["full_name"]
+        username = user.get("username", "")
+        full_name = user.get("full_name", username or "Unknown")
 
         with st.container():
+            render_birthday_person_card(full_name, username)
 
-            if is_username_birthday_today(db, username):
-                render_birthday_banner(full_name)
-
-            st.write(f"**{full_name}**")
+            # لو الشخص ده صاحب عيد الميلاد الحالي
+            if current_user != username and is_username_birthday_today(db, username):
+                st.info(f"🎉 Celebrate {full_name} today and send them a beautiful wish!")
 
             # ==========================================
             # Messages
@@ -69,18 +127,9 @@ def birthday_ui():
 
             if messages:
                 for msg in messages:
-                    st.markdown(
-                        f"""
-                        <div style="
-                        border:1px solid #ddd;
-                        padding:10px;
-                        border-radius:8px;
-                        margin-bottom:8px;">
-                        <b>{msg["sender_username"]}</b>  
-                        {msg["message_text"]}
-                        </div>
-                        """,
-                        unsafe_allow_html=True,
+                    render_message_card(
+                        msg.get("sender_username", "Unknown"),
+                        msg.get("message_text", ""),
                     )
             else:
                 st.info("No birthday wishes yet.")
@@ -88,13 +137,14 @@ def birthday_ui():
             # ==========================================
             # Send message
             # ==========================================
-            if current_user != username:
-
+            if current_user and current_user != username:
                 st.markdown("#### ✉ Send Birthday Wish")
 
                 message = st.text_area(
                     "Write your message",
                     key=f"birthday_msg_{username}",
+                    placeholder=f"Write a lovely birthday wish for {full_name}...",
+                    height=110,
                 )
 
                 if st.button(
@@ -113,5 +163,22 @@ def birthday_ui():
                         st.rerun()
                     else:
                         st.error(msg)
+
+            elif current_user == username:
+                st.markdown(
+                    """
+                    <div style="
+                        padding:12px;
+                        border-radius:10px;
+                        background:#fff4cc;
+                        color:#5c4400;
+                        font-weight:600;
+                        margin-top:10px;
+                    ">
+                        🥳 This is your birthday card today. Enjoy your day!
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
 
             st.divider()
