@@ -1,12 +1,59 @@
 # =====================================================
 # REPORT SERVICE
-# Builds strict role-based report data and WhatsApp text
+# Builds strict + dynamic role-based report data and WhatsApp text
 # =====================================================
 
 from datetime import date
 
 from auth_service import get_current_username
 from role_service import get_normalized_current_role, get_report_type
+
+
+# =====================================================
+# Static fallbacks
+# =====================================================
+STATIC_ROLE_TASK_ACCESS = {
+    "admin": ["opening", "closing", "interaction", "social", "cleaning", "design"],
+    "manager": ["opening", "closing", "interaction", "social"],
+    "accounts": ["opening", "closing"],
+    "employee": ["opening", "closing", "interaction", "social"],
+    "hr": ["interaction"],
+    "cleaner": ["cleaning"],
+    "graphic_designer": ["design", "social"],
+    "moderator": ["interaction", "social"],
+}
+
+STATIC_ROLE_REPORT_TYPES = {
+    "admin": "full",
+    "manager": "full",
+    "accounts": "financial",
+    "employee": "customer_service",
+    "hr": "hr",
+    "cleaner": "cleaning",
+    "graphic_designer": "design",
+    "moderator": "operations",
+}
+
+STATIC_TASK_CATEGORY_LABELS = {
+    "opening": "OPENING TASKS",
+    "closing": "CLOSING TASKS",
+    "interaction": "INTERACTION TASKS",
+    "social": "SOCIAL TASKS",
+    "cleaning": "CLEANING TASKS",
+    "design": "DESIGN TASKS",
+    "moderation": "MODERATION TASKS",
+}
+
+
+STATIC_TASK_KEY_PREFIXES = {
+    "opening": "open_task",
+    "closing": "close_task",
+    "interaction": "interaction_task",
+    "social": "social_task",
+    "cleaning": "cleaning_task",
+    "design": "design_task",
+    "moderation": "moderation_task",
+}
 
 
 # =====================================================
@@ -24,36 +71,109 @@ def safe_text(value, default="-") -> str:
     return text if text else default
 
 
+def normalize_name(value: str | None) -> str:
+    return str(value or "").strip().lower()
+
+
+def prettify_label(value: str) -> str:
+    cleaned = str(value or "").strip().replace("_", " ")
+    return cleaned.title() if cleaned else "-"
+
+
 def join_non_empty_sections(sections: list[str]) -> str:
     cleaned = [section.strip() for section in sections if str(section).strip()]
     return "\n\n".join(cleaned)
 
 
 # =====================================================
-# Role-based task visibility helpers
+# Dynamic configuration helpers
 # =====================================================
-def can_include_opening_tasks_for_role(role_value: str) -> bool:
-    return role_value in ["admin", "manager", "accounts", "employee"]
+def get_role_task_access_map(db: dict) -> dict:
+    dynamic_map = db.get("role_task_access", {})
+    if isinstance(dynamic_map, dict) and dynamic_map:
+        normalized_map = {}
+        for role_name, categories in dynamic_map.items():
+            normalized_role = normalize_name(role_name)
+            normalized_categories = [
+                normalize_name(category)
+                for category in (categories or [])
+                if normalize_name(category)
+            ]
+            normalized_map[normalized_role] = normalized_categories
+        return normalized_map
+
+    return STATIC_ROLE_TASK_ACCESS
 
 
-def can_include_closing_tasks_for_role(role_value: str) -> bool:
-    return role_value in ["admin", "manager", "accounts", "employee"]
+def get_role_report_type_map(db: dict) -> dict:
+    dynamic_map = db.get("role_report_types", {})
+    if isinstance(dynamic_map, dict) and dynamic_map:
+        normalized_map = {}
+        for role_name, report_type in dynamic_map.items():
+            normalized_map[normalize_name(role_name)] = normalize_name(report_type)
+        return normalized_map
+
+    return STATIC_ROLE_REPORT_TYPES
 
 
-def can_include_interaction_tasks_for_role(role_value: str) -> bool:
-    return role_value in ["admin", "manager", "hr", "employee"]
+def get_task_category_labels_map(db: dict) -> dict:
+    dynamic_map = db.get("task_category_labels", {})
+    if isinstance(dynamic_map, dict) and dynamic_map:
+        normalized_map = {}
+        for category_name, label in dynamic_map.items():
+            normalized_map[normalize_name(category_name)] = str(label).strip() or prettify_label(category_name)
+        return {**STATIC_TASK_CATEGORY_LABELS, **normalized_map}
+
+    return STATIC_TASK_CATEGORY_LABELS
 
 
-def can_include_social_tasks_for_role(role_value: str) -> bool:
-    return role_value in ["admin", "manager", "graphic_designer", "employee"]
+def get_task_key_prefix(category_name: str) -> str:
+    normalized_category = normalize_name(category_name)
+    if normalized_category in STATIC_TASK_KEY_PREFIXES:
+        return STATIC_TASK_KEY_PREFIXES[normalized_category]
+    return f"{normalized_category}_task"
 
 
-def can_include_cleaning_tasks_for_role(role_value: str) -> bool:
-    return role_value in ["admin", "cleaner"]
+def get_available_task_categories(db: dict) -> list[str]:
+    tasks_map = db.get("tasks", {})
+    if isinstance(tasks_map, dict) and tasks_map:
+        categories = []
+        seen = set()
+
+        for category_name in tasks_map.keys():
+            normalized_category = normalize_name(category_name)
+            if normalized_category and normalized_category not in seen:
+                seen.add(normalized_category)
+                categories.append(normalized_category)
+
+        return categories
+
+    return list(STATIC_TASK_CATEGORY_LABELS.keys())
 
 
-def can_include_design_tasks_for_role(role_value: str) -> bool:
-    return role_value in ["admin", "graphic_designer"]
+def get_allowed_task_categories_for_role(db: dict, role_value: str) -> list[str]:
+    normalized_role = normalize_name(role_value)
+    access_map = get_role_task_access_map(db)
+
+    allowed = access_map.get(normalized_role)
+    if isinstance(allowed, list) and allowed:
+        return [normalize_name(item) for item in allowed if normalize_name(item)]
+
+    return access_map.get("employee", ["interaction", "social"])
+
+
+def get_effective_report_type(db: dict, role_value: str) -> str:
+    normalized_role = normalize_name(role_value)
+
+    dynamic_map = get_role_report_type_map(db)
+    if normalized_role in dynamic_map:
+        return dynamic_map[normalized_role]
+
+    fallback = normalize_name(get_report_type())
+    if fallback:
+        return fallback
+
+    return "operations"
 
 
 # =====================================================
@@ -96,6 +216,31 @@ def build_task_lines(title: str, completed: list, pending: list) -> str:
         lines.append("Pending Tasks: None")
 
     return "\n".join(lines)
+
+
+def build_dynamic_task_sections(db: dict, current_role: str, session_state) -> list[dict]:
+    tasks_map = db.get("tasks", {}) if isinstance(db.get("tasks", {}), dict) else {}
+    labels_map = get_task_category_labels_map(db)
+    allowed_categories = get_allowed_task_categories_for_role(db, current_role)
+
+    sections = []
+
+    for category_name in allowed_categories:
+        normalized_category = normalize_name(category_name)
+        task_list = tasks_map.get(normalized_category, [])
+        key_prefix = get_task_key_prefix(normalized_category)
+        status = extract_task_status(task_list, key_prefix, session_state)
+
+        sections.append(
+            {
+                "category": normalized_category,
+                "title": labels_map.get(normalized_category, f"{prettify_label(normalized_category).upper()} TASKS"),
+                "completed": status["completed"],
+                "pending": status["pending"],
+            }
+        )
+
+    return sections
 
 
 # =====================================================
@@ -216,43 +361,17 @@ def build_base_report_data(db: dict, session_state) -> dict:
     closing_cash_breakdown = session_state.get("closing_cash_breakdown", {})
     printer_diff = session_state.get("printer_diff", {})
 
-    opening_tasks = (
-        db.get("tasks", {}).get("opening", [])
-        if can_include_opening_tasks_for_role(current_role)
-        else []
-    )
-    closing_tasks = (
-        db.get("tasks", {}).get("closing", [])
-        if can_include_closing_tasks_for_role(current_role)
-        else []
-    )
-    interaction_tasks = (
-        db.get("tasks", {}).get("interaction", [])
-        if can_include_interaction_tasks_for_role(current_role)
-        else []
-    )
-    social_tasks = (
-        db.get("tasks", {}).get("social", [])
-        if can_include_social_tasks_for_role(current_role)
-        else []
-    )
-    cleaning_tasks = (
-        db.get("tasks", {}).get("cleaning", [])
-        if can_include_cleaning_tasks_for_role(current_role)
-        else []
-    )
-    design_tasks = (
-        db.get("tasks", {}).get("design", [])
-        if can_include_design_tasks_for_role(current_role)
-        else []
-    )
+    task_sections = build_dynamic_task_sections(db, current_role, session_state)
 
-    opening_status = extract_task_status(opening_tasks, "open_task", session_state)
-    closing_status = extract_task_status(closing_tasks, "close_task", session_state)
-    interaction_status = extract_task_status(interaction_tasks, "interaction_task", session_state)
-    social_status = extract_task_status(social_tasks, "social_task", session_state)
-    cleaning_status = extract_task_status(cleaning_tasks, "cleaning_task", session_state)
-    design_status = extract_task_status(design_tasks, "design_task", session_state)
+    task_section_map = {section["category"]: section for section in task_sections}
+
+    opening_status = task_section_map.get("opening", {"completed": [], "pending": []})
+    closing_status = task_section_map.get("closing", {"completed": [], "pending": []})
+    interaction_status = task_section_map.get("interaction", {"completed": [], "pending": []})
+    social_status = task_section_map.get("social", {"completed": [], "pending": []})
+    cleaning_status = task_section_map.get("cleaning", {"completed": [], "pending": []})
+    design_status = task_section_map.get("design", {"completed": [], "pending": []})
+    moderation_status = task_section_map.get("moderation", {"completed": [], "pending": []})
 
     return {
         "date": str(date.today()),
@@ -262,7 +381,7 @@ def build_base_report_data(db: dict, session_state) -> dict:
         "staff_username": user_data["username"],
         "role": current_role,
         "job_title": user_data["job_title"],
-        "report_type": get_report_type(),
+        "report_type": get_effective_report_type(db, current_role),
         "sales": safe_float(session_state.get("c_sys_sales", 0)),
         "expenses_list": expenses_list,
         "total_expenses": total_expenses,
@@ -297,6 +416,9 @@ def build_base_report_data(db: dict, session_state) -> dict:
         "social_notes": safe_text(session_state.get("social_notes", ""), "No Social Notes"),
         "interaction_notes": safe_text(session_state.get("interaction_notes", ""), "No Interaction Notes"),
         "special_notes": safe_text(session_state.get("special_notes", ""), "No Special Notes"),
+        "task_sections": task_sections,
+
+        # Backward compatibility for PDF / old modules
         "opening_tasks_completed": opening_status["completed"],
         "opening_tasks_pending": opening_status["pending"],
         "closing_tasks_completed": closing_status["completed"],
@@ -309,6 +431,8 @@ def build_base_report_data(db: dict, session_state) -> dict:
         "cleaning_tasks_pending": cleaning_status["pending"],
         "design_tasks_completed": design_status["completed"],
         "design_tasks_pending": design_status["pending"],
+        "moderation_tasks_completed": moderation_status["completed"],
+        "moderation_tasks_pending": moderation_status["pending"],
     }
 
 
@@ -316,19 +440,13 @@ def build_base_report_data(db: dict, session_state) -> dict:
 # Pending tasks warning
 # =====================================================
 def get_all_pending_tasks(report: dict) -> list[str]:
-    pending_sections = [
-        ("Opening", report.get("opening_tasks_pending", [])),
-        ("Closing", report.get("closing_tasks_pending", [])),
-        ("Interaction", report.get("interaction_tasks_pending", [])),
-        ("Social", report.get("social_tasks_pending", [])),
-        ("Cleaning", report.get("cleaning_tasks_pending", [])),
-        ("Design", report.get("design_tasks_pending", [])),
-    ]
-
+    task_sections = report.get("task_sections", [])
     pending_items = []
-    for section_name, tasks in pending_sections:
-        for task in tasks or []:
-            pending_items.append(f"{section_name}: {task}")
+
+    for section in task_sections:
+        section_title = section.get("title", prettify_label(section.get("category", "Tasks")))
+        for task in section.get("pending", []) or []:
+            pending_items.append(f"{section_title}: {task}")
 
     return pending_items
 
@@ -358,7 +476,9 @@ def build_pending_tasks_warning(report: dict) -> str:
 # Visible Sections
 # =====================================================
 def get_visible_sections(report_type: str) -> list[str]:
-    if report_type == "financial":
+    normalized_type = normalize_name(report_type)
+
+    if normalized_type == "financial":
         return [
             "identity",
             "summary",
@@ -370,16 +490,16 @@ def get_visible_sections(report_type: str) -> list[str]:
             "printers",
         ]
 
-    if report_type == "hr":
+    if normalized_type == "hr":
         return ["identity", "interaction_notes", "special_notes", "tasks"]
 
-    if report_type == "cleaning":
+    if normalized_type == "cleaning":
         return ["identity", "special_notes", "tasks"]
 
-    if report_type == "design":
+    if normalized_type == "design":
         return ["identity", "social_notes", "special_notes", "tasks"]
 
-    if report_type == "customer_service":
+    if normalized_type == "customer_service":
         return [
             "identity",
             "summary",
@@ -394,7 +514,22 @@ def get_visible_sections(report_type: str) -> list[str]:
             "printers",
         ]
 
-    if report_type == "full":
+    if normalized_type == "full":
+        return [
+            "identity",
+            "summary",
+            "cash_breakdown",
+            "digital",
+            "customer_debts",
+            "expenses",
+            "tasks",
+            "interaction_notes",
+            "social_notes",
+            "special_notes",
+            "printers",
+        ]
+
+    if normalized_type == "operations":
         return [
             "identity",
             "summary",
@@ -530,57 +665,18 @@ def build_expenses_section(report: dict) -> str:
 def build_tasks_section(report: dict) -> str:
     sections = []
 
-    if report.get("opening_tasks_completed") or report.get("opening_tasks_pending"):
-        sections.append(
-            build_task_lines(
-                "OPENING TASKS",
-                report.get("opening_tasks_completed", []),
-                report.get("opening_tasks_pending", []),
-            )
-        )
+    for section in report.get("task_sections", []):
+        completed = section.get("completed", [])
+        pending = section.get("pending", [])
 
-    if report.get("closing_tasks_completed") or report.get("closing_tasks_pending"):
-        sections.append(
-            build_task_lines(
-                "CLOSING TASKS",
-                report.get("closing_tasks_completed", []),
-                report.get("closing_tasks_pending", []),
-            )
-        )
+        if not completed and not pending:
+            continue
 
-    if report.get("interaction_tasks_completed") or report.get("interaction_tasks_pending"):
         sections.append(
             build_task_lines(
-                "INTERACTION TASKS",
-                report.get("interaction_tasks_completed", []),
-                report.get("interaction_tasks_pending", []),
-            )
-        )
-
-    if report.get("social_tasks_completed") or report.get("social_tasks_pending"):
-        sections.append(
-            build_task_lines(
-                "SOCIAL TASKS",
-                report.get("social_tasks_completed", []),
-                report.get("social_tasks_pending", []),
-            )
-        )
-
-    if report.get("cleaning_tasks_completed") or report.get("cleaning_tasks_pending"):
-        sections.append(
-            build_task_lines(
-                "CLEANING TASKS",
-                report.get("cleaning_tasks_completed", []),
-                report.get("cleaning_tasks_pending", []),
-            )
-        )
-
-    if report.get("design_tasks_completed") or report.get("design_tasks_pending"):
-        sections.append(
-            build_task_lines(
-                "DESIGN TASKS",
-                report.get("design_tasks_completed", []),
-                report.get("design_tasks_pending", []),
+                section.get("title", "TASKS"),
+                completed,
+                pending,
             )
         )
 
@@ -609,7 +705,7 @@ def build_social_notes_section(report: dict) -> str:
 
 
 def build_special_notes_section(report: dict) -> str:
-    report_type = report.get("report_type", "")
+    report_type = normalize_name(report.get("report_type", ""))
 
     if report_type == "hr":
         title = "HR NOTES"
