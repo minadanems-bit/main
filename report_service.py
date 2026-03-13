@@ -13,14 +13,14 @@ from role_service import get_normalized_current_role, get_report_type
 # Static fallbacks
 # =====================================================
 STATIC_ROLE_TASK_ACCESS = {
-    "admin": ["opening", "closing", "interaction", "social", "cleaning", "design"],
-    "manager": ["opening", "closing", "interaction", "social"],
+    "admin": ["opening", "closing", "interaction", "social", "cleaning", "design", "moderation"],
+    "manager": ["opening", "closing", "interaction", "social", "moderation"],
     "accounts": ["opening", "closing"],
     "employee": ["opening", "closing", "interaction", "social"],
-    "hr": ["interaction"],
+    "hr": [],
     "cleaner": ["cleaning"],
-    "graphic_designer": ["design", "social"],
-    "moderator": ["interaction", "social"],
+    "graphic_designer": ["design", "social", "interaction"],
+    "moderator": ["moderation", "interaction", "social"],
 }
 
 STATIC_ROLE_REPORT_TYPES = {
@@ -31,7 +31,7 @@ STATIC_ROLE_REPORT_TYPES = {
     "hr": "hr",
     "cleaner": "cleaning",
     "graphic_designer": "design",
-    "moderator": "operations",
+    "moderator": "moderation",
 }
 
 STATIC_TASK_CATEGORY_LABELS = {
@@ -44,7 +44,6 @@ STATIC_TASK_CATEGORY_LABELS = {
     "moderation": "MODERATION TASKS",
 }
 
-
 STATIC_TASK_KEY_PREFIXES = {
     "opening": "open_task",
     "closing": "close_task",
@@ -54,6 +53,8 @@ STATIC_TASK_KEY_PREFIXES = {
     "design": "design_task",
     "moderation": "moderation_task",
 }
+
+NON_TASK_ROLE_ITEMS = {"report", "crm"}
 
 
 # =====================================================
@@ -92,14 +93,18 @@ def get_role_task_access_map(db: dict) -> dict:
     dynamic_map = db.get("role_task_access", {})
     if isinstance(dynamic_map, dict) and dynamic_map:
         normalized_map = {}
+
         for role_name, categories in dynamic_map.items():
             normalized_role = normalize_name(role_name)
-            normalized_categories = [
-                normalize_name(category)
-                for category in (categories or [])
-                if normalize_name(category)
-            ]
+            normalized_categories = []
+
+            for category in categories or []:
+                normalized_category = normalize_name(category)
+                if normalized_category:
+                    normalized_categories.append(normalized_category)
+
             normalized_map[normalized_role] = normalized_categories
+
         return normalized_map
 
     return STATIC_ROLE_TASK_ACCESS
@@ -109,8 +114,10 @@ def get_role_report_type_map(db: dict) -> dict:
     dynamic_map = db.get("role_report_types", {})
     if isinstance(dynamic_map, dict) and dynamic_map:
         normalized_map = {}
+
         for role_name, report_type in dynamic_map.items():
             normalized_map[normalize_name(role_name)] = normalize_name(report_type)
+
         return normalized_map
 
     return STATIC_ROLE_REPORT_TYPES
@@ -120,8 +127,11 @@ def get_task_category_labels_map(db: dict) -> dict:
     dynamic_map = db.get("task_category_labels", {})
     if isinstance(dynamic_map, dict) and dynamic_map:
         normalized_map = {}
+
         for category_name, label in dynamic_map.items():
-            normalized_map[normalize_name(category_name)] = str(label).strip() or prettify_label(category_name)
+            normalized_category = normalize_name(category_name)
+            normalized_map[normalized_category] = str(label).strip() or prettify_label(category_name)
+
         return {**STATIC_TASK_CATEGORY_LABELS, **normalized_map}
 
     return STATIC_TASK_CATEGORY_LABELS
@@ -129,37 +139,84 @@ def get_task_category_labels_map(db: dict) -> dict:
 
 def get_task_key_prefix(category_name: str) -> str:
     normalized_category = normalize_name(category_name)
+
     if normalized_category in STATIC_TASK_KEY_PREFIXES:
         return STATIC_TASK_KEY_PREFIXES[normalized_category]
+
     return f"{normalized_category}_task"
 
 
 def get_available_task_categories(db: dict) -> list[str]:
     tasks_map = db.get("tasks", {})
-    if isinstance(tasks_map, dict) and tasks_map:
-        categories = []
-        seen = set()
+    categories = []
+    seen = set()
 
+    if isinstance(tasks_map, dict) and tasks_map:
         for category_name in tasks_map.keys():
             normalized_category = normalize_name(category_name)
-            if normalized_category and normalized_category not in seen:
-                seen.add(normalized_category)
-                categories.append(normalized_category)
+            if not normalized_category:
+                continue
+            if normalized_category in NON_TASK_ROLE_ITEMS:
+                continue
+            if normalized_category in seen:
+                continue
 
+            seen.add(normalized_category)
+            categories.append(normalized_category)
+
+    if categories:
         return categories
 
-    return list(STATIC_TASK_CATEGORY_LABELS.keys())
+    return [key for key in STATIC_TASK_CATEGORY_LABELS.keys() if key not in NON_TASK_ROLE_ITEMS]
 
 
 def get_allowed_task_categories_for_role(db: dict, role_value: str) -> list[str]:
     normalized_role = normalize_name(role_value)
     access_map = get_role_task_access_map(db)
+    available_categories = set(get_available_task_categories(db))
 
     allowed = access_map.get(normalized_role)
     if isinstance(allowed, list) and allowed:
-        return [normalize_name(item) for item in allowed if normalize_name(item)]
+        cleaned = []
+        seen = set()
 
-    return access_map.get("employee", ["interaction", "social"])
+        for item in allowed:
+            normalized_item = normalize_name(item)
+
+            if not normalized_item:
+                continue
+            if normalized_item in NON_TASK_ROLE_ITEMS:
+                continue
+            if normalized_item not in available_categories:
+                continue
+            if normalized_item in seen:
+                continue
+
+            seen.add(normalized_item)
+            cleaned.append(normalized_item)
+
+        return cleaned
+
+    fallback = access_map.get("employee", ["interaction", "social"])
+    cleaned_fallback = []
+    seen_fallback = set()
+
+    for item in fallback:
+        normalized_item = normalize_name(item)
+
+        if not normalized_item:
+            continue
+        if normalized_item in NON_TASK_ROLE_ITEMS:
+            continue
+        if normalized_item not in available_categories:
+            continue
+        if normalized_item in seen_fallback:
+            continue
+
+        seen_fallback.add(normalized_item)
+        cleaned_fallback.append(normalized_item)
+
+    return cleaned_fallback
 
 
 def get_effective_report_type(db: dict, role_value: str) -> str:
@@ -227,14 +284,18 @@ def build_dynamic_task_sections(db: dict, current_role: str, session_state) -> l
 
     for category_name in allowed_categories:
         normalized_category = normalize_name(category_name)
-        task_list = tasks_map.get(normalized_category, [])
+        raw_task_list = tasks_map.get(normalized_category, [])
+        task_list = raw_task_list if isinstance(raw_task_list, list) else []
         key_prefix = get_task_key_prefix(normalized_category)
         status = extract_task_status(task_list, key_prefix, session_state)
 
         sections.append(
             {
                 "category": normalized_category,
-                "title": labels_map.get(normalized_category, f"{prettify_label(normalized_category).upper()} TASKS"),
+                "title": labels_map.get(
+                    normalized_category,
+                    f"{prettify_label(normalized_category).upper()} TASKS",
+                ),
                 "completed": status["completed"],
                 "pending": status["pending"],
             }
@@ -362,7 +423,6 @@ def build_base_report_data(db: dict, session_state) -> dict:
     printer_diff = session_state.get("printer_diff", {})
 
     task_sections = build_dynamic_task_sections(db, current_role, session_state)
-
     task_section_map = {section["category"]: section for section in task_sections}
 
     opening_status = task_section_map.get("opening", {"completed": [], "pending": []})
@@ -491,13 +551,35 @@ def get_visible_sections(report_type: str) -> list[str]:
         ]
 
     if normalized_type == "hr":
-        return ["identity", "interaction_notes", "special_notes", "tasks"]
+        return [
+            "identity",
+            "tasks",
+            "special_notes",
+        ]
 
     if normalized_type == "cleaning":
-        return ["identity", "special_notes", "tasks"]
+        return [
+            "identity",
+            "tasks",
+            "special_notes",
+        ]
 
     if normalized_type == "design":
-        return ["identity", "social_notes", "special_notes", "tasks"]
+        return [
+            "identity",
+            "tasks",
+            "social_notes",
+            "special_notes",
+        ]
+
+    if normalized_type == "moderation":
+        return [
+            "identity",
+            "tasks",
+            "interaction_notes",
+            "social_notes",
+            "special_notes",
+        ]
 
     if normalized_type == "customer_service":
         return [
@@ -713,6 +795,8 @@ def build_special_notes_section(report: dict) -> str:
         title = "CLEANING NOTES"
     elif report_type == "design":
         title = "DESIGN NOTES"
+    elif report_type == "moderation":
+        title = "MODERATION NOTES"
     else:
         title = "SPECIAL NOTES"
 
