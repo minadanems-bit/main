@@ -53,14 +53,20 @@ def _has_section(visible_sections: list | None, section_name: str) -> bool:
     return section_name in visible_sections
 
 
+def _normalize_report_type(report_type: str) -> str:
+    return str(report_type or "").strip().lower()
+
+
 def _get_special_notes_title(report_type: str) -> str:
-    if report_type == "hr":
+    normalized = _normalize_report_type(report_type)
+
+    if normalized == "hr":
         return "HR Notes"
-    if report_type == "cleaning":
+    if normalized == "cleaning":
         return "Cleaning Notes"
-    if report_type == "design":
+    if normalized == "design":
         return "Design Notes"
-    if report_type == "moderator":
+    if normalized in ["moderator", "moderation"]:
         return "Moderation Notes"
     return "Special Notes"
 
