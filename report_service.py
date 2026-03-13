@@ -33,11 +33,11 @@ def join_non_empty_sections(sections: list[str]) -> str:
 # Role-based task visibility helpers
 # =====================================================
 def can_include_opening_tasks_for_role(role_value: str) -> bool:
-    return role_value in ["admin", "manager", "accounts"]
+    return role_value in ["admin", "manager", "accounts", "employee"]
 
 
 def can_include_closing_tasks_for_role(role_value: str) -> bool:
-    return role_value in ["admin", "manager", "accounts"]
+    return role_value in ["admin", "manager", "accounts", "employee"]
 
 
 def can_include_interaction_tasks_for_role(role_value: str) -> bool:
