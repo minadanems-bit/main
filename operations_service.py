@@ -38,6 +38,7 @@ from constants import (
     TASK_CLOSING,
     TASK_DESIGN,
     TASK_INTERACTION,
+    TASK_MODERATION,
     TASK_OPENING,
     TASK_SOCIAL,
 )
@@ -89,6 +90,7 @@ def ensure_session_defaults() -> None:
         "social_notes": "",
         "interaction_notes": "",
         "special_notes": "",
+        "moderation_notes": "",
         "insta_amount": 0.0,
         "wallet_amount": 0.0,
         "visa_amount": 0.0,
@@ -711,6 +713,17 @@ def render_design_section(db: dict) -> None:
     )
 
 
+def render_moderation_section(db: dict) -> None:
+    st.subheader("🛡️ Moderation Tasks")
+    render_task_checklist(db.get("tasks", {}).get(TASK_MODERATION, []), "moderation_task")
+
+    render_notes_area(
+        "Moderation Notes",
+        "special_notes",
+        "Write moderation actions, escalations, flagged cases, abuse/spam handling...",
+    )
+
+
 def render_role_specific_section(db: dict) -> None:
     role_value = get_normalized_current_role()
 
@@ -718,6 +731,8 @@ def render_role_specific_section(db: dict) -> None:
         render_cleaning_section(db)
     elif role_value == "graphic_designer":
         render_design_section(db)
+    elif role_value == "moderator":
+        render_moderation_section(db)
     else:
         st.subheader("📝 Special Notes")
         render_notes_area(
@@ -875,7 +890,7 @@ def daily_operations_ui(db: dict) -> None:
         tabs.append("📱 SOCIAL")
         renderers.append(lambda: render_social_section(db))
 
-    if "cleaning" in allowed_tabs or "design" in allowed_tabs:
+    if "cleaning" in allowed_tabs or "design" in allowed_tabs or "moderation" in allowed_tabs:
         tabs.append("🧩 ROLE TASKS")
         renderers.append(lambda: render_role_specific_section(db))
 
