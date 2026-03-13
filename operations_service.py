@@ -814,6 +814,8 @@ def render_report_tab(db: dict) -> None:
                 cleaning_tasks_pending=report.get("cleaning_tasks_pending", []),
                 design_tasks_completed=report.get("design_tasks_completed", []),
                 design_tasks_pending=report.get("design_tasks_pending", []),
+                moderation_tasks_completed=report.get("moderation_tasks_completed", []),
+                moderation_tasks_pending=report.get("moderation_tasks_pending", []),
             )
 
             st.download_button(
