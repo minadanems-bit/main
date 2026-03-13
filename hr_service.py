@@ -22,7 +22,6 @@ from constants import (
     ROLE_ADMIN,
     ROLE_LABELS,
     ROLE_MANAGER,
-    ROLE_OPTIONS,
     ROLE_USER,
     SESSION_ACTIVE_DB,
 )
@@ -30,10 +29,61 @@ from database import create_user, save_db
 
 
 # =====================================================
+# Dynamic Role Helpers
+# =====================================================
+def _normalize_role_value(role_value: str | None) -> str:
+    return str(role_value or "").strip().lower()
+
+
+def get_dynamic_role_options(db: dict) -> list[str]:
+    users = db.get("users", {}) or {}
+
+    role_candidates = set()
+
+    try:
+        from constants import ROLE_OPTIONS
+        role_candidates.update(ROLE_OPTIONS)
+    except Exception:
+        pass
+
+    try:
+        from constants import ROLE_LABELS as _ROLE_LABELS
+        role_candidates.update(_ROLE_LABELS.keys())
+    except Exception:
+        pass
+
+    try:
+        from constants import ROLE_TASK_ACCESS
+        role_candidates.update(ROLE_TASK_ACCESS.keys())
+    except Exception:
+        pass
+
+    for _, user_data in users.items():
+        role_value = _normalize_role_value(user_data.get("role"))
+        if role_value:
+            role_candidates.add(role_value)
+
+    role_candidates.add(ROLE_ADMIN)
+    role_candidates.add(ROLE_MANAGER)
+    role_candidates.add(ROLE_USER)
+
+    return sorted(role_candidates)
+
+
+def format_role_label(role_value: str) -> str:
+    role_value = _normalize_role_value(role_value)
+
+    if role_value in ROLE_LABELS:
+        return ROLE_LABELS[role_value]
+
+    return role_value.replace("_", " ").title() if role_value else "Unknown"
+
+
+# =====================================================
 # Helpers
 # =====================================================
 def is_admin_or_manager() -> bool:
-    current_role = str(get_current_role() or "").strip().lower()
+    current_role = _normalize_role_value(get_current_role())
     return current_role in [ROLE_ADMIN, ROLE_MANAGER]
 
 
@@ -64,6 +114,7 @@ def can_delete_employee() -> bool:
 
 def can_edit_role() -> bool:
     return is_admin_or_manager()
+
 
 def can_manage_attendance_controls() -> bool:
     return is_admin_or_manager()
@@ -135,7 +186,7 @@ def ensure_user_defaults(user: dict) -> None:
 
     if not user.get("job_title"):
         role_value = user.get("role", ROLE_USER)
-        user["job_title"] = role_value.replace("_", " ").title()
+        user["job_title"] = format_role_label(role_value)
 
     if not user.get("employee_code"):
         national_id = str(user.get("national_id", "") or "").strip()
@@ -173,7 +224,7 @@ def get_safe_birth_date(user: dict):
 
 
 def get_role_display(role_value: str) -> str:
-    return ROLE_LABELS.get(role_value, role_value.replace("_", " ").title())
+    return format_role_label(role_value)
 
 
 def get_payout_method_display(method_value: str) -> str:
@@ -296,13 +347,15 @@ def render_create_employee_section(db: dict) -> None:
 
     st.markdown("## ➕ Create New Employee")
 
+    role_options = get_dynamic_role_options(db)
+
     with st.expander("Add New Employee", expanded=False):
         new_username = st.text_input("Username", key="create_username")
         new_password = st.text_input("Password", type="password", key="create_password")
         new_full_name = st.text_input("Full Name", key="create_full_name")
         new_role = st.selectbox(
             "Role",
-            ROLE_OPTIONS,
+            role_options,
             format_func=get_role_display,
             key="create_role",
         )
@@ -414,8 +467,13 @@ def render_personal_details(users: dict, target: str, user: dict, db: dict) -> N
     st.divider()
     st.markdown("## 📝 Personal Details")
 
+    role_options = get_dynamic_role_options(db)
     current_role = user.get("role", ROLE_USER)
-    current_role_index = ROLE_OPTIONS.index(current_role) if current_role in ROLE_OPTIONS else 0
+
+    if current_role not in role_options:
+        role_options = sorted(set(role_options + [current_role]))
+
+    current_role_index = role_options.index(current_role) if current_role in role_options else 0
 
     full_name = st.text_input("Full Name", value=user.get("full_name", ""), key=f"edit_full_name_{target}")
     password = st.text_input("Password", value=user.get("pass", ""), key=f"edit_password_{target}")
@@ -423,7 +481,7 @@ def render_personal_details(users: dict, target: str, user: dict, db: dict) -> N
     if can_edit_role():
         role_value = st.selectbox(
             "Role",
-            ROLE_OPTIONS,
+            role_options,
             index=current_role_index,
             format_func=get_role_display,
             key=f"edit_role_{target}",
@@ -643,6 +701,7 @@ def render_warning_section(users: dict, target: str, user: dict, db: dict) -> No
                 persist_db(db, "✅ Warning Added")
             else:
                 st.warning("Please write a warning note first.")
+
 
 def render_attendance_control_section(users: dict, target: str, user: dict, db: dict) -> None:
     st.divider()
