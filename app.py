@@ -16,10 +16,12 @@ from auth_service import (
 from constants import (
     ADMIN_MODULE_ARCHIVE,
     ADMIN_MODULE_BRANCHES,
+    ADMIN_MODULE_CRM,
     ADMIN_MODULE_HR,
     ADMIN_MODULE_OPTIONS,
     ADMIN_MODULE_PAYROLL,
     ADMIN_MODULE_PRINTERS,
+    ADMIN_MODULE_ROLE_MANAGEMENT,
     ADMIN_MODULE_TASKS,
     ADMIN_MODULE_TRAINING,
     HR_RECORD_KEYS,
@@ -36,6 +38,7 @@ from constants import (
 )
 from database import load_db, save_db
 from operations_service import daily_operations_ui
+from birthday_ui import birthday_ui
 from printer_service import printer_management_ui
 from role_service import (
     normalize_role,
@@ -69,6 +72,7 @@ NAV_PROFILE = "profile"
 NAV_OPERATIONS = "operations"
 NAV_ADMIN = "admin"
 NAV_BACKUP = "backup"
+NAV_BIRTHDAY = "birthday"
 
 SESSION_MAIN_VIEW = "main_view"
 
@@ -102,6 +106,7 @@ def ensure_db_defaults() -> None:
             "interaction": [],
             "cleaning": [],
             "design": [],
+            "moderation": [],
         },
         "branches": [],
         "expense_categories": [],
@@ -111,6 +116,13 @@ def ensure_db_defaults() -> None:
         "attendance_records": {},
         "late_tracking": {},
         "blocked_users": {},
+        "crm_records": [],
+        "crm_notifications": [],
+        "internal_messages": [],
+        "role_definitions": {},
+        "role_task_access": {},
+        "role_report_types": {},
+        "task_category_labels": {},
     }
 
     changed = False
@@ -447,6 +459,29 @@ def render_profile_page() -> None:
 
 
 # =========================
+# Birthday page
+# =========================
+def render_birthday_page() -> None:
+    birthday_ui()
+
+
+# =========================
+# CRM placeholder
+# =========================
+def render_crm_module() -> None:
+    st.subheader("📇 CRM & Internal Communication")
+    st.info("الصفحة جاهزة كمكان مخصص للـ CRM، والخطوة الجاية هنكمل فيها النظام الاحترافي كامل.")
+    st.write("المخطط الحالي للصفحة:")
+    st.write("- Inbox داخلي بين الموظفين والمديرين")
+    st.write("- Task transfer بين الأدوار")
+    st.write("- Notifications")
+    st.write("- Follow-up status")
+    st.write("- Customer / lead notes")
+    st.write("- Escalations")
+    st.write("- Attachments / activity log")
+
+
+# =========================
 # Admin modules
 # =========================
 def render_hr_module() -> None:
@@ -685,6 +720,14 @@ def render_printer_management_module() -> None:
     printer_management_ui(db)
 
 
+def render_role_management_module() -> None:
+    try:
+        from role_management_service import role_management_ui
+        role_management_ui()
+    except Exception as e:
+        st.error(f"Role management failed to load: {e}")
+
+
 def render_admin_panel_main() -> None:
     if not can_open_admin_panel():
         st.error("Access denied.")
@@ -715,6 +758,12 @@ def render_admin_panel_main() -> None:
         render_archive_history_module()
     elif admin_choice == ADMIN_MODULE_TRAINING:
         render_training_module()
+    elif admin_choice == ADMIN_MODULE_ROLE_MANAGEMENT:
+        render_role_management_module()
+    elif admin_choice == ADMIN_MODULE_CRM:
+        render_crm_module()
+    else:
+        st.info("This module is not configured yet.")
 
 
 # =========================
@@ -756,6 +805,14 @@ def render_sidebar() -> None:
             type="primary" if current_view == NAV_OPERATIONS else "secondary",
         ):
             set_main_view(NAV_OPERATIONS)
+            st.rerun()
+
+        if st.button(
+            "🎂 Birthdays",
+            use_container_width=True,
+            type="primary" if current_view == NAV_BIRTHDAY else "secondary",
+        ):
+            set_main_view(NAV_BIRTHDAY)
             st.rerun()
 
         if can_open_admin_panel():
@@ -822,6 +879,7 @@ def render_dashboard_page() -> None:
     quick_buttons = [
         ("👤 Open My Profile", NAV_PROFILE),
         ("📊 Open Daily Operations", NAV_OPERATIONS),
+        ("🎂 Open Birthdays", NAV_BIRTHDAY),
     ]
 
     if can_open_admin_panel():
@@ -926,6 +984,10 @@ def render_main_content() -> None:
             daily_operations_ui(db)
         else:
             render_blocked_daily_operations_view()
+        return
+
+    if current_view == NAV_BIRTHDAY:
+        render_birthday_page()
         return
 
     if current_view == NAV_ADMIN:
