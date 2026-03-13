@@ -626,3 +626,17 @@ DEFAULT_APP_DATA = {
     "crm_notifications": [],
     "internal_messages": [],
 }
+# =====================================================
+# Birthday / Celebration
+# =====================================================
+BIRTHDAY_EVENT_LABEL = "birthday"
+BIRTHDAY_DEFAULT_BANNER_TITLE = "🎉 Happy Birthday!"
+BIRTHDAY_DEFAULT_BANNER_SUBTITLE = "Wishing you a wonderful day filled with joy, success, and beautiful moments."
+BIRTHDAY_BADGE_LABEL = "Birthday Star"
+
+BIRTHDAY_MESSAGE_TYPES = [
+    "birthday",
+    "greeting",
+]
+
+BIRTHDAY_MAX_VISIBLE_MESSAGES = 50
