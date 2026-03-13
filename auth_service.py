@@ -12,7 +12,10 @@ from constants import (
     ROLE_CLEANER,
     ROLE_EMPLOYEE,
     ROLE_MANAGER,
+    ROLE_MODERATOR,
     SESSION_BRANCH,
+    SESSION_LOGIN_SELECTED_BRANCH,
+    SESSION_LOGIN_SELECTED_SHIFT,
     SESSION_SHIFT,
     SHIFT_GRACE_MINUTES,
     SHIFT_START_TIMES,
@@ -61,6 +64,10 @@ def normalize_role_local(role_value: str | None) -> str:
         "cleaner": ROLE_CLEANER,
         "office_boy": ROLE_CLEANER,
         "office boy": ROLE_CLEANER,
+        "moderator": ROLE_MODERATOR,
+        "mod": ROLE_MODERATOR,
+        "content_moderator": ROLE_MODERATOR,
+        "content moderator": ROLE_MODERATOR,
     }
 
     return legacy_map.get(role, role or ROLE_EMPLOYEE)
@@ -144,7 +151,7 @@ def is_management_user(user_record: dict) -> bool:
 
 def requires_post_login_attendance_step(user_record: dict) -> bool:
     role_value = normalize_role_local(user_record.get("role"))
-    return role_value in [ROLE_EMPLOYEE, ROLE_CLEANER]
+    return role_value in [ROLE_EMPLOYEE, ROLE_CLEANER, ROLE_MODERATOR]
 
 
 def get_user_month_late_count(db: dict, username: str) -> int:
@@ -473,8 +480,14 @@ def login_user(
     st.session_state[SESSION_ROLE] = user_record.get("role", "user")
     st.session_state[SESSION_ATTENDANCE_SHIFT] = shift_name
     st.session_state[SESSION_ATTENDANCE_TIME] = f"{int(arrival_hour):02d}:{int(arrival_minute):02d}"
+
+    # current values used in app
     st.session_state[SESSION_SHIFT] = shift_name
     st.session_state[SESSION_BRANCH] = branch_name
+
+    # locked login values
+    st.session_state[SESSION_LOGIN_SELECTED_SHIFT] = shift_name
+    st.session_state[SESSION_LOGIN_SELECTED_BRANCH] = branch_name
 
     restore_user_drafts(db, username)
     log_auth_event(db, username, "Login")
