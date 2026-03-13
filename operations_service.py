@@ -18,6 +18,8 @@ from constants import (
     SESSION_FAWRY_CLOSE,
     SESSION_FAWRY_OPEN,
     SESSION_LOGGED_IN,
+    SESSION_LOGIN_SELECTED_BRANCH,
+    SESSION_LOGIN_SELECTED_SHIFT,
     SESSION_NBE_CLOSE,
     SESSION_NBE_OPEN,
     SESSION_OPEN_TOTAL,
@@ -123,7 +125,22 @@ def get_selected_branch(db: dict) -> str:
     if not branches:
         branches = ["No Branch"]
 
-    current_branch = st.session_state.get(SESSION_BRANCH, branches[0])
+    locked_branch = st.session_state.get(SESSION_LOGIN_SELECTED_BRANCH, "")
+    current_branch = st.session_state.get(SESSION_BRANCH, "")
+
+    if locked_branch:
+        if locked_branch not in branches:
+            branches.append(locked_branch)
+
+        st.session_state[SESSION_BRANCH] = locked_branch
+        st.text_input(
+            "📍 Branch",
+            value=locked_branch,
+            disabled=True,
+            key="locked_branch_display",
+        )
+        return locked_branch
+
     if current_branch not in branches:
         current_branch = branches[0]
 
@@ -131,13 +148,29 @@ def get_selected_branch(db: dict) -> str:
         "📍 Branch",
         branches,
         index=branches.index(current_branch),
+        key="daily_branch_select",
     )
     st.session_state[SESSION_BRANCH] = selected
     return selected
 
 
 def get_selected_shift() -> str:
+    locked_shift = st.session_state.get(SESSION_LOGIN_SELECTED_SHIFT, "")
     current_shift = st.session_state.get(SESSION_SHIFT, SHIFT_MORNING)
+
+    if locked_shift:
+        if locked_shift not in SHIFT_OPTIONS:
+            locked_shift = SHIFT_MORNING
+
+        st.session_state[SESSION_SHIFT] = locked_shift
+        st.text_input(
+            "🕒 Shift",
+            value=locked_shift,
+            disabled=True,
+            key="locked_shift_display",
+        )
+        return locked_shift
+
     if current_shift not in SHIFT_OPTIONS:
         current_shift = SHIFT_MORNING
 
@@ -145,6 +178,7 @@ def get_selected_shift() -> str:
         "🕒 Shift",
         SHIFT_OPTIONS,
         index=SHIFT_OPTIONS.index(current_shift),
+        key="daily_shift_select",
     )
     st.session_state[SESSION_SHIFT] = selected
     return selected
