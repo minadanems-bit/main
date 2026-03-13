@@ -27,6 +27,7 @@ ROLE_ACCOUNTS = "accounts"
 ROLE_HR = "hr"
 ROLE_CLEANER = "cleaner"
 ROLE_GRAPHIC_DESIGNER = "graphic_designer"
+ROLE_MODERATOR = "moderator"
 
 ROLE_OPTIONS = [
     ROLE_ADMIN,
@@ -36,6 +37,7 @@ ROLE_OPTIONS = [
     ROLE_HR,
     ROLE_CLEANER,
     ROLE_GRAPHIC_DESIGNER,
+    ROLE_MODERATOR,
 ]
 
 ROLE_LABELS = {
@@ -46,6 +48,7 @@ ROLE_LABELS = {
     ROLE_HR: "HR",
     ROLE_CLEANER: "Cleaner",
     ROLE_GRAPHIC_DESIGNER: "Graphic Designer",
+    ROLE_MODERATOR: "Moderator",
 }
 
 
@@ -92,6 +95,7 @@ TASK_SOCIAL = "social"
 TASK_INTERACTION = "interaction"
 TASK_CLEANING = "cleaning"
 TASK_DESIGN = "design"
+TASK_MODERATION = "moderation"
 
 TASK_CATEGORIES = [
     TASK_OPENING,
@@ -100,6 +104,7 @@ TASK_CATEGORIES = [
     TASK_INTERACTION,
     TASK_CLEANING,
     TASK_DESIGN,
+    TASK_MODERATION,
 ]
 
 TASK_CATEGORY_LABELS = {
@@ -109,6 +114,7 @@ TASK_CATEGORY_LABELS = {
     TASK_INTERACTION: "Interaction",
     TASK_CLEANING: "Cleaning",
     TASK_DESIGN: "Design",
+    TASK_MODERATION: "Moderation",
 }
 
 
@@ -117,12 +123,13 @@ TASK_CATEGORY_LABELS = {
 # =====================================================
 ROLE_TASK_ACCESS = {
     ROLE_ADMIN: TASK_CATEGORIES,
-    ROLE_MANAGER: [TASK_OPENING, TASK_CLOSING, TASK_SOCIAL, TASK_INTERACTION],
+    ROLE_MANAGER: [TASK_OPENING, TASK_CLOSING, TASK_SOCIAL, TASK_INTERACTION, TASK_MODERATION],
     ROLE_EMPLOYEE: [TASK_OPENING, TASK_CLOSING, TASK_SOCIAL, TASK_INTERACTION],
     ROLE_ACCOUNTS: [TASK_OPENING, TASK_CLOSING, TASK_INTERACTION],
     ROLE_HR: [TASK_INTERACTION],
     ROLE_CLEANER: [TASK_CLEANING],
     ROLE_GRAPHIC_DESIGNER: [TASK_DESIGN, TASK_SOCIAL, TASK_INTERACTION],
+    ROLE_MODERATOR: [TASK_MODERATION, TASK_SOCIAL, TASK_INTERACTION],
 }
 
 
@@ -172,6 +179,14 @@ DEFAULT_TASKS = {
         "Check brand consistency",
         "Export final approved files",
         "Coordinate with printing team",
+    ],
+    TASK_MODERATION: [
+        "Review pending comments and messages",
+        "Handle inappropriate content professionally",
+        "Escalate critical customer cases",
+        "Monitor public feedback quality",
+        "Flag abusive or spam interactions",
+        "Document moderation actions clearly",
     ],
 }
 
