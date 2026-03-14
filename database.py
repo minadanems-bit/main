@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, Callable
 import time
 
@@ -42,6 +43,7 @@ def get_supabase() -> Client:
 # =====================================================
 # Generic helpers
 # =====================================================
+  
 def safe_list(value: Any) -> list:
     return value if isinstance(value, list) else []
 
@@ -867,12 +869,6 @@ def upsert_blocked_user(month_key: str, username: str, is_blocked: bool) -> tupl
 
 
 def save_user_draft(username: str, draft_data: dict) -> tuple[bool, str]:
-    """
-    يحتاج جدول باسم user_drafts:
-    - username text primary key / unique
-    - draft_data jsonb
-    - updated_at timestamp nullable
-    """
     try:
         supabase = get_supabase()
         _run_with_retry(
@@ -881,7 +877,7 @@ def save_user_draft(username: str, draft_data: dict) -> tuple[bool, str]:
                     {
                         "username": username,
                         "draft_data": safe_dict(draft_data),
-                        "updated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                        "updated_at": datetime.utcnow().isoformat(),
                     }
                 ],
                 on_conflict="username",
