@@ -803,8 +803,22 @@ def render_attendance_control_section(users: dict, target: str, user: dict, db: 
                     "note": f"تم فك حظر التشغيل اليومي للشهر الحالي بواسطة الإدارة ({get_current_username()}).",
                 }
             )
-            persist_user_only(db, target, "✅ User unblocked for current month")
-
+            ok_user, msg_user = save_user_record(target, db["users"][target])
+            if not ok_user:
+                st.error(msg_user)
+                return
+            
+            month_key = get_current_month_key()
+            db.setdefault("blocked_users", {}).setdefault(month_key, {})
+            db["blocked_users"][month_key][target] = False
+            
+            ok_block, msg_block = upsert_blocked_user(month_key, target, False)
+            if not ok_block:
+                st.error(msg_block)
+                return
+            
+            st.success("✅ User unblocked for current month")
+            st.rerun()
     with col_b:
         if st.button("🔄 Reset Late Count", key=f"reset_late_count_{target}", use_container_width=True):
             reset_user_month_late_count(db, target)
