@@ -50,6 +50,7 @@ from role_service import (
     normalize_role,
     can_access_daily_operations,
     get_daily_operations_block_message,
+    get_allowed_tabs,
 )
 from supabase_migration import migrate
 from training_service import render_training_module as render_training_service_module
@@ -76,6 +77,7 @@ db = cached_load_db()
 NAV_DASHBOARD = "dashboard"
 NAV_PROFILE = "profile"
 NAV_OPERATIONS = "operations"
+NAV_CRM = "crm"
 NAV_ADMIN = "admin"
 NAV_BACKUP = "backup"
 NAV_BIRTHDAY = "birthday"
@@ -215,6 +217,14 @@ def can_open_admin_panel() -> bool:
 
 def can_open_backup_manager() -> bool:
     return is_admin_or_manager()
+
+
+def can_open_crm() -> bool:
+    try:
+        allowed_tabs = get_allowed_tabs()
+        return "crm" in allowed_tabs
+    except Exception:
+        return False
 
 
 def should_show_attendance_clock() -> bool:
@@ -579,9 +589,13 @@ def render_birthday_page() -> None:
 
 
 # =========================
-# CRM placeholder / entry point
+# CRM entry point
 # =========================
-def render_crm_module() -> None:
+def render_crm_page() -> None:
+    if not can_open_crm():
+        st.error("Access denied.")
+        return
+
     try:
         from crm_ui import crm_ui
         crm_ui()
@@ -592,10 +606,11 @@ def render_crm_module() -> None:
     try:
         from crm_service import get_crm_dashboard_stats
 
-        st.subheader("📇 CRM & Internal Communication")
-        st.info("الخدمات الأساسية للـ CRM موجودة، وواجهة الـ UI الكاملة هنكملها بعد هذه المرحلة.")
+        st.title("📇 CRM & Internal Communication")
+        st.info("الواجهة الأساسية للـ CRM شغالة. لو أضفت crm_ui.py سيفتحها تلقائيًا.")
 
         stats = get_crm_dashboard_stats(db, get_current_username())
+
         c1, c2, c3 = st.columns(3)
         with c1:
             st.metric("My Tasks", stats.get("my_tasks_total", 0))
@@ -604,9 +619,12 @@ def render_crm_module() -> None:
         with c3:
             st.metric("Unread Notifications", stats.get("my_unread_notifications", 0))
 
-        st.caption("لو عندك ملف crm_ui.py بعد كده، main.py جاهز يقرأه مباشرة.")
     except Exception as e:
         st.error(f"CRM module failed to load: {e}")
+
+
+def render_crm_module() -> None:
+    render_crm_page()
 
 
 # =========================
@@ -935,6 +953,15 @@ def render_sidebar() -> None:
             set_main_view(NAV_OPERATIONS)
             st.rerun()
 
+        if can_open_crm():
+            if st.button(
+                "📇 CRM",
+                use_container_width=True,
+                type="primary" if current_view == NAV_CRM else "secondary",
+            ):
+                set_main_view(NAV_CRM)
+                st.rerun()
+
         if st.button(
             "🎂 Birthdays",
             use_container_width=True,
@@ -1012,8 +1039,12 @@ def render_dashboard_page() -> None:
     quick_buttons = [
         ("👤 Open My Profile", NAV_PROFILE),
         ("📊 Open Daily Operations", NAV_OPERATIONS),
-        ("🎂 Open Birthdays", NAV_BIRTHDAY),
     ]
+
+    if can_open_crm():
+        quick_buttons.append(("📇 Open CRM", NAV_CRM))
+
+    quick_buttons.append(("🎂 Open Birthdays", NAV_BIRTHDAY))
 
     if can_open_admin_panel():
         quick_buttons.append(("⚙️ Open Admin Panel", NAV_ADMIN))
@@ -1117,6 +1148,10 @@ def render_main_content() -> None:
             daily_operations_ui(db)
         else:
             render_blocked_daily_operations_view()
+        return
+
+    if current_view == NAV_CRM:
+        render_crm_page()
         return
 
     if current_view == NAV_BIRTHDAY:
