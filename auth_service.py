@@ -1,5 +1,6 @@
 # =====================================================
 # AUTH SERVICE
+# Optimized version - avoids full save_db() on login flows
 # =====================================================
 
 from datetime import datetime
@@ -20,7 +21,15 @@ from constants import (
     SHIFT_GRACE_MINUTES,
     SHIFT_START_TIMES,
 )
-from database import save_db
+from database import (
+    insert_attendance_record,
+    load_user_draft,
+    save_user_draft,
+    save_user_financial_records,
+    save_user_record,
+    upsert_blocked_user,
+    upsert_late_tracking,
+)
 from ui_helpers import render_login_clock_widget, render_professional_time_picker
 
 
@@ -189,22 +198,34 @@ def append_attendance_record(
     late_minutes: int,
     status: str,
     branch_name: str = "",
-) -> None:
+) -> dict:
     ensure_attendance_defaults(db)
     month_key = get_current_month_key()
+
+    record = {
+        "date": datetime.now().strftime("%Y-%m-%d"),
+        "time": f"{int(arrival_hour):02d}:{int(arrival_minute):02d}",
+        "shift": shift_name,
+        "branch": branch_name,
+        "late_minutes": int(late_minutes),
+        "status": status,
+        "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+
     db["attendance_records"].setdefault(month_key, {})
     db["attendance_records"][month_key].setdefault(username, [])
-    db["attendance_records"][month_key][username].append(
-        {
-            "date": datetime.now().strftime("%Y-%m-%d"),
-            "time": f"{int(arrival_hour):02d}:{int(arrival_minute):02d}",
-            "shift": shift_name,
-            "branch": branch_name,
-            "late_minutes": int(late_minutes),
-            "status": status,
-            "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        }
-    )
+    db["attendance_records"][month_key][username].append(record)
+
+    return {
+        "month_key": month_key,
+        "username": username,
+        "attendance_date": record["date"],
+        "attendance_time": record["time"],
+        "shift": record["shift"],
+        "branch": record["branch"],
+        "late_minutes": record["late_minutes"],
+        "status": record["status"],
+    }
 
 
 def add_user_warning(db: dict, username: str, note: str) -> None:
@@ -230,14 +251,14 @@ def has_late_penalty_this_month(user_record: dict, month_key: str) -> bool:
     return False
 
 
-def add_monthly_late_penalty_if_needed(db: dict, username: str) -> None:
+def add_monthly_late_penalty_if_needed(db: dict, username: str) -> bool:
     db.setdefault("users", {})
     user_record = db["users"].get(username, {})
     user_record.setdefault("late_penalties", [])
 
     month_key = get_current_month_key()
     if has_late_penalty_this_month(user_record, month_key):
-        return
+        return False
 
     monthly_salary = float(user_record.get("salary", 0) or 0)
     penalty_amount = round(monthly_salary / 30, 2) if monthly_salary > 0 else 0.0
@@ -249,11 +270,26 @@ def add_monthly_late_penalty_if_needed(db: dict, username: str) -> None:
             "note": "خصم يوم بسبب 3 مرات تأخير خلال نفس الشهر",
         }
     )
+    return True
 
 
-def persist_auth_changes(db: dict) -> None:
+def persist_user_auth_state(db: dict, username: str, save_financial: bool = False) -> None:
+    user_record = db.get("users", {}).get(username, {})
+    if not user_record:
+        return
+
     try:
-        save_db(db)
+        save_user_record(username, user_record)
+        if save_financial:
+            save_user_financial_records(username, user_record)
+    except Exception:
+        pass
+
+
+def persist_attendance_state(username: str, month_key: str, late_count: int, is_blocked: bool) -> None:
+    try:
+        upsert_late_tracking(month_key, username, late_count)
+        upsert_blocked_user(month_key, username, is_blocked)
     except Exception:
         pass
 
@@ -341,9 +377,21 @@ def sync_user_drafts(db: dict) -> None:
     db.setdefault("drafts", {})
     db["drafts"][username] = draft_data
 
+    try:
+        save_user_draft(username, draft_data)
+    except Exception:
+        pass
+
 
 def restore_user_drafts(db: dict, username: str) -> None:
     drafts = db.get("drafts", {}).get(username, {})
+
+    if not drafts:
+        try:
+            drafts = load_user_draft(username) or {}
+        except Exception:
+            drafts = {}
+
     for key, value in drafts.items():
         st.session_state[key] = value
 
@@ -405,6 +453,7 @@ def login_user(
     late_minutes = calculate_late_minutes(shift_name, arrival_hour, arrival_minute)
     current_late_count = get_user_month_late_count(db, username)
     next_late_count = current_late_count + 1 if late_minutes > 0 else current_late_count
+    month_key = get_current_month_key()
 
     if late_minutes > 0 and not late_acknowledged:
         warning_message = get_late_warning_message(next_late_count, late_minutes)
@@ -431,12 +480,14 @@ def login_user(
             ),
         )
 
+        penalty_added = False
         if next_late_count == 3:
-            add_monthly_late_penalty_if_needed(db, username)
+            penalty_added = add_monthly_late_penalty_if_needed(db, username)
 
         if next_late_count >= int(MONTHLY_LATE_BLOCK_AT):
             set_user_blocked_for_month(db, username, True)
-            append_attendance_record(
+
+            attendance_payload = append_attendance_record(
                 db=db,
                 username=username,
                 shift_name=shift_name,
@@ -446,11 +497,19 @@ def login_user(
                 status="blocked_after_late",
                 branch_name=branch_name,
             )
-            persist_auth_changes(db)
+
+            try:
+                insert_attendance_record(attendance_payload)
+            except Exception:
+                pass
+
+            persist_user_auth_state(db, username, save_financial=penalty_added)
+            persist_attendance_state(username, month_key, next_late_count, True)
+
             st.session_state[SESSION_LOGIN_BLOCKED_MESSAGE] = get_late_warning_message(next_late_count, late_minutes)
             return False, "Daily operations access is blocked."
 
-        append_attendance_record(
+        attendance_payload = append_attendance_record(
             db=db,
             username=username,
             shift_name=shift_name,
@@ -460,10 +519,17 @@ def login_user(
             status="late",
             branch_name=branch_name,
         )
-        persist_auth_changes(db)
+
+        try:
+            insert_attendance_record(attendance_payload)
+        except Exception:
+            pass
+
+        persist_user_auth_state(db, username, save_financial=penalty_added)
+        persist_attendance_state(username, month_key, next_late_count, False)
 
     else:
-        append_attendance_record(
+        attendance_payload = append_attendance_record(
             db=db,
             username=username,
             shift_name=shift_name,
@@ -473,7 +539,13 @@ def login_user(
             status="on_time",
             branch_name=branch_name,
         )
-        persist_auth_changes(db)
+
+        try:
+            insert_attendance_record(attendance_payload)
+        except Exception:
+            pass
+
+        persist_attendance_state(username, month_key, current_late_count, is_user_blocked_for_month(db, username))
 
     st.session_state[SESSION_LOGGED_IN] = True
     st.session_state[SESSION_USER] = username
@@ -502,8 +574,6 @@ def logout_user(db: dict) -> None:
 
     sync_user_drafts(db)
     log_auth_event(db, username, "Logout")
-    persist_auth_changes(db)
-
     clear_user_session()
 
 
