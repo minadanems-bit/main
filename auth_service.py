@@ -378,7 +378,9 @@ def sync_user_drafts(db: dict) -> None:
     db["drafts"][username] = draft_data
 
     try:
-        save_user_draft(username, draft_data)
+        success, _ = save_user_draft(username, draft_data)
+        if not success:
+            pass
     except Exception:
         pass
 
