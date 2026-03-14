@@ -25,7 +25,14 @@ from constants import (
     ROLE_USER,
     SESSION_ACTIVE_DB,
 )
-from database import create_user, save_db
+from database import (
+    create_user,
+    save_db,
+    save_user_record,
+    save_user_financial_records,
+    upsert_blocked_user,
+    upsert_late_tracking,
+)
 
 
 # =====================================================
@@ -253,6 +260,49 @@ def persist_db(db: dict, success_message: str | None = None) -> None:
     st.rerun()
 
 
+def persist_user_only(db: dict, username: str, success_message: str) -> None:
+    success, message = save_user_record(username, db["users"][username])
+    if success:
+        st.success(success_message)
+        st.rerun()
+    else:
+        st.error(message)
+
+
+def persist_user_and_financials(db: dict, username: str, success_message: str) -> None:
+    ok_user, msg_user = save_user_record(username, db["users"][username])
+    if not ok_user:
+        st.error(msg_user)
+        return
+
+    ok_fin, msg_fin = save_user_financial_records(username, db["users"][username])
+    if not ok_fin:
+        st.error(msg_fin)
+        return
+
+    st.success(success_message)
+    st.rerun()
+
+
+def persist_attendance_state_only(username: str, db: dict, success_message: str) -> None:
+    month_key = get_current_month_key()
+    late_count = int(db.get("late_tracking", {}).get(month_key, {}).get(username, 0))
+    blocked = bool(db.get("blocked_users", {}).get(month_key, {}).get(username, False))
+
+    ok1, msg1 = upsert_late_tracking(month_key, username, late_count)
+    if not ok1:
+        st.error(msg1)
+        return
+
+    ok2, msg2 = upsert_blocked_user(month_key, username, blocked)
+    if not ok2:
+        st.error(msg2)
+        return
+
+    st.success(success_message)
+    st.rerun()
+
+
 def rename_username_in_db(db: dict, old_username: str, new_username: str) -> tuple[bool, str]:
     old_username = old_username.strip()
     new_username = new_username.strip()
@@ -406,7 +456,7 @@ def render_profile_images(users: dict, target: str, user: dict) -> None:
 
         if new_photo and st.button("💾 Save Photo", key=f"save_photo_{target}"):
             users[target]["photo"] = save_uploaded_image(new_photo)
-            persist_db(st.session_state[SESSION_ACTIVE_DB], "Photo Updated")
+            persist_user_only(st.session_state[SESSION_ACTIVE_DB], target, "Photo Updated")
 
     with col2:
         st.markdown("### 🪪 ID Card")
@@ -425,7 +475,7 @@ def render_profile_images(users: dict, target: str, user: dict) -> None:
 
         if id_card and st.button("💾 Save ID Card", key=f"save_id_card_{target}"):
             users[target]["id_card"] = save_uploaded_image(id_card)
-            persist_db(st.session_state[SESSION_ACTIVE_DB], "ID Card Saved")
+            persist_user_only(st.session_state[SESSION_ACTIVE_DB], target, "ID Card Saved")
 
 
 def render_username_management(target: str, db: dict) -> None:
@@ -536,7 +586,7 @@ def render_personal_details(users: dict, target: str, user: dict, db: dict) -> N
             }
         )
 
-        persist_db(db, "✅ Employee Updated")
+        persist_user_only(db, target, "✅ Employee Updated")
 
 
 def render_salary_and_payout_section(users: dict, target: str, user: dict, db: dict) -> None:
@@ -624,7 +674,7 @@ def render_salary_and_payout_section(users: dict, target: str, user: dict, db: d
             }
         )
 
-        persist_db(db, "✅ Salary & Payout Updated")
+        persist_user_only(db, target, "✅ Salary & Payout Updated")
 
 
 def render_salary_summary(user: dict) -> None:
@@ -698,7 +748,7 @@ def render_warning_section(users: dict, target: str, user: dict, db: dict) -> No
                         "note": warning_note.strip(),
                     }
                 )
-                persist_db(db, "✅ Warning Added")
+                persist_user_only(db, target, "✅ Warning Added")
             else:
                 st.warning("Please write a warning note first.")
 
@@ -753,7 +803,7 @@ def render_attendance_control_section(users: dict, target: str, user: dict, db: 
                     "note": f"تم فك حظر التشغيل اليومي للشهر الحالي بواسطة الإدارة ({get_current_username()}).",
                 }
             )
-            persist_db(db, "✅ User unblocked for current month")
+            persist_user_only(db, target, "✅ User unblocked for current month")
 
     with col_b:
         if st.button("🔄 Reset Late Count", key=f"reset_late_count_{target}", use_container_width=True):
@@ -765,7 +815,11 @@ def render_attendance_control_section(users: dict, target: str, user: dict, db: 
                     "note": f"تم تصفير عداد التأخير للشهر الحالي بواسطة الإدارة ({get_current_username()}).",
                 }
             )
-            persist_db(db, "✅ Late count reset for current month")
+
+            month_key = get_current_month_key()
+            db.setdefault("late_tracking", {}).setdefault(month_key, {})
+            db["late_tracking"][month_key][target] = 0
+            persist_attendance_state_only(target, db, "✅ Late count reset for current month")
 
 
 def render_financial_entry_form(user: dict, db: dict, target: str) -> None:
@@ -803,7 +857,7 @@ def render_financial_entry_form(user: dict, db: dict, target: str) -> None:
             }
         )
 
-        persist_db(db, "✅ Record Added")
+        persist_user_and_financials(db, target, "✅ Record Added")
 
 
 def render_records_history(user: dict) -> None:
