@@ -1,5 +1,6 @@
 # =====================================================
 # DATABASE LAYER (SUPABASE VERSION - CLEAN REFACTOR)
+# Optimized partial writes + compatibility full save
 # =====================================================
 
 from __future__ import annotations
@@ -436,52 +437,59 @@ def _upsert_settings(supabase: Client, data: dict) -> None:
     )
 
 
+def _build_user_row(username: str, user: dict) -> dict:
+    return {
+        "username": username,
+        "password": user.get("pass", ""),
+        "role": user.get("role", "employee"),
+        "full_name": user.get("full_name", username),
+        "job_title": user.get("job_title", ""),
+        "photo": user.get("photo"),
+        "id_card": user.get("id_card"),
+        "employee_code": user.get("employee_code", ""),
+        "birth_date": user.get("birth_date", DEFAULT_BIRTH_DATE),
+        "phone": user.get("phone", ""),
+        "email": user.get("email", ""),
+        "national_id": user.get("national_id", ""),
+        "address": user.get("address", ""),
+        "qualification": user.get("qualification", ""),
+        "hiring_date": user.get("hiring_date", DEFAULT_HIRING_DATE),
+        "salary": safe_float(user.get("salary", 0)),
+        "salary_basic": safe_float(user.get("salary_basic", 0)),
+        "transport_allowance": safe_float(user.get("transport_allowance", 0)),
+        "communication_allowance": safe_float(user.get("communication_allowance", 0)),
+        "other_allowance": safe_float(user.get("other_allowance", 0)),
+        "bank_name": user.get("bank_name", ""),
+        "bank_account_number": user.get("bank_account_number", ""),
+        "wallet_number": user.get("wallet_number", ""),
+        "payout_method": user.get("payout_method", "bank"),
+        "warnings": safe_list(user.get("warnings")),
+    }
+
+
+def _build_financial_rows_for_user(username: str, user: dict) -> list[dict]:
+    rows = []
+    for record_type in ALL_FINANCIAL_RECORD_KEYS:
+        for item in safe_list(user.get(record_type)):
+            rows.append(
+                {
+                    "username": username,
+                    "record_type": record_type,
+                    "amount": safe_float(item.get("amount", item.get("val", 0))),
+                    "note": item.get("note", ""),
+                    "record_date": item.get("date", DEFAULT_HIRING_DATE),
+                }
+            )
+    return rows
+
+
 def _write_users(supabase: Client, users: dict) -> None:
     user_rows = []
     financial_rows = []
 
     for username, user in safe_dict(users).items():
-        user_rows.append(
-            {
-                "username": username,
-                "password": user.get("pass", ""),
-                "role": user.get("role", "employee"),
-                "full_name": user.get("full_name", username),
-                "job_title": user.get("job_title", ""),
-                "photo": user.get("photo"),
-                "id_card": user.get("id_card"),
-                "employee_code": user.get("employee_code", ""),
-                "birth_date": user.get("birth_date", DEFAULT_BIRTH_DATE),
-                "phone": user.get("phone", ""),
-                "email": user.get("email", ""),
-                "national_id": user.get("national_id", ""),
-                "address": user.get("address", ""),
-                "qualification": user.get("qualification", ""),
-                "hiring_date": user.get("hiring_date", DEFAULT_HIRING_DATE),
-                "salary": safe_float(user.get("salary", 0)),
-                "salary_basic": safe_float(user.get("salary_basic", 0)),
-                "transport_allowance": safe_float(user.get("transport_allowance", 0)),
-                "communication_allowance": safe_float(user.get("communication_allowance", 0)),
-                "other_allowance": safe_float(user.get("other_allowance", 0)),
-                "bank_name": user.get("bank_name", ""),
-                "bank_account_number": user.get("bank_account_number", ""),
-                "wallet_number": user.get("wallet_number", ""),
-                "payout_method": user.get("payout_method", "bank"),
-                "warnings": safe_list(user.get("warnings")),
-            }
-        )
-
-        for record_type in ALL_FINANCIAL_RECORD_KEYS:
-            for item in safe_list(user.get(record_type)):
-                financial_rows.append(
-                    {
-                        "username": username,
-                        "record_type": record_type,
-                        "amount": safe_float(item.get("amount", item.get("val", 0))),
-                        "note": item.get("note", ""),
-                        "record_date": item.get("date", DEFAULT_HIRING_DATE),
-                    }
-                )
+        user_rows.append(_build_user_row(username, user))
+        financial_rows.extend(_build_financial_rows_for_user(username, user))
 
     if user_rows:
         _run_with_retry(
@@ -505,8 +513,6 @@ def _has_any_task_data(tasks: dict) -> bool:
 
 
 def _write_tasks(supabase: Client, tasks: dict) -> None:
-    # حماية مهمة:
-    # لو الداتا جاية فاضية أو ناقصة، لا تمسح الجدول كله
     if not _has_any_task_data(tasks):
         return
 
@@ -773,6 +779,131 @@ def save_db(data: dict) -> None:
     _write_attendance_records(supabase, data.get("attendance_records", {}))
     _write_late_tracking(supabase, data.get("late_tracking", {}))
     _write_blocked_users(supabase, data.get("blocked_users", {}))
+
+
+# =====================================================
+# Partial write helpers (NEW - for performance)
+# =====================================================
+def save_user_record(username: str, user: dict) -> tuple[bool, str]:
+    try:
+        supabase = get_supabase()
+        row = _build_user_row(username, user)
+        _run_with_retry(
+            lambda: supabase.table("users").upsert([row], on_conflict="username").execute()
+        )
+        return True, "User saved successfully."
+    except Exception as e:
+        return False, f"Failed to save user: {e}"
+
+
+def save_user_financial_records(username: str, user: dict) -> tuple[bool, str]:
+    try:
+        supabase = get_supabase()
+
+        _run_with_retry(
+            lambda: supabase.table("employee_financial_records").delete().eq("username", username).execute()
+        )
+
+        rows = _build_financial_rows_for_user(username, user)
+        if rows:
+            _run_with_retry(
+                lambda: supabase.table("employee_financial_records").insert(rows).execute()
+            )
+
+        return True, "Financial records saved successfully."
+    except Exception as e:
+        return False, f"Failed to save financial records: {e}"
+
+
+def insert_attendance_record(payload: dict) -> tuple[bool, str]:
+    try:
+        supabase = get_supabase()
+        _run_with_retry(
+            lambda: supabase.table("attendance_records").insert([payload]).execute()
+        )
+        return True, "Attendance record inserted successfully."
+    except Exception as e:
+        return False, f"Failed to insert attendance record: {e}"
+
+
+def upsert_late_tracking(month_key: str, username: str, late_count: int) -> tuple[bool, str]:
+    try:
+        supabase = get_supabase()
+        _run_with_retry(
+            lambda: supabase.table("late_tracking").upsert(
+                [
+                    {
+                        "month_key": month_key,
+                        "username": username,
+                        "late_count": int(late_count),
+                    }
+                ],
+                on_conflict="month_key,username",
+            ).execute()
+        )
+        return True, "Late tracking updated successfully."
+    except Exception as e:
+        return False, f"Failed to update late tracking: {e}"
+
+
+def upsert_blocked_user(month_key: str, username: str, is_blocked: bool) -> tuple[bool, str]:
+    try:
+        supabase = get_supabase()
+        _run_with_retry(
+            lambda: supabase.table("blocked_users").upsert(
+                [
+                    {
+                        "month_key": month_key,
+                        "username": username,
+                        "is_blocked": bool(is_blocked),
+                    }
+                ],
+                on_conflict="month_key,username",
+            ).execute()
+        )
+        return True, "Blocked user state updated successfully."
+    except Exception as e:
+        return False, f"Failed to update blocked user state: {e}"
+
+
+def save_user_draft(username: str, draft_data: dict) -> tuple[bool, str]:
+    """
+    يحتاج جدول باسم user_drafts:
+    - username text primary key / unique
+    - draft_data jsonb
+    - updated_at timestamp nullable
+    """
+    try:
+        supabase = get_supabase()
+        _run_with_retry(
+            lambda: supabase.table("user_drafts").upsert(
+                [
+                    {
+                        "username": username,
+                        "draft_data": safe_dict(draft_data),
+                        "updated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                    }
+                ],
+                on_conflict="username",
+            ).execute()
+        )
+        return True, "Draft saved successfully."
+    except Exception as e:
+        return False, f"Failed to save draft: {e}"
+
+
+def load_user_draft(username: str) -> dict:
+    try:
+        supabase = get_supabase()
+        rows = _safe_execute(
+            supabase.table("user_drafts").select("draft_data").eq("username", username).limit(1),
+            [],
+        )
+        if rows:
+            return safe_dict(rows[0].get("draft_data"))
+        return {}
+    except Exception:
+        return {}
 
 
 # =====================================================
