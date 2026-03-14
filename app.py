@@ -1,6 +1,7 @@
 import os
 import json
 import base64
+import time
 from datetime import datetime, date
 
 import pandas as pd
@@ -36,7 +37,12 @@ from constants import (
     SESSION_USER,
     TASK_CATEGORIES,
 )
-from database import load_db, save_db
+from database import (
+    load_db,
+    load_user_draft,
+    save_db,
+    save_user_draft,
+)
 from operations_service import daily_operations_ui
 from birthday_ui import birthday_ui
 from printer_service import printer_management_ui
@@ -56,7 +62,7 @@ from ui_helpers import (
 # =========================
 # Cached DB bootstrap
 # =========================
-@st.cache_data(show_spinner=False, ttl=10)
+@st.cache_data(show_spinner=False, ttl=20)
 def cached_load_db() -> dict:
     return load_db()
 
@@ -75,6 +81,12 @@ NAV_BACKUP = "backup"
 NAV_BIRTHDAY = "birthday"
 
 SESSION_MAIN_VIEW = "main_view"
+
+# draft/session helpers
+SESSION_DRAFTS_LOADED = "_drafts_loaded"
+SESSION_LAST_DRAFT_SAVE_TS = "_last_draft_save_ts"
+
+AUTOSAVE_INTERVAL_SECONDS = 20
 
 
 # =========================
@@ -139,6 +151,12 @@ def ensure_db_defaults() -> None:
 def ensure_ui_defaults() -> None:
     if SESSION_MAIN_VIEW not in st.session_state:
         st.session_state[SESSION_MAIN_VIEW] = NAV_DASHBOARD
+
+    if SESSION_DRAFTS_LOADED not in st.session_state:
+        st.session_state[SESSION_DRAFTS_LOADED] = False
+
+    if SESSION_LAST_DRAFT_SAVE_TS not in st.session_state:
+        st.session_state[SESSION_LAST_DRAFT_SAVE_TS] = 0.0
 
 
 def get_current_user() -> dict:
@@ -270,6 +288,101 @@ def calculate_salary_breakdown(user_info: dict) -> dict:
 
 def get_training_status(username: str) -> dict:
     return db.get("training_records", {}).get(username, {})
+
+
+# =========================
+# Draft helpers
+# =========================
+def get_draft_prefixes() -> tuple[str, ...]:
+    return (
+        "s_",
+        "o_",
+        "e_",
+        "c_",
+        "m_",
+        "i_",
+        "ks",
+        "xs",
+        "op",
+        "u10",
+        "v22",
+        "ex",
+        "kj",
+        "xj",
+        "dn",
+        "k1",
+        "k2",
+        "x1",
+        "x2",
+        "open_",
+        "close_",
+        "debt_",
+        "crm_",
+        "attendance_",
+        "direct_login_",
+        "ops_",
+    )
+
+
+def collect_current_draft_data() -> dict:
+    prefixes = get_draft_prefixes()
+
+    draft_data = {}
+    for key, value in st.session_state.items():
+        if key.startswith(prefixes):
+            draft_data[key] = value
+
+    return draft_data
+
+
+def hydrate_user_drafts_once() -> None:
+    if not is_logged_in():
+        return
+
+    if st.session_state.get(SESSION_DRAFTS_LOADED, False):
+        return
+
+    username = get_current_username()
+    if not username:
+        return
+
+    try:
+        draft_data = load_user_draft(username)
+        if isinstance(draft_data, dict) and draft_data:
+            for key, value in draft_data.items():
+                if key not in st.session_state:
+                    st.session_state[key] = value
+    except Exception:
+        pass
+
+    st.session_state[SESSION_DRAFTS_LOADED] = True
+
+
+def autosave_current_user_draft(force: bool = False) -> None:
+    if not is_logged_in():
+        return
+
+    username = get_current_username()
+    if not username:
+        return
+
+    now_ts = time.time()
+    last_ts = float(st.session_state.get(SESSION_LAST_DRAFT_SAVE_TS, 0.0) or 0.0)
+
+    if not force and (now_ts - last_ts) < AUTOSAVE_INTERVAL_SECONDS:
+        return
+
+    draft_data = collect_current_draft_data()
+    if not draft_data:
+        st.session_state[SESSION_LAST_DRAFT_SAVE_TS] = now_ts
+        return
+
+    try:
+        save_user_draft(username, draft_data)
+    except Exception:
+        pass
+
+    st.session_state[SESSION_LAST_DRAFT_SAVE_TS] = now_ts
 
 
 # =========================
@@ -466,11 +579,35 @@ def render_birthday_page() -> None:
 
 
 # =========================
-# CRM placeholder
+# CRM placeholder / entry point
 # =========================
 def render_crm_module() -> None:
-    from crm_service import render_crm_module as render_real_crm_module
-    render_real_crm_module()
+    try:
+        from crm_ui import crm_ui
+        crm_ui()
+        return
+    except Exception:
+        pass
+
+    try:
+        from crm_service import get_crm_dashboard_stats
+
+        st.subheader("📇 CRM & Internal Communication")
+        st.info("الخدمات الأساسية للـ CRM موجودة، وواجهة الـ UI الكاملة هنكملها بعد هذه المرحلة.")
+
+        stats = get_crm_dashboard_stats(db, get_current_username())
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.metric("My Tasks", stats.get("my_tasks_total", 0))
+        with c2:
+            st.metric("Unread Messages", stats.get("my_unread_messages", 0))
+        with c3:
+            st.metric("Unread Notifications", stats.get("my_unread_notifications", 0))
+
+        st.caption("لو عندك ملف crm_ui.py بعد كده، main.py جاهز يقرأه مباشرة.")
+    except Exception as e:
+        st.error(f"CRM module failed to load: {e}")
+
 
 # =========================
 # Admin modules
@@ -826,7 +963,12 @@ def render_sidebar() -> None:
 
         st.divider()
 
+        if st.button("💾 Save Draft Now", use_container_width=True):
+            autosave_current_user_draft(force=True)
+            st.success("Draft saved.")
+
         if st.button("🚪 Logout", use_container_width=True):
+            autosave_current_user_draft(force=True)
             logout_user(db)
             st.rerun()
 
@@ -1004,6 +1146,9 @@ def main() -> None:
 
     if not is_logged_in():
         render_login_screen(db)
+
+    hydrate_user_drafts_once()
+    autosave_current_user_draft(force=False)
 
     render_sidebar()
 
