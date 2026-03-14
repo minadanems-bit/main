@@ -973,3 +973,252 @@ def get_user_by_username(username: str) -> dict | None:
 def get_manager_phone() -> str:
     db = load_db()
     return safe_str(db.get("manager_phone", DEFAULT_MANAGER_PHONE), DEFAULT_MANAGER_PHONE)
+
+# =====================================================
+# Lightweight loaders (NEW - for speed)
+# =====================================================
+def load_users_only() -> dict:
+    supabase = get_supabase()
+    return _load_users(supabase)
+
+
+def load_branches_only() -> list:
+    supabase = get_supabase()
+    return _load_branches(supabase)
+
+
+def load_tasks_only() -> dict:
+    supabase = get_supabase()
+    return _load_tasks(supabase)
+
+
+def load_printers_only() -> dict:
+    supabase = get_supabase()
+    return _load_printers(supabase)
+
+
+def load_training_records_only() -> dict:
+    supabase = get_supabase()
+    return _load_training_records(supabase)
+
+
+def load_history_only() -> list:
+    supabase = get_supabase()
+    return _load_history(supabase)
+
+
+# =====================================================
+# CRM table defaults helpers
+# =====================================================
+def ensure_crm_tables_payload_defaults(row: dict) -> dict:
+    item = dict(row or {})
+    item["comments"] = safe_list(item.get("comments"))
+    item["status_history"] = safe_list(item.get("status_history"))
+    return item
+
+
+# =====================================================
+# CRM READ HELPERS (DIRECT FROM SUPABASE)
+# =====================================================
+def load_crm_tasks(
+    assigned_to: str | None = None,
+    created_by: str | None = None,
+    status: str | None = None,
+) -> list[dict]:
+    supabase = get_supabase()
+
+    query = supabase.table("crm_records").select("*").order("updated_at", desc=True)
+
+    if assigned_to:
+        query = query.eq("assigned_to", assigned_to)
+
+    if created_by:
+        query = query.eq("created_by", created_by)
+
+    if status and str(status).strip().lower() != "all":
+        query = query.eq("status", str(status).strip().lower())
+
+    rows = _safe_execute(query, [])
+    return [ensure_crm_tables_payload_defaults(row) for row in rows]
+
+
+def load_crm_task_by_id(task_id: str) -> dict | None:
+    supabase = get_supabase()
+    rows = _safe_execute(
+        supabase.table("crm_records").select("*").eq("id", task_id).limit(1),
+        [],
+    )
+    if not rows:
+        return None
+    return ensure_crm_tables_payload_defaults(rows[0])
+
+
+def load_internal_messages(
+    receiver_username: str | None = None,
+    sender_username: str | None = None,
+) -> list[dict]:
+    supabase = get_supabase()
+    query = supabase.table("internal_messages").select("*").order("created_at", desc=True)
+
+    if receiver_username:
+        query = query.eq("receiver_username", receiver_username)
+
+    if sender_username:
+        query = query.eq("sender_username", sender_username)
+
+    return _safe_execute(query, [])
+
+
+def load_notifications(
+    username: str,
+    unread_only: bool = False,
+) -> list[dict]:
+    supabase = get_supabase()
+    query = supabase.table("crm_notifications").select("*").eq("username", username).order("created_at", desc=True)
+
+    if unread_only:
+        query = query.eq("is_read", False)
+
+    return _safe_execute(query, [])
+
+
+# =====================================================
+# CRM WRITE HELPERS (DIRECT TO SUPABASE)
+# =====================================================
+def insert_crm_task(task_payload: dict) -> tuple[bool, str]:
+    try:
+        supabase = get_supabase()
+        _run_with_retry(
+            lambda: supabase.table("crm_records").insert([task_payload]).execute()
+        )
+        return True, "CRM task inserted successfully."
+    except Exception as e:
+        return False, f"Failed to insert CRM task: {e}"
+
+
+def update_crm_task_row(task_id: str, patch_data: dict) -> tuple[bool, str]:
+    try:
+        supabase = get_supabase()
+        patch_data = dict(patch_data or {})
+        patch_data["updated_at"] = datetime.utcnow().isoformat()
+
+        _run_with_retry(
+            lambda: supabase.table("crm_records").update(patch_data).eq("id", task_id).execute()
+        )
+        return True, "CRM task updated successfully."
+    except Exception as e:
+        return False, f"Failed to update CRM task: {e}"
+
+
+def insert_internal_message_row(message_payload: dict) -> tuple[bool, str]:
+    try:
+        supabase = get_supabase()
+        _run_with_retry(
+            lambda: supabase.table("internal_messages").insert([message_payload]).execute()
+        )
+        return True, "Internal message inserted successfully."
+    except Exception as e:
+        return False, f"Failed to insert internal message: {e}"
+
+
+def insert_notification_row(notification_payload: dict) -> tuple[bool, str]:
+    try:
+        supabase = get_supabase()
+        _run_with_retry(
+            lambda: supabase.table("crm_notifications").insert([notification_payload]).execute()
+        )
+        return True, "Notification inserted successfully."
+    except Exception as e:
+        return False, f"Failed to insert notification: {e}"
+
+
+def mark_notification_read_row(notification_id: str) -> tuple[bool, str]:
+    try:
+        supabase = get_supabase()
+        _run_with_retry(
+            lambda: supabase.table("crm_notifications").update(
+                {
+                    "is_read": True,
+                    "read_at": datetime.utcnow().isoformat(),
+                }
+            ).eq("id", notification_id).execute()
+        )
+        return True, "Notification marked as read."
+    except Exception as e:
+        return False, f"Failed to mark notification as read: {e}"
+
+
+def mark_all_notifications_read_for_user(username: str) -> tuple[bool, str]:
+    try:
+        supabase = get_supabase()
+        _run_with_retry(
+            lambda: supabase.table("crm_notifications").update(
+                {
+                    "is_read": True,
+                    "read_at": datetime.utcnow().isoformat(),
+                }
+            ).eq("username", username).eq("is_read", False).execute()
+        )
+        return True, "All notifications marked as read."
+    except Exception as e:
+        return False, f"Failed to mark all notifications as read: {e}"
+
+
+def mark_message_read_row(message_id: str) -> tuple[bool, str]:
+    try:
+        supabase = get_supabase()
+        _run_with_retry(
+            lambda: supabase.table("internal_messages").update(
+                {
+                    "is_read": True,
+                    "read_at": datetime.utcnow().isoformat(),
+                }
+            ).eq("id", message_id).execute()
+        )
+        return True, "Message marked as read."
+    except Exception as e:
+        return False, f"Failed to mark message as read: {e}"
+
+
+# =====================================================
+# CRM UPSERT HELPERS FOR COMMENTS / STATUS HISTORY
+# =====================================================
+def append_crm_task_comment(
+    task_id: str,
+    comment_payload: dict,
+) -> tuple[bool, str]:
+    task = load_crm_task_by_id(task_id)
+    if not task:
+        return False, "Task not found."
+
+    comments = safe_list(task.get("comments"))
+    comments.append(comment_payload)
+
+    return update_crm_task_row(
+        task_id,
+        {
+            "comments": comments,
+        },
+    )
+
+
+def append_crm_task_status_history(
+    task_id: str,
+    history_payload: dict,
+    extra_patch: dict | None = None,
+) -> tuple[bool, str]:
+    task = load_crm_task_by_id(task_id)
+    if not task:
+        return False, "Task not found."
+
+    status_history = safe_list(task.get("status_history"))
+    status_history.append(history_payload)
+
+    patch = {
+        "status_history": status_history,
+    }
+
+    if extra_patch:
+        patch.update(extra_patch)
+
+    return update_crm_task_row(task_id, patch)
