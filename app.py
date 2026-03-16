@@ -52,7 +52,6 @@ from role_service import (
     get_daily_operations_block_message,
     get_allowed_tabs,
 )
-from supabase_migration import migrate
 from training_service import render_training_module as render_training_service_module
 from ui_helpers import (
     render_attendance_clock_widget,
@@ -221,7 +220,7 @@ def can_open_backup_manager() -> bool:
 
 def can_open_crm() -> bool:
     try:
-        allowed_tabs = get_allowed_tabs()
+        allowed_tabs = get_allowed_tabs(db)
         return "crm" in allowed_tabs
     except Exception:
         return False
@@ -393,44 +392,6 @@ def autosave_current_user_draft(force: bool = False) -> None:
         pass
 
     st.session_state[SESSION_LAST_DRAFT_SAVE_TS] = now_ts
-
-
-# =========================
-# Supabase import manager
-# =========================
-def render_supabase_import_manager() -> None:
-    if not can_open_backup_manager():
-        return
-
-    st.markdown("### ☁️ Import Backup To Supabase")
-    st.info("ارفع ملف النسخة الاحتياطية JSON ثم اضغط استيراد إلى Supabase.")
-
-    uploaded_backup = st.file_uploader(
-        "Upload Backup JSON File",
-        type=["json"],
-        key="supabase_backup_upload",
-    )
-
-    if uploaded_backup is not None:
-        st.success(f"Selected file: {uploaded_backup.name}")
-
-        if st.button("🚀 Import Backup To Supabase", use_container_width=True):
-            try:
-                backup_folder = "backups"
-                os.makedirs(backup_folder, exist_ok=True)
-
-                temp_backup_path = os.path.join(backup_folder, uploaded_backup.name)
-
-                with open(temp_backup_path, "wb") as f:
-                    f.write(uploaded_backup.getbuffer())
-
-                migrate(temp_backup_path)
-                cached_load_db.clear()
-                st.success("✅ Backup imported to Supabase successfully.")
-                st.rerun()
-
-            except Exception as e:
-                st.error(f"Import failed: {e}")
 
 
 # =========================
@@ -1079,13 +1040,13 @@ def render_backup_manager_page() -> None:
         st.error("Access denied.")
         return
 
-    st.title("🧰 Backup Manager")
+    st.title("🧰 Local Backup Manager")
 
     backup_folder = "backups"
     os.makedirs(backup_folder, exist_ok=True)
 
-    with st.expander("☁️ Import Backup To Supabase", expanded=True):
-        render_supabase_import_manager()
+    with st.expander("📦 Local Backup Restore", expanded=False):
+        st.info("هذه النسخة تعمل محليًا بدون Supabase. يمكنك فقط تحميل أو استرجاع النسخ الاحتياطية المحلية.")
 
     st.divider()
 
