@@ -53,11 +53,11 @@ def _safe_text(value: Any, default: str = "") -> str:
 
 
 def _now_str() -> str:
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    return datetime.utcnow().isoformat()
 
 
 def _generate_id(prefix: str) -> str:
-    stamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
+    stamp = datetime.utcnow().strftime("%Y%m%d%H%M%S%f")
     return f"{prefix}_{stamp}"
 
 
@@ -112,16 +112,21 @@ def add_notification(
         "related_id": _safe_text(related_id),
         "is_read": False,
         "created_at": _now_str(),
+        "read_at": None,
     }
     return insert_notification_row(payload)
 
 
 def get_user_notifications(db: dict | None, username: str, unread_only: bool = False) -> list[dict]:
     username = _safe_text(username)
+    if not username:
+        return []
     return load_notifications(username=username, unread_only=unread_only)
 
 
 def mark_notification_as_read(notification_id: str) -> tuple[bool, str]:
+    if not _safe_text(notification_id):
+        return False, "Notification ID is required."
     return mark_notification_read_row(notification_id)
 
 
@@ -173,6 +178,7 @@ def send_internal_message(
         "message_text": message_text,
         "is_read": False,
         "created_at": _now_str(),
+        "read_at": None,
     }
 
     ok, msg = insert_internal_message_row(message_payload)
@@ -193,15 +199,21 @@ def send_internal_message(
 
 def get_inbox_messages(db: dict | None, username: str) -> list[dict]:
     username = _safe_text(username)
+    if not username:
+        return []
     return load_internal_messages(receiver_username=username)
 
 
 def get_sent_messages(db: dict | None, username: str) -> list[dict]:
     username = _safe_text(username)
+    if not username:
+        return []
     return load_internal_messages(sender_username=username)
 
 
 def mark_message_as_read(message_id: str) -> tuple[bool, str]:
+    if not _safe_text(message_id):
+        return False, "Message ID is required."
     return mark_message_read_row(message_id)
 
 
@@ -268,7 +280,7 @@ def create_crm_task(
         ],
         "created_at": _now_str(),
         "updated_at": _now_str(),
-        "completed_at": "",
+        "completed_at": None,
     }
 
     ok, msg = insert_crm_task(task_payload)
@@ -301,6 +313,8 @@ def get_crm_tasks(
 
 
 def get_crm_task_by_id(db: dict | None, task_id: str) -> dict | None:
+    if not _safe_text(task_id):
+        return None
     return load_crm_task_by_id(task_id)
 
 
@@ -310,9 +324,13 @@ def update_crm_task_status(
     changed_by: str,
     note: str = "",
 ) -> tuple[bool, str]:
+    task_id = _safe_text(task_id)
     new_status = _normalize(new_status)
     changed_by = _safe_text(changed_by)
     note = _safe_text(note)
+
+    if not task_id:
+        return False, "Task ID is required."
 
     if new_status not in DEFAULT_CRM_TASK_STATUSES:
         return False, "Invalid task status."
@@ -340,6 +358,8 @@ def update_crm_task_status(
 
     if new_status == "done":
         patch_data["completed_at"] = _now_str()
+    else:
+        patch_data["completed_at"] = None
 
     ok, msg = update_crm_task_row(task_id, patch_data)
     if not ok:
@@ -379,9 +399,13 @@ def reassign_crm_task(
 ) -> tuple[bool, str]:
     users = _get_users_map()
 
+    task_id = _safe_text(task_id)
     new_assignee = _safe_text(new_assignee)
     changed_by = _safe_text(changed_by)
     note = _safe_text(note)
+
+    if not task_id:
+        return False, "Task ID is required."
 
     if new_assignee not in users:
         return False, "New assignee not found."
@@ -429,12 +453,16 @@ def add_crm_task_comment(
     comment_by: str,
     comment_text: str,
 ) -> tuple[bool, str]:
+    task_id = _safe_text(task_id)
+    comment_by = _safe_text(comment_by)
+    comment_text = _safe_text(comment_text)
+
+    if not task_id:
+        return False, "Task ID is required."
+
     task = load_crm_task_by_id(task_id)
     if not task:
         return False, "Task not found."
-
-    comment_by = _safe_text(comment_by)
-    comment_text = _safe_text(comment_text)
 
     if not comment_text:
         return False, "Comment is required."
@@ -476,7 +504,6 @@ def add_crm_task_comment(
 def get_crm_dashboard_stats(db: dict | None = None, username: str | None = None) -> dict:
     tasks = load_crm_tasks()
     messages = load_internal_messages()
-    notifications = []
 
     if username:
         username = _safe_text(username)
@@ -502,7 +529,14 @@ def get_crm_dashboard_stats(db: dict | None = None, username: str | None = None)
             "my_unread_notifications": len(my_unread_notifications),
         }
 
-    notifications = []
+    all_notifications = []
+    try:
+        # لو حبيت بعدين تضيف loader لكل الإشعارات بدون username
+        # تقدر تبدله هنا بسهولة
+        all_notifications = []
+    except Exception:
+        all_notifications = []
+
     return {
         "total_tasks": len(tasks),
         "total_new_tasks": len([x for x in tasks if _normalize(x.get("status")) == "new"]),
@@ -510,5 +544,5 @@ def get_crm_dashboard_stats(db: dict | None = None, username: str | None = None)
         "total_waiting_tasks": len([x for x in tasks if _normalize(x.get("status")) == "waiting"]),
         "total_done_tasks": len([x for x in tasks if _normalize(x.get("status")) == "done"]),
         "total_messages": len(messages),
-        "total_notifications": len(notifications),
+        "total_notifications": len(all_notifications),
     }
